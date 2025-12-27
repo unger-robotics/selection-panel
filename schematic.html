@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interaktives Auswahlpanel – Schaltplan v7.3</title>
+    <link rel="stylesheet" href="schematic.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>Interaktives Auswahlpanel</h1>
+        <p class="subtitle">Schaltplan v7.3 · ESP32-S3 XIAO · Schieberegister-Architektur</p>
+        
+        <div class="status-bar">
+            <div class="status-item verified">
+                <span class="dot"></span>
+                <span>Phase 5 ✓</span>
+            </div>
+            <div class="status-item phase-next">
+                <span class="dot dot-red"></span>
+                <span>Phase 6 Hardware</span>
+            </div>
+            <div class="status-item">
+                <span>Stand: 2025-12-27</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+        <button class="tab active" data-view="prototype">Prototyp 10×</button>
+        <button class="tab" data-view="full">Vollausbau 100×</button>
+        <button class="tab" data-view="timing">Timing CD4021</button>
+        <button class="tab" data-view="pinout-595">74HC595 Pins</button>
+        <button class="tab" data-view="pinout-4021">CD4021 Pins</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Schematic Panel -->
+        <section class="schematic-panel">
+            
+            <!-- View: Prototype -->
+            <div id="prototype" class="view active">
+                <svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arr1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L6,3 L0,6 Z" fill="var(--color-data)"/>
+                        </marker>
+                        <marker id="arr-clock" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L6,3 L0,6 Z" fill="var(--color-clock)"/>
+                        </marker>
+                        <marker id="arr-latch" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L6,3 L0,6 Z" fill="var(--color-latch)"/>
+                        </marker>
+                    </defs>
+                    
+                    <!-- ESP32-S3 XIAO -->
+                    <g class="esp32-group">
+                        <rect x="50" y="180" width="120" height="160" rx="8" class="chip-esp32"/>
+                        <text x="110" y="210" class="text-chip-title">ESP32-S3</text>
+                        <text x="110" y="230" class="text-chip-sub">XIAO</text>
+                        
+                        <!-- Output Pins -->
+                        <text x="160" y="265" class="text-pin-right">D0</text>
+                        <text x="160" y="285" class="text-pin-right">D1</text>
+                        <text x="160" y="305" class="text-pin-right">D2</text>
+                        
+                        <!-- Input Pins -->
+                        <text x="60" y="265" class="text-pin-left">D3</text>
+                        <text x="60" y="285" class="text-pin-left">D4</text>
+                        <text x="60" y="305" class="text-pin-left">D5</text>
+                    </g>
+                    
+                    <!-- Wires to 74HC595 -->
+                    <path d="M 170 260 L 280 260" class="wire-data" marker-end="url(#arr1)"/>
+                    <path d="M 170 280 L 220 280 L 220 390 L 280 390" class="wire-clock" marker-end="url(#arr-clock)"/>
+                    <path d="M 170 300 L 240 300 L 240 420 L 280 420" class="wire-latch" marker-end="url(#arr-latch)"/>
+                    
+                    <!-- 74HC595 #0 (8 LEDs) -->
+                    <g class="chip-595-group">
+                        <rect x="280" y="200" width="100" height="140" rx="6" class="chip-595"/>
+                        <text x="330" y="225" class="text-chip-title">74HC595</text>
+                        <text x="330" y="245" class="text-chip-sub-red">#0</text>
+                        <text x="330" y="265" class="text-label">8× LED</text>
+                        
+                        <text x="290" y="290" class="text-pin-left">SER</text>
+                        <text x="290" y="310" class="text-pin-left">SRCLK</text>
+                        <text x="290" y="330" class="text-pin-left">RCLK</text>
+                        <text x="370" y="290" class="text-pin-right">Q0-Q7</text>
+                        <text x="370" y="310" class="text-pin-right">QH'</text>
+                        
+                        <!-- LED Outputs: 8 LEDs -->
+                        <g transform="translate(390, 270)">
+                            <circle cx="0" cy="0" r="5" class="led led-0"/>
+                            <circle cx="12" cy="0" r="5" class="led led-1"/>
+                            <circle cx="24" cy="0" r="5" class="led led-2"/>
+                            <circle cx="36" cy="0" r="5" class="led led-3"/>
+                            <circle cx="48" cy="0" r="5" class="led led-4"/>
+                            <circle cx="60" cy="0" r="5" class="led led-5"/>
+                            <circle cx="72" cy="0" r="5" class="led led-6"/>
+                            <circle cx="84" cy="0" r="5" class="led led-7"/>
+                        </g>
+                        <text x="435" y="295" class="text-label">LED 0-7</text>
+                    </g>
+                    
+                    <!-- Cascade Wire 595 #0 → #1 -->
+                    <path d="M 380 305 L 420 305 L 420 275 L 500 275" class="wire-data" marker-end="url(#arr1)"/>
+                    <text x="440" y="265" class="text-label">QH'→SER</text>
+                    
+                    <!-- 74HC595 #1 (2 LEDs) -->
+                    <g class="chip-595-group">
+                        <rect x="500" y="200" width="100" height="140" rx="6" class="chip-595"/>
+                        <text x="550" y="225" class="text-chip-title">74HC595</text>
+                        <text x="550" y="245" class="text-chip-sub-red">#1</text>
+                        <text x="550" y="265" class="text-label">2× LED</text>
+                        
+                        <text x="510" y="290" class="text-pin-left">SER</text>
+                        <text x="590" y="290" class="text-pin-right">Q0-Q1</text>
+                        
+                        <!-- LED Outputs: 2 LEDs -->
+                        <g transform="translate(610, 270)">
+                            <circle cx="0" cy="0" r="5" class="led led-8"/>
+                            <circle cx="12" cy="0" r="5" class="led led-9"/>
+                        </g>
+                        <text x="625" y="295" class="text-label">LED 8-9</text>
+                    </g>
+                    
+                    <!-- Clock/Latch Bus to both 595 -->
+                    <path d="M 280 390 L 500 390" class="wire-clock"/>
+                    <path d="M 500 390 L 500 310" class="wire-clock"/>
+                    <path d="M 280 420 L 500 420" class="wire-latch"/>
+                    <path d="M 500 420 L 500 330" class="wire-latch"/>
+                    
+                    <!-- CD4021 #0 (8 Taster) -->
+                    <g class="chip-4021-group">
+                        <rect x="280" y="450" width="100" height="60" rx="6" class="chip-4021"/>
+                        <text x="330" y="472" class="text-chip-title">CD4021</text>
+                        <text x="330" y="490" class="text-chip-sub-green">#0 · 8× BTN</text>
+                    </g>
+                    
+                    <!-- CD4021 #1 (2 Taster) -->
+                    <g class="chip-4021-group">
+                        <rect x="500" y="450" width="100" height="60" rx="6" class="chip-4021"/>
+                        <text x="550" y="472" class="text-chip-title">CD4021</text>
+                        <text x="550" y="490" class="text-chip-sub-green">#1 · 2× BTN</text>
+                    </g>
+                    
+                    <!-- Wires from CD4021 to ESP32 -->
+                    <path d="M 280 480 L 50 480 L 50 260" class="wire-data" marker-end="url(#arr1)"/>
+                    <path d="M 280 460 L 220 460 L 220 285 L 50 285" class="wire-clock"/>
+                    <path d="M 280 470 L 240 470 L 240 305 L 50 305" class="wire-latch"/>
+                    
+                    <!-- Cascade CD4021 #1 → #0 -->
+                    <path d="M 500 480 L 380 480" class="wire-data" marker-end="url(#arr1)"/>
+                    <text x="440" y="495" class="text-label">Q8→SER</text>
+                    
+                    <!-- Clock/Load Bus CD4021 -->
+                    <path d="M 280 460 L 500 460" class="wire-clock"/>
+                    <path d="M 280 470 L 500 470" class="wire-latch"/>
+                    
+                    <!-- #1 SER → VCC (wichtig!) -->
+                    <path d="M 600 480 L 620 480 L 620 460" class="wire-vcc"/>
+                    <text x="625" y="455" class="text-label text-vcc">+3.3V</text>
+                    <text x="625" y="485" class="text-label-small">SER→VCC</text>
+                    
+                    <!-- Legend -->
+                    <g transform="translate(700, 200)">
+                        <text x="0" y="0" class="text-legend-title">Legende</text>
+                        <line x1="0" y1="20" x2="30" y2="20" class="wire-data"/>
+                        <text x="40" y="24" class="text-legend">Data (SER/Q8)</text>
+                        <line x1="0" y1="45" x2="30" y2="45" class="wire-clock"/>
+                        <text x="40" y="49" class="text-legend">Clock (SRCLK/CLK)</text>
+                        <line x1="0" y1="70" x2="30" y2="70" class="wire-latch"/>
+                        <text x="40" y="74" class="text-legend">Latch (RCLK/P/S)</text>
+                        <line x1="0" y1="95" x2="30" y2="95" class="wire-vcc"/>
+                        <text x="40" y="99" class="text-legend">VCC (+3.3V)</text>
+                    </g>
+                    
+                    <!-- Title -->
+                    <text x="350" y="40" class="text-title">Prototyp: 10 LEDs · 10 Taster</text>
+                    <text x="350" y="60" class="text-subtitle">ESP32-S3 XIAO + 2× 74HC595 + 2× CD4021BE</text>
+                </svg>
+            </div>
+            
+            <!-- View: Full System -->
+            <div id="full" class="view">
+                <svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Simplified Full System Diagram -->
+                    <text x="350" y="40" class="text-title">Vollausbau: 100 LEDs · 100 Taster</text>
+                    
+                    <!-- ESP32 -->
+                    <rect x="50" y="150" width="100" height="100" rx="8" class="chip-esp32"/>
+                    <text x="100" y="195" class="text-chip-title">ESP32-S3</text>
+                    <text x="100" y="215" class="text-chip-sub">XIAO</text>
+                    
+                    <!-- 595 Chain -->
+                    <rect x="220" y="100" width="200" height="60" rx="6" class="chip-595"/>
+                    <text x="320" y="125" class="text-chip-title">13× 74HC595</text>
+                    <text x="320" y="145" class="text-label">104 Bits (100 LEDs genutzt)</text>
+                    
+                    <!-- 4021 Chain -->
+                    <rect x="220" y="240" width="200" height="60" rx="6" class="chip-4021"/>
+                    <text x="320" y="265" class="text-chip-title">13× CD4021BE</text>
+                    <text x="320" y="285" class="text-label">104 Bits (100 Taster genutzt)</text>
+                    
+                    <!-- Wires -->
+                    <path d="M 150 175 L 220 130" class="wire-data"/>
+                    <path d="M 150 200 L 220 270" class="wire-data"/>
+                    
+                    <!-- LEDs -->
+                    <g transform="translate(480, 110)">
+                        <text x="0" y="0" class="text-label">LEDs</text>
+                        <circle cx="10" cy="20" r="4" class="led"/>
+                        <circle cx="25" cy="20" r="4" class="led"/>
+                        <circle cx="40" cy="20" r="4" class="led"/>
+                        <text x="55" y="24" class="text-label">...</text>
+                        <circle cx="80" cy="20" r="4" class="led"/>
+                    </g>
+                    
+                    <!-- Buttons -->
+                    <g transform="translate(480, 250)">
+                        <text x="0" y="0" class="text-label">Taster</text>
+                        <rect x="5" y="10" width="12" height="12" rx="2" class="btn-symbol"/>
+                        <rect x="25" y="10" width="12" height="12" rx="2" class="btn-symbol"/>
+                        <rect x="45" y="10" width="12" height="12" rx="2" class="btn-symbol"/>
+                        <text x="65" y="20" class="text-label">...</text>
+                        <rect x="85" y="10" width="12" height="12" rx="2" class="btn-symbol"/>
+                    </g>
+                    
+                    <!-- BOM Box -->
+                    <g transform="translate(500, 320)">
+                        <rect x="0" y="0" width="180" height="70" rx="6" class="bom-box"/>
+                        <text x="90" y="20" class="text-bom-title">Stückliste (100×)</text>
+                        <text x="15" y="40" class="text-bom">74HC595</text>
+                        <text x="165" y="40" class="text-bom-count">13×</text>
+                        <text x="15" y="55" class="text-bom">CD4021BE</text>
+                        <text x="165" y="55" class="text-bom-count">13×</text>
+                    </g>
+                </svg>
+            </div>
+            
+            <!-- View: Timing -->
+            <div id="timing" class="view">
+                <svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Timing Diagram -->
+                    <text x="450" y="40" class="text-title">CD4021 Timing – Invertierte Load-Logik</text>
+                    
+                    <!-- Signal Labels -->
+                    <text x="80" y="120" class="text-signal">P/S (Load)</text>
+                    <text x="80" y="200" class="text-signal">CLK</text>
+                    <text x="80" y="280" class="text-signal">Q8 (Data)</text>
+                    
+                    <!-- P/S Signal -->
+                    <path d="M 150 100 L 250 100 L 250 130 L 350 130 L 350 100 L 750 100" class="signal-line signal-latch"/>
+                    <text x="300" y="155" class="text-timing-label">HIGH = Load</text>
+                    
+                    <!-- CLK Signal -->
+                    <path d="M 150 180 L 350 180 L 350 210 L 380 210 L 380 180 L 410 180 L 410 210 L 440 210 L 440 180 L 470 180 L 470 210 L 500 210 L 500 180 L 530 180 L 530 210 L 560 210 L 560 180 L 590 180 L 590 210 L 620 210 L 620 180 L 650 180 L 650 210 L 680 210 L 680 180 L 750 180" class="signal-line signal-clock"/>
+                    <text x="550" y="235" class="text-timing-label">8 Clock-Pulse → Shift Out</text>
+                    
+                    <!-- Q8 Data -->
+                    <path d="M 150 260 L 350 260 L 350 290 L 410 290 L 410 260 L 470 260 L 470 290 L 530 290 L 530 260 L 590 260 L 590 290 L 650 290 L 650 260 L 750 260" class="signal-line signal-data"/>
+                    <text x="550" y="315" class="text-timing-label">Serieller Datenstrom</text>
+                    
+                    <!-- Phase Labels -->
+                    <rect x="250" y="340" width="100" height="30" rx="4" class="phase-box phase-load"/>
+                    <text x="300" y="360" class="text-phase">LOAD</text>
+                    
+                    <rect x="380" y="340" width="300" height="30" rx="4" class="phase-box phase-shift"/>
+                    <text x="530" y="360" class="text-phase">SHIFT (8 Bits)</text>
+                    
+                    <!-- Warning Box -->
+                    <g transform="translate(150, 390)">
+                        <rect x="0" y="0" width="600" height="50" rx="8" class="warning-box"/>
+                        <text x="300" y="32" class="text-warning">⚠ CD4021: P/S = HIGH für Load (invertiert zu 74HC165!)</text>
+                    </g>
+                </svg>
+            </div>
+            
+            <!-- View: 74HC595 Full Pinout -->
+            <div id="pinout-595" class="view">
+                <div class="pinout-container">
+                    <h2 class="pinout-title">74HC595 – Vollständige Pinbelegung (Prototyp 10 LEDs)</h2>
+                    <div class="pinout-grid">
+                        <table class="pinout-table">
+                            <thead>
+                                <tr>
+                                    <th>Pin</th>
+                                    <th>Name</th>
+                                    <th>Funktion</th>
+                                    <th>#0 (LED 0-7)</th>
+                                    <th>#1 (LED 8-9)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>1</td><td>QB</td><td>Output 1</td><td class="led-active">→ LED 1</td><td class="led-active">→ LED 9</td></tr>
+                                <tr><td>2</td><td>QC</td><td>Output 2</td><td class="led-active">→ LED 2</td><td class="led-inactive">(frei)</td></tr>
+                                <tr><td>3</td><td>QD</td><td>Output 3</td><td class="led-active">→ LED 3</td><td class="led-inactive">(frei)</td></tr>
+                                <tr><td>4</td><td>QE</td><td>Output 4</td><td class="led-active">→ LED 4</td><td class="led-inactive">(frei)</td></tr>
+                                <tr><td>5</td><td>QF</td><td>Output 5</td><td class="led-active">→ LED 5</td><td class="led-inactive">(frei)</td></tr>
+                                <tr><td>6</td><td>QG</td><td>Output 6</td><td class="led-active">→ LED 6</td><td class="led-inactive">(frei)</td></tr>
+                                <tr><td>7</td><td>QH</td><td>Output 7</td><td class="led-active">→ LED 7</td><td class="led-inactive">(frei)</td></tr>
+                                <tr class="pin-power"><td>8</td><td>GND</td><td>Masse</td><td>→ GND</td><td>→ GND</td></tr>
+                                <tr class="pin-cascade"><td>9</td><td>QH'</td><td>Serial Out</td><td>→ #1 Pin 14</td><td class="pin-open">(offen)</td></tr>
+                                <tr class="pin-control"><td>10</td><td>SRCLR</td><td>Clear (Active LOW)</td><td>→ +3,3V</td><td>→ +3,3V</td></tr>
+                                <tr class="pin-clock"><td>11</td><td>SRCLK</td><td>Shift Clock</td><td>← D1 (Bus)</td><td>← D1 (Bus)</td></tr>
+                                <tr class="pin-latch"><td>12</td><td>RCLK</td><td>Latch Clock</td><td>← D2 (Bus)</td><td>← D2 (Bus)</td></tr>
+                                <tr class="pin-control"><td>13</td><td>OE</td><td>Output Enable (Active LOW)</td><td>→ GND</td><td>→ GND</td></tr>
+                                <tr class="pin-data"><td>14</td><td>SER</td><td>Serial Data In</td><td>← D0 (ESP32)</td><td>← #0 QH'</td></tr>
+                                <tr><td>15</td><td>QA</td><td>Output 0</td><td class="led-active">→ LED 0</td><td class="led-active">→ LED 8</td></tr>
+                                <tr class="pin-power"><td>16</td><td>VCC</td><td>Versorgung</td><td>→ +3,3V + 100nF</td><td>→ +3,3V + 100nF</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pinout-notes">
+                        <div class="note-box note-cascade">
+                            <strong>Kaskadierung:</strong> ESP32 D0 → #0 Pin 14 (SER) → #0 Pin 9 (QH') → #1 Pin 14 (SER)
+                        </div>
+                        <div class="note-box note-info">
+                            <strong>Hinweis:</strong> Pin 9 (QH') am letzten IC kann offen bleiben (Ausgang treibt aktiv)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View: CD4021 Full Pinout -->
+            <div id="pinout-4021" class="view">
+                <div class="pinout-container">
+                    <h2 class="pinout-title">CD4021BE – Vollständige Pinbelegung (Prototyp 10 Taster)</h2>
+                    <div class="pinout-grid">
+                        <table class="pinout-table">
+                            <thead>
+                                <tr>
+                                    <th>Pin</th>
+                                    <th>Name</th>
+                                    <th>Funktion</th>
+                                    <th>#0 (BTN 0-7)</th>
+                                    <th>#1 (BTN 8-9)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="pin-input"><td>1</td><td>P1</td><td>Parallel Input 0</td><td class="btn-active">← Button 0 + 10kΩ</td><td class="btn-active">← Button 8 + 10kΩ</td></tr>
+                                <tr class="pin-internal"><td>2</td><td>Q6</td><td>(interner Ausgang)</td><td>–</td><td>–</td></tr>
+                                <tr class="pin-data"><td>3</td><td>Q8</td><td>Serial Out</td><td>→ D3 (ESP32)</td><td>→ #0 Pin 11 (SER)</td></tr>
+                                <tr class="pin-input"><td>4</td><td>P4</td><td>Parallel Input 3</td><td class="btn-active">← Button 3 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-input"><td>5</td><td>P5</td><td>Parallel Input 4</td><td class="btn-active">← Button 4 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-input"><td>6</td><td>P6</td><td>Parallel Input 5</td><td class="btn-active">← Button 5 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-input"><td>7</td><td>P7</td><td>Parallel Input 6</td><td class="btn-active">← Button 6 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-power"><td>8</td><td>VSS</td><td>Masse</td><td>→ GND</td><td>→ GND</td></tr>
+                                <tr class="pin-latch"><td>9</td><td>P/S</td><td>Load Control ⚠</td><td>← D5 (Bus)</td><td>← D5 (Bus)</td></tr>
+                                <tr class="pin-clock"><td>10</td><td>CLK</td><td>Clock</td><td>← D4 (Bus)</td><td>← D4 (Bus)</td></tr>
+                                <tr class="pin-cascade"><td>11</td><td>SER</td><td>Serial Data In</td><td>← #1 Q8</td><td class="pin-vcc">→ +3,3V (VCC)</td></tr>
+                                <tr class="pin-internal"><td>12</td><td>Q7</td><td>(interner Ausgang)</td><td>–</td><td>–</td></tr>
+                                <tr class="pin-input"><td>13</td><td>P2</td><td>Parallel Input 1</td><td class="btn-active">← Button 1 + 10kΩ</td><td class="btn-active">← Button 9 + 10kΩ</td></tr>
+                                <tr class="pin-input"><td>14</td><td>P3</td><td>Parallel Input 2</td><td class="btn-active">← Button 2 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-input"><td>15</td><td>P8</td><td>Parallel Input 7</td><td class="btn-active">← Button 7 + 10kΩ</td><td class="btn-inactive">(+3,3V Pull-up)</td></tr>
+                                <tr class="pin-power"><td>16</td><td>VDD</td><td>Versorgung</td><td>→ +3,3V + 100nF</td><td>→ +3,3V + 100nF</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pinout-notes">
+                        <div class="note-box note-warning">
+                            <strong>⚠ Wichtig:</strong> Pin 11 (SER) am letzten IC muss auf +3,3V (VCC) – CMOS-Eingänge dürfen nicht floaten!
+                        </div>
+                        <div class="note-box note-cascade">
+                            <strong>Kaskadierung:</strong> #1 Pin 3 (Q8) → #0 Pin 11 (SER) → #0 Pin 3 (Q8) → ESP32 D3
+                        </div>
+                        <div class="note-box note-info">
+                            <strong>Load-Logik (invertiert!):</strong> P/S = HIGH → Parallel Load | P/S = LOW → Serial Shift
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Pin Table - KORRIGIERT nach config.h -->
+            <div class="card card-primary">
+                <h3>ESP32-S3 XIAO Pinbelegung</h3>
+                <table class="pin-table">
+                    <thead>
+                        <tr><th>Pin</th><th>Signal</th><th>Ziel</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="pin-num">D0</td><td class="signal-out">SER</td><td>→ 74HC595</td></tr>
+                        <tr><td class="pin-num">D1</td><td class="signal-out">SRCLK</td><td>→ 74HC595</td></tr>
+                        <tr><td class="pin-num">D2</td><td class="signal-out">RCLK</td><td>→ 74HC595</td></tr>
+                        <tr><td class="pin-num">D3</td><td class="signal-in">Q8</td><td>← CD4021</td></tr>
+                        <tr><td class="pin-num">D4</td><td class="signal-out">CLK</td><td>→ CD4021</td></tr>
+                        <tr><td class="pin-num">D5</td><td class="signal-out">P/S</td><td>→ CD4021</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 74HC595 Summary -->
+            <div class="card card-accent">
+                <h3>74HC595 (Output)</h3>
+                <p class="note" style="margin-bottom: 0.5rem; font-style: normal;">#0: 8× LED · #1: 2× LED</p>
+                <table class="pin-table">
+                    <thead>
+                        <tr><th>Pin</th><th>Name</th><th>Verbindung</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>14</td><td>SER</td><td>← D0 / QH'</td></tr>
+                        <tr><td>11</td><td>SRCLK</td><td>← D1 (Bus)</td></tr>
+                        <tr><td>12</td><td>RCLK</td><td>← D2 (Bus)</td></tr>
+                        <tr><td>9</td><td>QH'</td><td>→ nächster SER</td></tr>
+                        <tr><td>10</td><td>SRCLR</td><td>→ +3,3V</td></tr>
+                        <tr><td>13</td><td>OE</td><td>→ GND</td></tr>
+                        <tr><td>16</td><td>VCC</td><td>→ +3,3V + 100nF</td></tr>
+                        <tr><td>8</td><td>GND</td><td>→ GND</td></tr>
+                    </tbody>
+                </table>
+                <p class="note">→ Tab "74HC595 Pins" für alle 16 Pins</p>
+            </div>
+            
+            <!-- CD4021 Summary -->
+            <div class="card card-secondary">
+                <h3>CD4021 (Input)</h3>
+                <p class="note" style="margin-bottom: 0.5rem; font-style: normal;">#0: 8× BTN · #1: 2× BTN</p>
+                <table class="pin-table">
+                    <thead>
+                        <tr><th>Pin</th><th>Name</th><th>Verbindung</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>3</td><td>Q8</td><td>→ D3 / SER</td></tr>
+                        <tr><td>10</td><td>CLK</td><td>← D4 (Bus)</td></tr>
+                        <tr><td>9</td><td class="signal-warning">P/S</td><td>← D5 (Bus)</td></tr>
+                        <tr><td>11</td><td>SER</td><td>← Q8 / <strong>VCC</strong></td></tr>
+                        <tr><td>16</td><td>VDD</td><td>→ +3,3V + 100nF</td></tr>
+                        <tr><td>8</td><td>VSS</td><td>→ GND</td></tr>
+                    </tbody>
+                </table>
+                <p class="note">→ Tab "CD4021 Pins" für alle 16 Pins</p>
+            </div>
+            
+            <!-- Warning -->
+            <div class="card card-warning">
+                <h3>⚠ Wichtige Hinweise</h3>
+                <table class="pin-table">
+                    <thead>
+                        <tr><th>Thema</th><th>Regel</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>CD4021 Load</td><td class="signal-warning">P/S = HIGH ⚠</td></tr>
+                        <tr><td>74HC595 QH'</td><td class="signal-ok">offen OK ✓</td></tr>
+                        <tr><td>CD4021 SER</td><td class="signal-warning">→ VCC ⚠</td></tr>
+                    </tbody>
+                </table>
+                <p class="note">CMOS-Eingänge nie offen lassen!</p>
+            </div>
+            
+            <!-- BOM Prototype -->
+            <div class="card">
+                <h3>Stückliste (Prototyp 10×)</h3>
+                <ul class="bom-list">
+                    <li><span>ESP32-S3 XIAO</span><span class="count">1×</span></li>
+                    <li><span>74HC595 (#0: 8 LED, #1: 2 LED)</span><span class="count">2×</span></li>
+                    <li><span>CD4021BE (#0: 8 BTN, #1: 2 BTN)</span><span class="count">2×</span></li>
+                    <li><span>LED 5mm</span><span class="count">10×</span></li>
+                    <li><span>R 3kΩ (LED)</span><span class="count">10×</span></li>
+                    <li><span>Taster 6×6mm</span><span class="count">10×</span></li>
+                    <li><span>R 10kΩ (Pull-up)</span><span class="count">10×</span></li>
+                    <li><span class="capacitor">C 100nF (je IC)</span><span class="count capacitor">4×</span></li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <span>Interaktives Auswahlpanel v2.2.3</span>
+        <span>Jan Unger · 2025-12-27</span>
+    </footer>
+    
+    <script src="schematic.js"></script>
+</body>
+</html>

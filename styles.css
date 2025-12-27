@@ -1,0 +1,814 @@
+/*
+main-design.css – Zentrales Stylesheet für Dokumentations-HTML
+Version: 2.2.3 | Stand: 2025-12-26
+
+Farbschema: Arduino Teal + Raspberry Pi Red + GitHub Dark
+Konsistent mit: farbschema.tex, praesentation.tex, main.tex,
+                cover-diagram.tex, schematic.css, create_amr_placeholders.sh
+
+Zweck
+-----
+- Einheitliche Gestaltung für aus Markdown konvertierte HTML-Dokumente
+- Klare Lesbarkeit (Typografie, Abstände, Farben)
+- Unterstützung für:
+  * Tabellen mit Sticky-Headern und responsiven Wrappern
+  * Codeblöcke und Inline-Code
+  * Bilder, Diagramme (Mermaid, technische Zeichnungen)
+  * Mathematische Formeln (MathJax)
+  * Hinweisboxen (note, warning, tip, error)
+  * Druckoptimierung (schlankes Layout, Farben angepasst)
+  * Responsive Darstellung auf Desktop und Mobilgeräten
+
+Nutzung
+-------
+Diese Datei wird automatisch von md-to-html-converter.py eingebunden und ggf. in
+das ./docs-Verzeichnis gespiegelt, um konsistente Formatierung zu gewährleisten.
+*/
+
+/* ==========================================================================
+   CSS Variables - Einheitliches Farbschema
+   ==========================================================================
+   
+   FARBPALETTE (konsistent mit farbschema.tex):
+   
+   PRIMÄR (Akzente):
+     Arduino Teal:      #00979D  - Hauptfarbe, Links, Akzente
+     Arduino Dark:      #005C5F  - Dunklere Variante, Header
+     Arduino Teal Light:#62AEB2  - Hellere Variante
+     Raspberry Red:     #C51A4A  - Sekundärakzent, Fehler, PDF-Links
+     Raspberry Purple:  #75264A  - Dunklere Variante
+   
+   STATUS:
+     Success Green:     #75A928  - Erfolg, OK, Tipps
+     Warning Orange:    #D97706  - Warnung, Hinweise
+   
+   HINTERGRÜNDE:
+     GitHub Dark:       #0D1117  - Dunkel
+     Slate Dark:        #1E2933  - Alternativer Hintergrund
+     Slate Medium:      #2D3A45  - Panels, Karten
+   
+   TEXT:
+     Dark Text:         #0D1117  - Dunkler Text
+     Muted Text:        #4A5568  - Gedämpfter Text
+     Light Text:        #E6EDF3  - Heller Text (auf dunklem Grund)
+     Secondary Text:    #8B949E  - Sekundärtext
+   
+   ========================================================================== */
+
+:root {
+    /* =======================================================================
+       PRIMÄR - Brand Colors (Arduino + Raspberry Pi)
+       ======================================================================= */
+    --arduino-teal: #00979D;
+    --arduino-dark: #005C5F;
+    --arduino-teal-light: #62AEB2;
+    
+    --raspberry-red: #C51A4A;
+    --raspberry-purple: #75264A;
+    
+    /* =======================================================================
+       STATUS - Semantische Farben
+       ======================================================================= */
+    --success: #75A928;
+    --warning: #D97706;
+    --error: #C51A4A;
+    --info: #00979D;
+    
+    /* =======================================================================
+       HINTERGRÜNDE
+       ======================================================================= */
+    --bg-primary: #0D1117;
+    --bg-secondary: #1E2933;
+    --bg-tertiary: #2D3A45;
+    --bg-light: #F8FAFC;
+    --bg-code: #F6F8FA;
+    
+    /* =======================================================================
+       TEXT
+       ======================================================================= */
+    --text-primary: #0D1117;
+    --text-secondary: #4A5568;
+    --text-muted: #6C757D;
+    --text-light: #E6EDF3;
+    
+    /* =======================================================================
+       BORDER & NEUTRAL
+       ======================================================================= */
+    --border-light: #E1E4E8;
+    --border-medium: #D0D7DE;
+    --border-dark: #30363D;
+    
+    /* =======================================================================
+       ABGELEITETE FARBEN (für spezifische Komponenten)
+       ======================================================================= */
+    --link-color: var(--arduino-teal);
+    --link-hover: var(--arduino-dark);
+    --header-bg: var(--arduino-dark);
+    --header-text: white;
+    --note-bg: #E6F5FA;
+    --note-border: var(--arduino-teal);
+    --warning-bg: #FFF7ED;
+    --warning-border: var(--warning);
+    --tip-bg: #F0FDF4;
+    --tip-border: var(--success);
+    --error-bg: #FFF0F3;
+    --error-border: var(--raspberry-red);
+    --table-hover: #E6F5FA;
+    --table-stripe: #F8FAFC;
+}
+
+/* ==========================================================================
+   Base Styles - Responsive für alle Bildschirmgrößen
+   ========================================================================== */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  background-color: var(--bg-light);
+}
+
+/* Große Bildschirme: mehr Platz nutzen */
+@media (min-width: 1400px) {
+  body {
+    max-width: 1400px;
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  body {
+    max-width: 1600px;
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  body {
+    max-width: 1800px;
+    padding: 2rem 3rem;
+  }
+}
+
+/* Hauptcontainer */
+.main-container {
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 1600px) {
+  .main-container {
+    padding: 2.5rem 3rem;
+  }
+}
+
+/* Hintergrund-Pseudo-Element für den Body */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--bg-light);
+}
+
+/* Footer */
+footer {
+  margin-top: 3rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+/* ==========================================================================
+   Überschriften
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+h1 {
+  font-size: 2rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.3rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.3rem;
+}
+h3 { font-size: 1.25rem; }
+
+/* ==========================================================================
+   Links
+   ========================================================================== */
+
+a { 
+  color: var(--link-color); 
+  text-decoration: none; 
+}
+a:hover { 
+  color: var(--link-hover);
+  text-decoration: underline; 
+}
+
+/* ==========================================================================
+   Absätze & Listen
+   ========================================================================== */
+
+p { margin-top: 0; margin-bottom: 1rem; }
+
+ul, ol { padding-left: 2rem; margin-top: 0; margin-bottom: 1rem; }
+li { margin-bottom: 0.25rem; }
+
+/* Blockquotes */
+blockquote {
+  margin: 1rem 0;
+  padding: 0 1rem;
+  color: var(--text-secondary);
+  border-left: 0.25rem solid var(--border-medium);
+}
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+/* Horizontale Linie */
+hr {
+  height: 0.25rem;
+  padding: 0;
+  margin: 1.5rem 0;
+  background-color: var(--border-light);
+  border: 0;
+}
+
+/* ==========================================================================
+   Bilder / SVG
+   ========================================================================== */
+
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
+}
+img:not([src$=".svg" i]) {
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+svg, img[src$=".svg" i] {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+  background: transparent;
+}
+
+/* Technische Diagramme / Schaltpläne */
+.technical-diagram {
+  background-color: white;
+  padding: 1rem;
+  border: 1px solid var(--border-light);
+}
+
+/* Abbildungen */
+figure { margin: 1.5rem 0; text-align: center; }
+figcaption { font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem; }
+
+/* Bilder in Tabellen */
+td img, td svg { margin: 0.25rem auto; max-height: 100px; }
+
+/* ==========================================================================
+   Codeblöcke
+   ========================================================================== */
+
+pre {
+  background-color: var(--bg-code);
+  border-radius: 3px;
+  padding: 1rem;
+  overflow: auto;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.85em;
+  border: 1px solid var(--border-light);
+}
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  background-color: var(--bg-code);
+}
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* ==========================================================================
+   Tabellen
+   ========================================================================== */
+
+.table-container, .cr-table-container {
+  overflow-x: auto;
+  width: 100%;
+  margin: 1rem 0;
+  position: relative;
+}
+table, .cr-table, .table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+.table-compact th, .table-compact td { padding: 0.5rem; }
+
+/* Header & Zellen */
+.cr-table th, th {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--border-medium);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.cr-table td, td {
+  padding: 0.5rem;
+  border: 1px solid var(--border-light);
+  vertical-align: top;
+  word-break: normal;
+  line-height: 1.4;
+}
+
+/* Zebra & Hover */
+.cr-table tr:nth-child(even), tr:nth-child(even) { 
+  background-color: var(--table-stripe); 
+}
+.cr-table tr:hover, tr:hover {
+  background-color: var(--table-hover);
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Tabellen-Beschriftungen */
+.cr-table caption, caption {
+  font-weight: 600;
+  padding: 0.5rem;
+  text-align: left;
+  caption-side: top;
+}
+.cr-table thead, thead { 
+  border-bottom: 2px solid var(--header-bg); 
+}
+
+/* MD-TO-HTML-CONVERTER: Tabellenkopf */
+.table thead th,
+.table tr:first-child th {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+}
+.table thead {
+  border-bottom: 2px solid var(--header-bg);
+}
+
+/* Hilfsklassen */
+.centered { text-align: center; }
+.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.highlight { background-color: #FFFDE7; }
+
+.img-container { text-align: center; margin: 1.5rem 0; }
+
+/* ==========================================================================
+   Hinweisboxen (Note, Warning, Tip, Error)
+   ========================================================================== */
+
+.note {
+  background-color: var(--note-bg);
+  border-left: 4px solid var(--note-border);
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.warning {
+  background-color: var(--warning-bg);
+  border-left: 4px solid var(--warning-border);
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.tip {
+  background-color: var(--tip-bg);
+  border-left: 4px solid var(--tip-border);
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.error {
+  background-color: var(--error-bg);
+  border-left: 4px solid var(--error-border);
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-radius: 0 3px 3px 0;
+}
+
+/* ==========================================================================
+   Content-Container
+   ========================================================================== */
+
+.content-container {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   Bild-Galerien
+   ========================================================================== */
+
+.image-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.image-gallery figure { margin: 0; height: 100%; display: flex; flex-direction: column; }
+.image-gallery img, .image-gallery svg {
+  flex: 1; object-fit: contain; width: 100%; background-color: white;
+}
+
+/* HiDPI */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  img:not([src$=".svg" i]) {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Zoom für technische Zeichnungen */
+.zoomable { cursor: zoom-in; transition: transform 0.3s ease; }
+.zoomable:hover { transform: scale(1.05); z-index: 100; }
+
+/* ==========================================================================
+   Dokumentations-Liste (Startseite / Navigation)
+   ========================================================================== */
+
+.documentation-list {
+  list-style-type: none;
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.documentation-list li {
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background-color: var(--bg-light);
+  border-left: 3px solid var(--arduino-dark);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.documentation-list li:hover {
+  background-color: var(--table-hover);
+  border-left-color: var(--arduino-teal);
+  transform: translateX(3px);
+}
+
+.documentation-list a {
+  display: block;
+  text-decoration: none;
+  color: var(--arduino-dark);
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  padding-left: 0.3rem;
+}
+
+.documentation-list a:hover {
+  color: var(--arduino-teal);
+}
+
+/* Projekt-Doku: kleiner, dezenter */
+.documentation-list.proj-doku a {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.documentation-list.proj-doku li {
+  background-color: var(--bg-light);
+  border-left: 2px solid var(--border-medium);
+}
+
+/* PDF-Liste: Raspberry Red */
+.documentation-list.pdf-list li { 
+  border-left-color: var(--raspberry-red); 
+}
+.documentation-list.pdf-list a { 
+  font-size: 0.9rem; 
+  color: var(--raspberry-red);
+}
+.documentation-list.pdf-list a:hover {
+  color: var(--raspberry-purple);
+}
+
+.documentation-list .file-meta {
+  float: right;
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   Mermaid-Diagramme
+   ========================================================================== */
+
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  max-width: 95%;
+  overflow-x: auto;
+  min-height: 250px;
+}
+
+/* Mermaid Responsive für verschiedene Bildschirmgrößen */
+@media (min-width: 992px) {
+  .mermaid { max-width: 90%; width: 900px; margin: 2.5rem auto; }
+}
+@media (min-width: 1400px) {
+  .mermaid { max-width: 1100px; width: 100%; }
+}
+@media (min-width: 1600px) {
+  .mermaid { max-width: 1300px; padding: 2rem; }
+}
+@media (min-width: 1920px) {
+  .mermaid { max-width: 1500px; }
+}
+
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node polygon,
+.mermaid .node path { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1)); }
+.mermaid .node text {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px !important;
+  font-weight: 500;
+}
+.mermaid .node.rhombus rect,
+.mermaid .node.rhombus polygon { 
+  fill: var(--note-bg); 
+  stroke: var(--arduino-teal); 
+  stroke-width: 1px; 
+}
+.mermaid .node:hover * { transition: all 0.2s ease-in-out; opacity: 0.9; filter: brightness(1.05); }
+.mermaid .edgePath .path { 
+  stroke-width: 1.5px; 
+  stroke: var(--arduino-teal); 
+}
+.mermaid .edgeLabel {
+  background-color: white; 
+  border-radius: 3px; 
+  padding: 2px 4px; 
+  font-size: 12px; 
+  color: var(--text-primary);
+}
+.mermaid-container { margin: 2rem auto; text-align: center; }
+.mermaid-caption { 
+  font-size: 0.9rem; 
+  color: var(--text-secondary); 
+  margin-top: 1rem; 
+  font-style: italic; 
+}
+
+pre.mermaid {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* ==========================================================================
+   Mathe-Formeln (MathJax)
+   ========================================================================== */
+
+.math { font-size: 0.85em; overflow-x: auto; max-width: 100%; padding: 0.2rem 0; }
+.math-inline { display: inline-block; margin: 0 0.2rem; vertical-align: middle; }
+.math-display {
+  display: block;
+  margin: 1rem auto;
+  text-align: center;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+.mjx-chtml { margin: 0.5rem 0; line-height: 0; }
+.mjx-math { padding: 0.1rem 0; }
+.mjx-frac { margin: 0 0.1rem; }
+
+h1 .math, h2 .math, h3 .math, h4 .math { vertical-align: middle; font-size: 90%; }
+td .math, th .math { margin: 0; display: inline; }
+td .math-display, th .math-display { margin: 0.5rem auto; }
+
+/* ==========================================================================
+   Responsive Design - Mobile First + Large Screens
+   ========================================================================== */
+
+/* Große Bildschirme: bessere Lesbarkeit und mehr Platz */
+@media (min-width: 1400px) {
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 1.6rem; }
+  h3 { font-size: 1.35rem; }
+  
+  .cr-table, table, .table { font-size: 0.95rem; }
+  .cr-table th, .cr-table td, th, td { padding: 0.6rem 0.75rem; }
+  
+  pre { font-size: 0.9em; }
+  code { font-size: 0.9em; }
+}
+
+@media (min-width: 1600px) {
+  h1 { font-size: 2.4rem; }
+  h2 { font-size: 1.75rem; }
+  
+  .mermaid { 
+    max-width: 1200px; 
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  body { line-height: 1.7; }
+  
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 1.85rem; }
+  h3 { font-size: 1.45rem; }
+  
+  p { font-size: 1.05rem; }
+  
+  .cr-table, table, .table { font-size: 1rem; }
+  .cr-table th, .cr-table td, th, td { padding: 0.7rem 0.85rem; }
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  body { padding: 0.8rem; }
+  .main-container { padding: 1.2rem; }
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.4rem; }
+  .cr-table, table, .table { font-size: 0.85rem; }
+  .cr-table th, .cr-table td, th, td { padding: 0.4rem; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  body { padding: 0.6rem; }
+  .main-container { padding: 1rem; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+  .cr-table, table, .table { white-space: nowrap; }
+  .cr-table th, .cr-table td, th, td { padding: 0.35rem; }
+  .math-display { font-size: 0.95rem; padding: 0.3rem 0; }
+  .mjx-chtml { transform-origin: left center !important; }
+  
+  .documentation-list li {
+    padding: 0.3rem 0.5rem;
+  }
+  
+  .documentation-list a {
+    font-size: 0.85rem;
+  }
+}
+
+/* Sehr kleine Bildschirme */
+@media (max-width: 480px) {
+  body { padding: 0.4rem; }
+  .main-container { padding: 0.75rem; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.15rem; }
+  
+  pre { 
+    padding: 0.75rem; 
+    font-size: 0.8em;
+  }
+  
+  .note, .warning, .tip, .error {
+    padding: 0.6rem;
+  }
+}
+
+/* Touch Scroll-Optimierung */
+@supports (-webkit-overflow-scrolling: touch) {
+  .table-container, .cr-table-container { -webkit-overflow-scrolling: touch; }
+}
+
+/* ==========================================================================
+   Druck-Optimierung
+   ========================================================================== */
+
+@media print {
+  body {
+    background-color: white;
+    font-size: 11pt;
+    color: black;
+    padding: 0;
+  }
+  .main-container, .content-container {
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .table-container, .cr-table-container { overflow: visible; }
+  table, .cr-table, .table {
+    width: 100%;
+    page-break-inside: auto;
+    box-shadow: none;
+    font-size: 10pt;
+  }
+  th {
+    background-color: #f2f2f2 !important;
+    color: black !important;
+  }
+  tr { page-break-inside: avoid; }
+  a { color: black; text-decoration: underline; }
+  img { max-width: 100% !important; box-shadow: none; }
+  
+  .note, .warning, .tip, .error {
+    border-left-width: 2px;
+  }
+}
+
+/* === MD-TO-HTML-CONVERTER EXTENSIONS === */
+
+/* Mermaid-Diagramme */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+}
+pre.mermaid {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Math-Formeln */
+.math-inline {
+  display: inline;
+}
+.math-display {
+  display: block;
+  text-align: center;
+  margin: 1.5em 0;
+  overflow-x: auto;
+}
+
+/* Tabellen */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+.table th, .table td {
+  border: 1px solid #E1E4E8;
+  padding: 0.5em;
+  text-align: left;
+}
+
+/* Tabellenkopf: Arduino Dark + weiße Schrift */
+.table thead th,
+.table tr:first-child th {
+  background-color: #005C5F;
+  color: #ffffff;
+}
+.table thead {
+  border-bottom: 2px solid #005C5F;
+}
+
+.table-compact th, .table-compact td {
+  padding: 0.3em 0.5em;
+}
+
+/* Responsive: Große Bildschirme */
+@media (min-width: 1400px) {
+  .table th, .table td { padding: 0.6em 0.75em; }
+}
+@media (min-width: 1920px) {
+  .table { font-size: 1rem; }
+  .table th, .table td { padding: 0.7em 0.85em; }
+}
+
+/* === END MD-TO-HTML-CONVERTER EXTENSIONS === */

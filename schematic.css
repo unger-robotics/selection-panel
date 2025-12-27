@@ -1,0 +1,1048 @@
+/* ==========================================================================
+   Schematic Styles v7.3
+   Stand: 2025-12-27
+   Farbschema: Arduino Teal + Raspberry Pi Red + GitHub Dark
+   Konsistent mit LaTeX-Präsentation und Shell-Skript
+   Pinbelegung: D0-D5 (korrigiert nach config.h)
+   NEU: Vollständige Pinout-Tabellen für 74HC595 und CD4021BE
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS Variables - Einheitliches Farbschema
+   --------------------------------------------------------------------------
+   
+   FARBPALETTE (konsistent mit praesentation.tex + create_amr_placeholders.sh):
+   
+   PRIMÄR (Akzente):
+     Arduino Teal:      #00979D  - Hauptfarbe, ESP32, positive Elemente
+     Arduino Dark:      #005C5F  - Dunklere Variante für Kontrast
+     Raspberry Red:     #C51A4A  - Sekundärakzent, Raspberry Pi
+     Raspberry Purple:  #75264A  - Dunklere Variante für Warnungen
+   
+   HINTERGRÜNDE:
+     GitHub Dark:       #0D1117  - Haupthintergrund
+     Slate Dark:        #1E2933  - Alternativer Hintergrund
+     Slate Medium:      #2D3A45  - Panels, Karten
+   
+   STATUS:
+     Success Green:     #75A928  - Raspberry Pi Green, abgeschlossen
+     Warning Orange:    #D97706  - Warnung, Hinweise
+   
+   SIGNALFARBEN:
+     Data (Grün):       #51CF66  - SER, Q8
+     Clock (Gelb):      #FFD43B  - SRCLK, CLK
+     Latch (Blau):      #4DABF7  - RCLK, P/S
+     VCC (Rot):         #FF6B6B
+     GND (Grau):        #6B7280
+   
+   -------------------------------------------------------------------------- */
+
+:root {
+    /* =======================================================================
+       PRIMÄR - Brand Colors (Arduino + Raspberry Pi)
+       ======================================================================= */
+    --arduino-teal: #00979D;
+    --arduino-teal-dark: #005C5F;
+    --arduino-teal-light: #62AEB2;
+    
+    --raspberry-red: #C51A4A;
+    --raspberry-purple: #75264A;
+    --raspberry-green: #75A928;
+    
+    /* =======================================================================
+       HINTERGRÜNDE - GitHub Dark Theme
+       ======================================================================= */
+    --bg-primary: #0D1117;
+    --bg-secondary: #1E2933;
+    --bg-tertiary: #2D3A45;
+    --border: #30363D;
+    
+    /* =======================================================================
+       TEXT
+       ======================================================================= */
+    --text-primary: #E6EDF3;
+    --text-secondary: #8B949E;
+    --text-muted: #4A5568;
+    
+    /* =======================================================================
+       SIGNALFARBEN - Für Schaltplan-Leitungen
+       ======================================================================= */
+    --color-vcc: #FF6B6B;
+    --color-gnd: #6B7280;
+    --color-data: #51CF66;
+    --color-clock: #FFD43B;
+    --color-latch: #4DABF7;
+    --color-capacitor: #FFA94D;
+    
+    /* =======================================================================
+       STATUS - Semantische Farben
+       ======================================================================= */
+    --success: #75A928;
+    --warning: #D97706;
+    --error: #C51A4A;
+    --info: #00979D;
+    
+    /* =======================================================================
+       SPACING & RADIUS
+       ======================================================================= */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Base Styles - Fullscreen Layout (kein Scrollen auf großen Bildschirmen)
+   -------------------------------------------------------------------------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    padding: var(--spacing-sm) var(--spacing-md);
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Header - Kompakt
+   -------------------------------------------------------------------------- */
+.header {
+    max-width: 1800px;
+    margin: 0 auto;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0;
+    background: linear-gradient(135deg, var(--arduino-teal), var(--raspberry-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+/* Status Bar */
+.status-bar {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.65rem;
+}
+
+.status-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--raspberry-green);
+    box-shadow: 0 0 8px var(--raspberry-green);
+}
+
+.status-item .dot-cyan {
+    background: var(--arduino-teal);
+    box-shadow: 0 0 8px var(--arduino-teal);
+}
+
+.status-item .dot-red {
+    background: var(--raspberry-red);
+    box-shadow: 0 0 8px var(--raspberry-red);
+}
+
+.status-item.verified {
+    border-color: var(--raspberry-green);
+    background: rgba(117, 169, 40, 0.1);
+}
+
+.status-item.phase-next {
+    border-color: var(--raspberry-red);
+    background: rgba(197, 26, 74, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   Tabs Navigation - Kompakt
+   -------------------------------------------------------------------------- */
+.tabs {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin: var(--spacing-xs) auto;
+    flex-wrap: wrap;
+    max-width: 1800px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.tab {
+    padding: 0.3rem 0.7rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.7rem;
+    transition: all 0.2s ease;
+}
+
+.tab:hover {
+    border-color: var(--arduino-teal);
+    color: var(--text-primary);
+}
+
+.tab.active {
+    background: rgba(0, 151, 157, 0.15);
+    border-color: var(--arduino-teal);
+    color: var(--arduino-teal);
+}
+
+/* --------------------------------------------------------------------------
+   Main Layout - Fullscreen (flex: 1 füllt restliche Höhe)
+   -------------------------------------------------------------------------- */
+.main-container {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: var(--spacing-sm);
+    max-width: 1800px;
+    width: 100%;
+    margin: 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+@media (min-width: 1600px) {
+    .main-container {
+        grid-template-columns: 1fr 300px;
+    }
+}
+
+@media (min-width: 1920px) {
+    .main-container {
+        grid-template-columns: 1fr 340px;
+        max-width: 2000px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .main-container {
+        grid-template-columns: 1fr;
+    }
+    
+    body {
+        height: auto;
+        overflow: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: var(--spacing-sm);
+    }
+    
+    .tabs {
+        gap: 2px;
+    }
+    
+    .tab {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.65rem;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Schematic Panel - Füllt verfügbare Höhe
+   -------------------------------------------------------------------------- */
+.schematic-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.view {
+    display: none;
+}
+
+.view.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    flex: 1;
+    min-height: 0;
+}
+
+/* --------------------------------------------------------------------------
+   SVG Chip Styles - Farbkodierung nach Komponente
+   -------------------------------------------------------------------------- */
+
+/* ESP32 - Arduino Teal */
+.chip-esp32 {
+    fill: var(--bg-tertiary);
+    stroke: var(--arduino-teal);
+    stroke-width: 2;
+}
+
+/* 74HC595 (Output) - Raspberry Red */
+.chip-595 {
+    fill: var(--bg-tertiary);
+    stroke: var(--raspberry-red);
+    stroke-width: 1.5;
+}
+
+/* CD4021 (Input) - Success Green */
+.chip-4021 {
+    fill: var(--bg-tertiary);
+    stroke: var(--raspberry-green);
+    stroke-width: 1.5;
+}
+
+/* SVG Text */
+.text-chip-title {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    text-anchor: middle;
+}
+
+.text-chip-sub {
+    font-size: 10px;
+    fill: var(--arduino-teal);
+    text-anchor: middle;
+}
+
+.text-chip-sub-red {
+    font-size: 10px;
+    fill: var(--raspberry-red);
+    text-anchor: middle;
+}
+
+.text-chip-sub-green {
+    font-size: 10px;
+    fill: var(--raspberry-green);
+    text-anchor: middle;
+}
+
+.text-pin-left {
+    font-size: 9px;
+    fill: var(--text-secondary);
+    font-family: monospace;
+}
+
+.text-pin-right {
+    font-size: 9px;
+    fill: var(--text-secondary);
+    font-family: monospace;
+    text-anchor: end;
+}
+
+.text-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+}
+
+.text-title {
+    font-size: 16px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    text-anchor: middle;
+}
+
+.text-subtitle {
+    font-size: 12px;
+    fill: var(--text-secondary);
+    text-anchor: middle;
+}
+
+.text-dots {
+    font-size: 18px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+}
+
+/* --------------------------------------------------------------------------
+   SVG Wires - Signalfarben
+   -------------------------------------------------------------------------- */
+.wire-data {
+    stroke: var(--color-data);
+    stroke-width: 2;
+    fill: none;
+}
+
+.wire-clock {
+    stroke: var(--color-clock);
+    stroke-width: 2;
+    fill: none;
+}
+
+.wire-latch {
+    stroke: var(--color-latch);
+    stroke-width: 2;
+    fill: none;
+}
+
+.wire-vcc {
+    stroke: var(--color-vcc);
+    stroke-width: 2;
+    fill: none;
+}
+
+.wire-gnd {
+    stroke: var(--color-gnd);
+    stroke-width: 2;
+    fill: none;
+}
+
+/* --------------------------------------------------------------------------
+   SVG LEDs
+   -------------------------------------------------------------------------- */
+.led {
+    fill: var(--text-muted);
+    stroke: var(--text-secondary);
+    stroke-width: 1;
+    transition: all 0.2s ease;
+}
+
+.led.active {
+    fill: var(--raspberry-green);
+    filter: drop-shadow(0 0 4px var(--raspberry-green));
+}
+
+/* --------------------------------------------------------------------------
+   SVG Other Elements
+   -------------------------------------------------------------------------- */
+.button-block {
+    fill: var(--bg-tertiary);
+    stroke: var(--text-muted);
+    stroke-width: 1;
+}
+
+.legend-box {
+    fill: var(--bg-primary);
+    stroke: var(--border);
+    stroke-width: 1;
+}
+
+.text-legend-title {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    text-anchor: middle;
+}
+
+.text-legend {
+    font-size: 10px;
+    fill: var(--text-secondary);
+}
+
+/* Info Box - Arduino Teal */
+.info-box {
+    fill: var(--bg-primary);
+    stroke: var(--arduino-teal);
+    stroke-width: 1;
+}
+
+.text-info-title {
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--arduino-teal);
+    text-anchor: middle;
+}
+
+.text-info {
+    font-size: 11px;
+    fill: var(--text-primary);
+}
+
+/* BOM Box - Success Green */
+.bom-box {
+    fill: var(--bg-primary);
+    stroke: var(--raspberry-green);
+    stroke-width: 1;
+}
+
+.text-bom-title {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--raspberry-green);
+    text-anchor: middle;
+}
+
+.text-bom {
+    font-size: 10px;
+    fill: var(--text-primary);
+}
+
+.text-bom-count {
+    font-size: 10px;
+    fill: var(--arduino-teal);
+    text-anchor: end;
+}
+
+/* Warning Box - Warning Orange */
+.warning-box {
+    fill: rgba(217, 119, 6, 0.1);
+    stroke: var(--warning);
+    stroke-width: 1.5;
+}
+
+.text-warning {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--warning);
+    text-anchor: middle;
+}
+
+/* --------------------------------------------------------------------------
+   Timing Diagram
+   -------------------------------------------------------------------------- */
+.text-signal {
+    font-size: 11px;
+    fill: var(--text-primary);
+    text-anchor: end;
+    font-family: monospace;
+}
+
+.signal-line {
+    stroke-width: 2;
+    fill: none;
+}
+
+.signal-data {
+    stroke: var(--color-data);
+}
+
+.signal-clock {
+    stroke: var(--color-clock);
+}
+
+.signal-latch {
+    stroke: var(--color-latch);
+}
+
+.text-timing-label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+}
+
+.phase-box {
+    stroke-width: 1;
+}
+
+.phase-load {
+    fill: rgba(77, 171, 247, 0.2);
+    stroke: var(--color-latch);
+}
+
+.phase-shift {
+    fill: rgba(255, 212, 59, 0.2);
+    stroke: var(--color-clock);
+}
+
+.text-phase {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    text-anchor: middle;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar - Scrollbar bei Überlauf
+   -------------------------------------------------------------------------- */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    padding-right: 2px;
+}
+
+/* Scrollbar Styling */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 2px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--arduino-teal);
+}
+
+/* Cards - Kompakt */
+.card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.card h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+/* Card: ESP32 - Arduino Teal */
+.card-primary {
+    border-color: var(--arduino-teal);
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(0, 151, 157, 0.08));
+}
+
+.card-primary h3 {
+    color: var(--arduino-teal);
+}
+
+/* Card: CD4021 - Success Green */
+.card-secondary {
+    border-color: var(--raspberry-green);
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(117, 169, 40, 0.08));
+}
+
+.card-secondary h3 {
+    color: var(--raspberry-green);
+}
+
+/* Card: 74HC595 - Raspberry Red */
+.card-accent {
+    border-color: var(--raspberry-red);
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(197, 26, 74, 0.08));
+}
+
+.card-accent h3 {
+    color: var(--raspberry-red);
+}
+
+/* Card: Warning */
+.card-warning {
+    border-color: var(--warning);
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(217, 119, 6, 0.08));
+}
+
+.card-warning h3 {
+    color: var(--warning);
+}
+
+/* --------------------------------------------------------------------------
+   Tables - Kompakt
+   -------------------------------------------------------------------------- */
+.pin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.65rem;
+}
+
+.pin-table th {
+    text-align: left;
+    padding: 2px var(--spacing-xs);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+    font-size: 0.6rem;
+}
+
+.pin-table td {
+    padding: 2px var(--spacing-xs);
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.pin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.pin-num {
+    font-family: monospace;
+    color: var(--arduino-teal);
+    font-weight: 600;
+}
+
+.signal-out {
+    color: var(--color-data);
+}
+
+.signal-in {
+    color: var(--raspberry-red);
+}
+
+.signal-ok {
+    color: var(--success);
+}
+
+.signal-warning {
+    color: var(--warning);
+    font-weight: 600;
+}
+
+/* Notes */
+.note {
+    margin-top: var(--spacing-xs);
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   BOM List - Kompakt
+   -------------------------------------------------------------------------- */
+.bom-list {
+    list-style: none;
+}
+
+.bom-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--bg-tertiary);
+    font-size: 0.65rem;
+}
+
+.bom-list li:last-child {
+    border-bottom: none;
+}
+
+.bom-list .count {
+    color: var(--arduino-teal);
+    font-weight: 500;
+    font-family: monospace;
+}
+
+.bom-list .capacitor {
+    color: var(--color-capacitor);
+}
+
+/* --------------------------------------------------------------------------
+   Footer - Kompakt
+   -------------------------------------------------------------------------- */
+.footer {
+    max-width: 1800px;
+    width: 100%;
+    margin: var(--spacing-xs) auto 0;
+    padding-top: var(--spacing-xs);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.footer a {
+    color: var(--arduino-teal);
+    text-decoration: none;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .sidebar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        overflow: visible;
+    }
+    
+    .card {
+        padding: var(--spacing-xs);
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.1rem;
+    }
+    
+    .status-bar {
+        flex-direction: column;
+    }
+    
+    .status-item {
+        width: 100%;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Pinout Tables - Vollständige IC-Pinbelegung
+   -------------------------------------------------------------------------- */
+.pinout-container {
+    padding: var(--spacing-md);
+    height: 100%;
+    overflow-y: auto;
+}
+
+.pinout-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--arduino-teal);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.pinout-grid {
+    display: flex;
+    justify-content: center;
+}
+
+.pinout-table {
+    width: 100%;
+    max-width: 900px;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.pinout-table th {
+    background: var(--bg-primary);
+    color: var(--arduino-teal);
+    padding: var(--spacing-sm);
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--arduino-teal);
+}
+
+.pinout-table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.pinout-table tr:hover {
+    background: rgba(0, 151, 157, 0.1);
+}
+
+.pinout-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Pin Type Highlighting */
+.pin-power td {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.pin-power td:first-child {
+    color: var(--color-vcc);
+    font-weight: 600;
+}
+
+.pin-data td {
+    background: rgba(81, 207, 102, 0.1);
+}
+
+.pin-data td:first-child {
+    color: var(--color-data);
+    font-weight: 600;
+}
+
+.pin-clock td {
+    background: rgba(255, 212, 59, 0.1);
+}
+
+.pin-clock td:first-child {
+    color: var(--color-clock);
+    font-weight: 600;
+}
+
+.pin-latch td {
+    background: rgba(77, 171, 247, 0.1);
+}
+
+.pin-latch td:first-child {
+    color: var(--color-latch);
+    font-weight: 600;
+}
+
+.pin-cascade td {
+    background: rgba(0, 151, 157, 0.1);
+}
+
+.pin-cascade td:first-child {
+    color: var(--arduino-teal);
+    font-weight: 600;
+}
+
+.pin-control td {
+    background: rgba(139, 148, 158, 0.1);
+}
+
+.pin-input td {
+    background: rgba(117, 169, 40, 0.05);
+}
+
+.pin-internal td {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* LED/Button Status */
+.led-active {
+    color: var(--raspberry-red);
+    font-weight: 500;
+}
+
+.led-inactive {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.btn-active {
+    color: var(--raspberry-green);
+    font-weight: 500;
+}
+
+.btn-inactive {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pin-open {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.pin-vcc {
+    color: var(--warning);
+    font-weight: 600;
+}
+
+/* Pinout Notes */
+.pinout-notes {
+    margin-top: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.note-box {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+}
+
+.note-warning {
+    background: rgba(217, 119, 6, 0.15);
+    border: 1px solid var(--warning);
+    color: var(--warning);
+}
+
+.note-cascade {
+    background: rgba(0, 151, 157, 0.15);
+    border: 1px solid var(--arduino-teal);
+    color: var(--arduino-teal);
+}
+
+.note-info {
+    background: rgba(77, 171, 247, 0.15);
+    border: 1px solid var(--color-latch);
+    color: var(--color-latch);
+}
+
+/* VCC Wire Style */
+.wire-vcc {
+    stroke: var(--color-vcc);
+    stroke-width: 2;
+    fill: none;
+}
+
+.text-vcc {
+    fill: var(--color-vcc);
+    font-weight: 600;
+}
+
+.text-label-small {
+    font-size: 8px;
+    fill: var(--text-secondary);
+}
+
+.text-subtitle {
+    font-size: 11px;
+    fill: var(--text-secondary);
+    text-anchor: middle;
+}
+
+/* Button Symbol in SVG */
+.btn-symbol {
+    fill: var(--bg-tertiary);
+    stroke: var(--raspberry-green);
+    stroke-width: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Print Styles
+   -------------------------------------------------------------------------- */
+@media print {
+    body {
+        height: auto;
+        overflow: visible;
+        background: white;
+        color: black;
+    }
+    
+    .sidebar {
+        overflow: visible;
+    }
+}

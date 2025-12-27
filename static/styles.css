@@ -1,0 +1,856 @@
+/**
+ * Auswahlpanel Dashboard Styles v2.2.4
+ * =====================================
+ * 
+ * Farbschema: Arduino Teal + Raspberry Pi Red
+ * Konsistent mit: farbschema.tex, praesentation.tex, main.tex,
+ *                 schematic.css, create_amr_placeholders.sh
+ * Stand: 2025-12-27
+ */
+
+/* =============================================================================
+   CSS VARIABLES - DESIGN TOKENS
+   ============================================================================= */
+
+:root {
+    /* -------------------------------------------------------------------------
+       Brand Colors: Arduino (konsistent mit farbschema.tex)
+       ------------------------------------------------------------------------- */
+    --arduino-teal: #00979D;
+    --arduino-teal-dark: #005C5F;         /* ArduinoDark */
+    --arduino-teal-light: #62AEB2;        /* ArduinoTealLight */
+    --arduino-teal-subtle: rgba(0, 151, 157, 0.15);
+    
+    /* -------------------------------------------------------------------------
+       Brand Colors: Raspberry Pi (konsistent mit farbschema.tex)
+       ------------------------------------------------------------------------- */
+    --raspi-red: #C51A4A;                 /* RaspberryRed */
+    --raspi-red-dark: #75264A;            /* RaspberryPurple */
+    --raspi-red-light: #E23E6D;
+    --raspi-green: #75A928;               /* SuccessGreen */
+    
+    /* -------------------------------------------------------------------------
+       Background Colors (Dark Theme - konsistent mit farbschema.tex)
+       ------------------------------------------------------------------------- */
+    --bg-primary: #0D1117;                /* GitHubDark */
+    --bg-secondary: #1E2933;              /* SlateDark */
+    --bg-tertiary: #2D3A45;               /* SlateMedium */
+    --bg-elevated: #30363D;
+    --bg-overlay: rgba(0, 0, 0, 0.8);
+    
+    /* -------------------------------------------------------------------------
+       Semantic Colors
+       ------------------------------------------------------------------------- */
+    --accent: var(--arduino-teal);
+    --accent-hover: var(--arduino-teal-light);
+    --accent-active: var(--arduino-teal-dark);
+    --accent-subtle: var(--arduino-teal-subtle);
+    
+    --highlight: var(--raspi-red);
+    --highlight-hover: var(--raspi-red-light);
+    --highlight-active: var(--raspi-red-dark);
+    
+    /* -------------------------------------------------------------------------
+       Text Colors (konsistent mit farbschema.tex)
+       ------------------------------------------------------------------------- */
+    --text-primary: #E6EDF3;              /* LightText */
+    --text-secondary: #8B949E;            /* SecondaryText */
+    --text-muted: #4A5568;                /* MutedText */
+    --text-link: var(--arduino-teal-light);
+    
+    /* -------------------------------------------------------------------------
+       Status Colors (konsistent mit farbschema.tex)
+       ------------------------------------------------------------------------- */
+    --success: var(--raspi-green);        /* SuccessGreen #75A928 */
+    --success-subtle: rgba(117, 169, 40, 0.15);
+    --error: var(--raspi-red);            /* RaspberryRed #C51A4A */
+    --error-subtle: rgba(197, 26, 74, 0.15);
+    --warning: #D97706;                   /* WarningOrange */
+    --warning-subtle: rgba(217, 119, 6, 0.15);
+    --info: var(--arduino-teal);
+    --info-subtle: var(--arduino-teal-subtle);
+    
+    /* -------------------------------------------------------------------------
+       Border & Shadow
+       ------------------------------------------------------------------------- */
+    --border-default: #30363D;
+    --border-muted: #21262D;
+    --border-accent: var(--arduino-teal);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(0, 151, 157, 0.3);
+    
+    /* -------------------------------------------------------------------------
+       Spacing Scale
+       ------------------------------------------------------------------------- */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    
+    /* -------------------------------------------------------------------------
+       Border Radius
+       ------------------------------------------------------------------------- */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+    
+    /* -------------------------------------------------------------------------
+       Typography
+       ------------------------------------------------------------------------- */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+                 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    
+    /* -------------------------------------------------------------------------
+       Transitions
+       ------------------------------------------------------------------------- */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+    
+    /* -------------------------------------------------------------------------
+       Z-Index Scale
+       ------------------------------------------------------------------------- */
+    --z-base: 0;
+    --z-dropdown: 10;
+    --z-sticky: 20;
+    --z-overlay: 50;
+    --z-modal: 100;
+    --z-toast: 200;
+}
+
+/* =============================================================================
+   RESET & BASE
+   ============================================================================= */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    line-height: 1.5;
+}
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+
+header {
+    background: var(--bg-secondary);
+    padding: var(--space-xs) var(--space-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-default);
+    flex-shrink: 0;
+}
+
+h1 {
+    font-size: clamp(0.9rem, 3vw, 1.25rem);
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+}
+
+/* =============================================================================
+   STATUS INDICATORS
+   ============================================================================= */
+
+.status {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.status-indicator span:last-child {
+    display: none;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    background: var(--text-muted);
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+}
+
+.status-dot.connected {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.status-dot.disconnected {
+    background: var(--error);
+    box-shadow: 0 0 8px var(--error);
+}
+
+/* =============================================================================
+   MAIN CONTENT
+   ============================================================================= */
+
+main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+    overflow: hidden;
+}
+
+/* =============================================================================
+   UNLOCK BUTTON
+   ============================================================================= */
+
+#unlock-btn {
+    padding: var(--space-md) var(--space-xl);
+    font-size: clamp(1rem, 4vw, 1.25rem);
+    font-weight: 600;
+    background: var(--highlight);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: var(--shadow-md);
+}
+
+#unlock-btn:hover,
+#unlock-btn:active {
+    background: var(--highlight-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+#unlock-btn:active {
+    transform: translateY(0);
+}
+
+#unlock-btn.hidden {
+    display: none;
+}
+
+/* =============================================================================
+   MEDIA CONTAINER
+   ============================================================================= */
+
+#media-container {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    position: relative;
+}
+
+#media-container.active {
+    display: flex;
+}
+
+/* =============================================================================
+   CURRENT ID DISPLAY (Overlay)
+   ============================================================================= */
+
+#current-id {
+    position: absolute;
+    top: var(--space-sm);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(1.5rem, 6vw, 3rem);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    text-shadow: 
+        var(--shadow-glow),
+        0 2px 4px rgba(0, 0, 0, 0.8);
+    line-height: 1;
+    letter-spacing: 0.05em;
+    z-index: 10;
+    background: var(--bg-overlay);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(4px);
+}
+
+/* =============================================================================
+   IMAGE CONTAINER (Fullscreen)
+   ============================================================================= */
+
+#image-container {
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border-default);
+    box-shadow: var(--shadow-md);
+    transition: border-color var(--transition-fast);
+}
+
+#image-container:has(img) {
+    border-color: var(--accent);
+}
+
+#image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#image-container .placeholder {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+/* =============================================================================
+   AUDIO CONTROLS (Overlay)
+   ============================================================================= */
+
+#audio-container {
+    position: absolute;
+    bottom: var(--space-sm);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    width: auto;
+    min-width: 150px;
+    max-width: min(80vw, 300px);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-full);
+    z-index: 10;
+}
+
+#progress-bar {
+    flex: 1;
+    min-width: 80px;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+    transition: width 0.1s linear;
+    border-radius: var(--radius-full);
+}
+
+#time-display {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* =============================================================================
+   WAITING MESSAGE
+   ============================================================================= */
+
+#waiting {
+    color: var(--text-muted);
+    font-size: clamp(1rem, 3vw, 1.25rem);
+    text-align: center;
+}
+
+#waiting.hidden {
+    display: none;
+}
+
+/* =============================================================================
+   FOOTER
+   ============================================================================= */
+
+footer {
+    background: var(--bg-secondary);
+    padding: 2px var(--space-md);
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-muted);
+    flex-shrink: 0;
+}
+
+/* =============================================================================
+   DEBUG PANEL
+   ============================================================================= */
+
+#debug {
+    position: fixed;
+    bottom: 50px;
+    right: var(--space-md);
+    width: 320px;
+    max-width: calc(100vw - 2 * var(--space-md));
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-default);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    line-height: 1.4;
+    max-height: 35vh;
+    overflow-y: auto;
+    display: none;
+    z-index: var(--z-overlay);
+    box-shadow: var(--shadow-lg);
+}
+
+#debug.visible {
+    display: block;
+}
+
+#debug-toggle {
+    position: fixed;
+    bottom: var(--space-md);
+    right: var(--space-md);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+    padding: var(--space-xs) var(--space-sm);
+    min-width: 60px;
+    min-height: 32px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+#debug-toggle:hover {
+    background: var(--bg-elevated);
+    border-color: var(--accent);
+}
+
+#debug-toggle.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+/* =============================================================================
+   RESPONSIVE: TABLET (600px+)
+   ============================================================================= */
+
+@media (min-width: 600px) {
+    header {
+        padding: var(--space-sm) var(--space-lg);
+    }
+    
+    .status-indicator span:last-child {
+        display: inline;
+    }
+    
+    main {
+        padding: var(--space-sm);
+    }
+    
+    #current-id {
+        font-size: clamp(2rem, 6vw, 3.5rem);
+    }
+    
+    #audio-container {
+        min-width: 200px;
+        max-width: 350px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: DESKTOP (900px+)
+   ============================================================================= */
+
+@media (min-width: 900px) {
+    header {
+        padding: var(--space-sm) var(--space-xl);
+    }
+    
+    .status {
+        gap: var(--space-lg);
+    }
+    
+    .status-indicator {
+        font-size: 0.9rem;
+        gap: var(--space-sm);
+    }
+    
+    main {
+        padding: var(--space-sm);
+    }
+    
+    #current-id {
+        font-size: 4rem;
+        top: var(--space-md);
+    }
+    
+    #audio-container {
+        min-width: 250px;
+        max-width: 400px;
+        bottom: var(--space-md);
+    }
+    
+    #debug {
+        left: auto;
+        width: 400px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: LARGE DESKTOP (1200px+)
+   ============================================================================= */
+
+@media (min-width: 1200px) {
+    #current-id {
+        font-size: 5rem;
+    }
+    
+    #audio-container {
+        min-width: 300px;
+        max-width: 450px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: ULTRA-WIDE (1600px+)
+   ============================================================================= */
+
+@media (min-width: 1600px) {
+    header {
+        padding: var(--space-sm) var(--space-2xl);
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    #current-id {
+        font-size: 6rem;
+    }
+    
+    footer {
+        padding: var(--space-xs) var(--space-md);
+        font-size: 0.8rem;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: 4K / ULTRA-WIDE (1920px+)
+   ============================================================================= */
+
+@media (min-width: 1920px) {
+    header {
+        padding: var(--space-md) var(--space-2xl);
+    }
+    
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    .status-indicator {
+        font-size: 1rem;
+    }
+    
+    #current-id {
+        font-size: 7rem;
+        padding: var(--space-sm) var(--space-md);
+    }
+    
+    #audio-container {
+        min-width: 350px;
+        max-width: 500px;
+        padding: var(--space-sm) var(--space-md);
+    }
+    
+    #progress-bar {
+        height: 8px;
+    }
+    
+    #time-display {
+        font-size: 0.85rem;
+    }
+    
+    footer {
+        font-size: 0.85rem;
+    }
+    
+    #debug {
+        width: 450px;
+        font-size: 0.7rem;
+    }
+    
+    #debug-toggle {
+        font-size: 0.8rem;
+        padding: var(--space-sm) var(--space-md);
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: 2K+ (2560px+)
+   ============================================================================= */
+
+@media (min-width: 2560px) {
+    h1 {
+        font-size: 2rem;
+    }
+    
+    #current-id {
+        font-size: 8rem;
+    }
+    
+    #audio-container {
+        min-width: 400px;
+        max-width: 600px;
+    }
+    
+    #progress-bar {
+        height: 10px;
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE: LANDSCAPE MOBILE
+   ============================================================================= */
+
+@media (max-height: 500px) and (orientation: landscape) {
+    header {
+        padding: var(--space-xs) var(--space-md);
+    }
+    
+    h1 {
+        font-size: 1rem;
+    }
+    
+    main {
+        padding: var(--space-xs);
+    }
+    
+    #current-id {
+        font-size: 2rem;
+        top: var(--space-xs);
+        padding: var(--space-xs) var(--space-sm);
+    }
+    
+    #audio-container {
+        bottom: var(--space-xs);
+        min-width: 150px;
+    }
+    
+    footer {
+        padding: var(--space-xs);
+        font-size: 0.65rem;
+    }
+}
+
+/* =============================================================================
+   SAFE AREA (iPhone Notch etc.)
+   ============================================================================= */
+
+@supports (padding: env(safe-area-inset-top)) {
+    header {
+        padding-top: max(0.75rem, env(safe-area-inset-top));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+    
+    footer {
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+}
+
+/* =============================================================================
+   ACCESSIBILITY: REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    #progress-fill {
+        transition: none;
+    }
+}
+
+/* =============================================================================
+   ACCESSIBILITY: FOCUS STYLES
+   ============================================================================= */
+
+#unlock-btn:focus-visible,
+#debug-toggle:focus-visible {
+    outline: 2px solid var(--accent-hover);
+    outline-offset: 2px;
+}
+
+/* =============================================================================
+   HOVER QUERY (Touch vs Mouse)
+   ============================================================================= */
+
+@media (hover: hover) and (pointer: fine) {
+    #unlock-btn:hover {
+        background: var(--highlight-hover);
+        transform: translateY(-2px);
+    }
+}
+
+@media (hover: none) {
+    #unlock-btn:active {
+        background: var(--highlight-active);
+        transform: scale(0.98);
+    }
+}
+
+/* =============================================================================
+   HIGH CONTRAST MODE
+   ============================================================================= */
+
+@media (prefers-contrast: high) {
+    :root {
+        --bg-primary: #000;
+        --bg-secondary: #111;
+        --bg-tertiary: #222;
+        --bg-elevated: #333;
+        --text-primary: #fff;
+        --text-secondary: #ddd;
+        --text-muted: #bbb;
+        --border-default: #666;
+        --border-muted: #444;
+    }
+    
+    #image-container {
+        border-width: 3px;
+        border-color: var(--accent);
+    }
+    
+    .status-dot {
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--text-primary);
+    }
+    
+    #unlock-btn,
+    #debug-toggle {
+        border: 2px solid currentColor;
+    }
+}
+
+/* =============================================================================
+   PRINT STYLES
+   ============================================================================= */
+
+@media print {
+    header,
+    footer,
+    #debug,
+    #debug-toggle,
+    #unlock-btn,
+    #audio-container {
+        display: none !important;
+    }
+    
+    body {
+        background: white;
+        color: black;
+    }
+    
+    main {
+        padding: 0;
+    }
+    
+    #current-id {
+        color: black;
+        text-shadow: none;
+    }
+    
+    #image-container {
+        border-color: #ccc;
+        max-width: 100%;
+    }
+}
+
+/* =============================================================================
+   LIGHT MODE (Optional - aktivieren via prefers-color-scheme)
+   ============================================================================= */
+
+@media (prefers-color-scheme: light) {
+    :root {
+        /* Background Colors (Light Theme) */
+        --bg-primary: #F6F8FA;
+        --bg-secondary: #FFFFFF;
+        --bg-tertiary: #E6EDF3;
+        --bg-elevated: #FFFFFF;
+        --bg-overlay: rgba(255, 255, 255, 0.9);
+        
+        /* Text Colors */
+        --text-primary: #1F2328;
+        --text-secondary: #57606A;
+        --text-muted: #8B949E;
+        
+        /* Border & Shadow */
+        --border-default: #D0D7DE;
+        --border-muted: #E6EDF3;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+        --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+        --shadow-glow: 0 0 20px rgba(0, 151, 157, 0.2);
+    }
+}

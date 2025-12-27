@@ -1,0 +1,14 @@
+# PlatformIO
+button_panel_firmware/.pio/
+button_panel_firmware/.vscode/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# System
+.DS_Store
+
+# Generiert
+docs/_site/
