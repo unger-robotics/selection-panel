@@ -142,3 +142,46 @@ ssh pi@rover 'ls ~/selection-panel/media/*.mp3 | wc -l'
 | Test-Play | `curl http://rover:8080/test/play/5` |
 | Firmware | `cd button_panel_firmware && pio run -t upload` |
 | Serial-Test | `screen /dev/serial/by-id/usb-Espressif* 115200` |
+
+## System - Python-Pakete (venv) - Pi Hardware-Modell
+
+```bash
+# Python-Version
+python3 --version
+
+# Pakete im venv
+~/selection-panel/venv/bin/pip list
+
+# Oder detaillierter mit Versionen
+~/selection-panel/venv/bin/pip freeze
+
+# Pi OS Version
+cat /etc/os-release
+
+# Kernel
+uname -r
+
+# Hostname + IP
+hostname && hostname -I
+
+# Speicherplatz
+df -h /
+
+# RAM
+free -h
+
+# Pi Hardware-Modell
+cat /proc/device-tree/model
+
+# Pi Revision
+cat /proc/cpuinfo | grep Revision
+
+# OS Build-Datum
+cat /etc/rpi-issue
+
+# Installationsdatum (Dateisystem erstellt)
+stat -c %w / 2>/dev/null || ls -ld --time=birth / 2>/dev/null || tune2fs -l /dev/mmcblk0p2 | grep created
+
+# Alles auf einmal
+echo "=== Pi Modell ===" && cat /proc/device-tree/model && echo -e "\n\n=== OS Build ===" && cat /etc/rpi-issue
+```
