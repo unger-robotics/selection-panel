@@ -1,11 +1,11 @@
 # Interaktives Auswahlpanel
 
-> **100 Taster × 100 LEDs × 100 Bild/Audio-Sets**
+**100 Taster × 100 LEDs × 100 Bild/Audio-Sets**
 
-Ein interaktives Panel: Tastendruck → Bild + Audio. Der letzte Tastendruck gewinnt.
+Tastendruck → Bild + Audio. Der letzte Tastendruck gewinnt.
 
 | Version | Status | Datum |
-|---------|--------|-------|
+|:--------|:-------|:------|
 | 2.2.5 | Phase 6 (Integration) | 2025-12-27 |
 
 ---
@@ -13,25 +13,12 @@ Ein interaktives Panel: Tastendruck → Bild + Audio. Der letzte Tastendruck gew
 ## Quick Start
 
 ```bash
-# Verbinden
 ssh rover
-
-# Setup (einmalig)
 cd ~/selection-panel
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-
-# Starten
 venv/bin/python server.py
 ```
 
-```bash
-# Dashboard öffnen
-open http://rover:8080/
-
-# Wiedergabe testen
-curl http://rover:8080/test/play/5
-```
+**Dashboard:** `http://rover:8080/`
 
 → Details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 
@@ -56,28 +43,28 @@ curl http://rover:8080/test/play/5
 ### Setup
 
 | Dokument | Inhalt |
-|----------|--------|
+|:---------|:-------|
+| [VORAUSSETZUNGEN.md](docs/VORAUSSETZUNGEN.md) | Hardware, Software-Installation |
+| [SSH.md](docs/SSH.md) | Pi einrichten, SSH-Zugang |
+| [GIT.md](docs/GIT.md) | Repository, Commits, Deployment |
 | [QUICKSTART.md](docs/QUICKSTART.md) | Server + Dashboard starten |
-| [SSH.md](docs/SSH.md) | SSH-Zugang Mac/Windows/Pi |
-| [GIT.md](docs/GIT.md) | Git-Workflow, Commits |
+| [LOETEN.md](docs/LOETEN.md) | Bleifreies Löten (SAC305) |
 
 ### Referenz
 
 | Dokument | Inhalt |
-|----------|--------|
-| [SPEC.md](docs/SPEC.md) | **Single Source of Truth** — Protokoll, Pinbelegung, Policy |
+|:---------|:-------|
+| [SPEC.md](docs/SPEC.md) | **Single Source of Truth** — Protokoll, Pinbelegung |
 | [HARDWARE.md](docs/HARDWARE.md) | Stückliste, IC-Pinbelegungen |
 | [FIRMWARE.md](docs/FIRMWARE.md) | ESP32 Architektur, Build |
-| [SERVER.md](docs/SERVER.md) | Raspberry Pi Setup |
+| [SERVER.md](docs/SERVER.md) | Raspberry Pi Server |
 | [DASHBOARD.md](docs/DASHBOARD.md) | Web-Frontend |
 
 ### Betrieb
 
 | Dokument | Inhalt |
-|----------|--------|
-| [COMMANDS.md](docs/COMMANDS.md) | Deployment, Befehle |
-| [RUNBOOK.md](docs/RUNBOOK.md) | Betrieb, Troubleshooting |
-| [ROADMAP.md](docs/ROADMAP.md) | Phasen, Status |
+|:---------|:-------|
+| [RUNBOOK.md](docs/RUNBOOK.md) | Troubleshooting |
 | [CHANGELOG.md](docs/CHANGELOG.md) | Versionshistorie |
 
 ---
@@ -89,7 +76,6 @@ selection-panel/
 ├── button_panel_firmware/    # ESP32 PlatformIO-Projekt
 ├── docs/                     # Dokumentation
 ├── media/                    # Bild/Audio (000–099)
-├── scripts/                  # Hilfsskripte
 ├── static/                   # Web-Dashboard
 ├── server.py                 # Python Server
 ├── requirements.txt          # Python-Abhängigkeiten
@@ -100,35 +86,30 @@ selection-panel/
 
 ## Referenz-System
 
-| Hardware | Version |
-|----------|---------|
-| Board | Raspberry Pi 5 Model B Rev 1.1 |
-| Microcontroller | Seeed XIAO ESP32-S3 |
-
-| Software | Version |
-|----------|---------|
-| Pi OS | Debian 13 (trixie), Build 2025-12-04 |
-| Python | 3.13.5 |
-| aiohttp | 3.13.2 |
+| Komponente | Version |
+|:-----------|:--------|
+| Raspberry Pi 5 | 4 GB RAM |
+| Seeed XIAO ESP32-S3 | |
+| Pi OS | Debian 12 (bookworm) |
+| Python | 3.12+ |
 
 ---
 
 ## Policy
 
-**One-hot:** Maximal eine LED leuchtet.
-
-**Preempt:** Neuer Tastendruck unterbricht sofort.
+| Regel | Bedeutung |
+|:------|:----------|
+| **One-hot** | Maximal eine LED leuchtet |
+| **Preempt** | Neuer Tastendruck unterbricht sofort |
 
 ---
 
 ## Skalierung
 
-`PROTOTYPE_MODE` schaltet zwischen 10 und 100 Kanälen:
-
 | Datei | Prototyp | Produktion |
-|-------|----------|------------|
-| config.h | `#define PROTOTYPE_MODE` | auskommentieren |
-| server.py | `PROTOTYPE_MODE = True` | `False` |
+|:------|:---------|:-----------|
+| `config.h` | `#define PROTOTYPE_MODE` | auskommentieren |
+| `server.py` | `PROTOTYPE_MODE = True` | `False` |
 
 ---
 

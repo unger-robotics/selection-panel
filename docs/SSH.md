@@ -1,88 +1,65 @@
 # SSH-Setup
 
-> Passwortloses `ssh rover` einrichten
+Pi einrichten und passwortloses `ssh rover` konfigurieren.
 
 ---
 
-## 1. Raspberry Pi vorbereiten
+## 1. Pi OS installieren
 
-### Pi OS installieren (Raspberry Pi Imager)
+### Raspberry Pi Imager
 
-Erweiterte Optionen im Imager:
+1. **Download:** [raspberrypi.com/software](https://www.raspberrypi.com/software/)
+2. **OS:** Raspberry Pi OS Lite (64-bit)
+3. **Einstellungen** (Zahnrad):
 
 | Einstellung | Wert |
-|-------------|------|
+|:------------|:-----|
 | Hostname | `rover` |
 | SSH | ✓ aktivieren |
 | Benutzer | `pi` |
+| Passwort | (Ihr Passwort) |
 | WLAN | SSID + Passwort |
 | Zeitzone | `Europe/Berlin` |
+
+4. **Schreiben** → SD-Karte einlegen → Netzteil einstecken
 
 ### Nach erstem Boot
 
 ```bash
-ssh pi@rover.local              # Mit Passwort
+ssh pi@rover.local
 sudo apt update && sudo apt upgrade -y
-sudo usermod -aG dialout pi     # Für Serial-Zugriff
+sudo usermod -aG dialout pi
 ```
 
 ---
 
-## 2. Mac einrichten
+## 2. SSH-Key einrichten
+
+### Mac / Linux
 
 ```bash
-# Key erstellen (falls nicht vorhanden)
-ssh-keygen -t ed25519 -C "dein@email.com"
-
-# Key auf Pi kopieren
-ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@rover.local
-
-# Config anlegen
-vim ~/.ssh/config
+ssh-keygen -t ed25519
+ssh-copy-id pi@rover.local
 ```
 
-```
-Host rover
-    HostName rover.local
-    User pi
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-```bash
-# Berechtigungen
-chmod 600 ~/.ssh/config ~/.ssh/id_ed25519
-
-# Testen
-ssh rover
-```
-
----
-
-## 3. Windows einrichten
-
-### OpenSSH aktivieren (PowerShell als Admin)
+### Windows (PowerShell)
 
 ```powershell
+# OpenSSH aktivieren (Admin)
 Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-```
 
-### Key erstellen (PowerShell normal)
+# Key erstellen
+ssh-keygen -t ed25519
 
-```powershell
-ssh-keygen -t ed25519 -C "dein@email.com"
-```
-
-### Key auf Pi kopieren
-
-```powershell
+# Key kopieren
 type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh pi@rover.local "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-### Config anlegen
+---
 
-```powershell
-notepad $env:USERPROFILE\.ssh\config
-```
+## 3. SSH-Config
+
+### Mac / Linux (`~/.ssh/config`)
 
 ```
 Host rover
@@ -90,16 +67,33 @@ Host rover
     User pi
     IdentityFile ~/.ssh/id_ed25519
 ```
+
+```bash
+chmod 600 ~/.ssh/config
+```
+
+### Windows (`%USERPROFILE%\.ssh\config`)
+
+```
+Host rover
+    HostName rover.local
+    User pi
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+**Test:** `ssh rover`
 
 ---
 
 ## 4. GitHub (optional)
 
 ```bash
-# Separater Key
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
+```
 
-# Config erweitern
+**~/.ssh/config erweitern:**
+
+```
 Host github.com
     HostName github.com
     User git
@@ -107,10 +101,9 @@ Host github.com
     IdentitiesOnly yes
 ```
 
-Public Key bei GitHub hinterlegen: Settings → SSH Keys → New
+Public Key bei GitHub: Settings → SSH Keys → New
 
 ```bash
-# Testen
 ssh -T git@github.com
 ```
 
@@ -119,7 +112,11 @@ ssh -T git@github.com
 ## Troubleshooting
 
 | Problem | Lösung |
-|---------|--------|
+|:--------|:-------|
 | `Permission denied (publickey)` | `ssh-copy-id` wiederholen |
-| `Could not resolve hostname` | IP direkt nutzen oder mDNS prüfen |
+| `Could not resolve hostname` | IP nutzen: `ssh pi@192.168.x.x` |
 | `UNPROTECTED PRIVATE KEY FILE` | `chmod 600 ~/.ssh/id_ed25519` |
+
+---
+
+*Stand: Dezember 2025*

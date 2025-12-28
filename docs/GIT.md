@@ -1,10 +1,21 @@
 # Git-Workflow
 
-> Repository: `github.com:unger-robotics/selection-panel`
+Repository: `github.com:unger-robotics/selection-panel`
 
 ---
 
-## Erstmaliges Setup
+## Repository klonen
+
+```bash
+git clone git@github.com:unger-robotics/selection-panel.git
+cd selection-panel
+```
+
+> **Voraussetzung:** SSH-Key für GitHub eingerichtet → [SSH.md](SSH.md#4-github-optional)
+
+---
+
+## Erstmaliges Setup (neues Repo)
 
 ```bash
 cd ~/selection-panel
@@ -14,12 +25,6 @@ git commit -m "feat: Initial commit"
 git branch -M main
 git remote add origin git@github.com:unger-robotics/selection-panel.git
 git push -u origin main
-```
-
-## Klonen (bestehendes Repo)
-
-```bash
-git clone git@github.com:unger-robotics/selection-panel.git
 ```
 
 ---
@@ -38,7 +43,7 @@ git push                    # Pushen
 ## Commit-Konventionen
 
 | Präfix | Verwendung | Beispiel |
-|--------|------------|----------|
+|:-------|:-----------|:---------|
 | `feat` | Neue Funktion | `feat(server): WebSocket-Broadcast` |
 | `fix` | Bugfix | `fix(firmware): LED-Index korrigiert` |
 | `docs` | Dokumentation | `docs: HARDWARE.md erweitert` |
@@ -52,7 +57,7 @@ git push                    # Pushen
 ## Branching
 
 ```bash
-# Feature-Branch
+# Feature-Branch erstellen
 git checkout -b feature/led-animation
 git add . && git commit -m "feat: LED-Animation"
 git push -u origin feature/led-animation
@@ -67,30 +72,28 @@ git branch -d feature/led-animation
 
 ---
 
-## Häufige Aktionen
+## Häufige Befehle
 
-```bash
-git status                  # Was hat sich geändert?
-git log --oneline -10       # Letzte 10 Commits
-git diff                    # Änderungen anzeigen
-git stash                   # Änderungen parken
-git stash pop               # Änderungen zurückholen
-git commit --amend -m "..." # Letzten Commit korrigieren
-```
+| Befehl | Aktion |
+|:-------|:-------|
+| `git status` | Was hat sich geändert? |
+| `git log --oneline -10` | Letzte 10 Commits |
+| `git diff` | Änderungen anzeigen |
+| `git stash` | Änderungen parken |
+| `git stash pop` | Änderungen zurückholen |
+| `git commit --amend -m "..."` | Letzten Commit korrigieren |
 
 ---
 
 ## Deployment (Mac → Pi)
 
 ```bash
-# Dateien synchronisieren
 rsync -avz --delete \
   --exclude='venv' \
   --exclude='.git' \
   --exclude='__pycache__' \
   . pi@rover:~/selection-panel/
 
-# Server neu starten
 ssh rover 'sudo systemctl restart selection-panel'
 ```
 
@@ -106,3 +109,22 @@ __pycache__/
 venv/
 .DS_Store
 ```
+
+---
+
+## Vim + Git
+
+Git verwendet Vim für Commit-Messages:
+
+```
+i                → Insert-Modus
+[Message tippen] → z.B. "fix: Serial-Port korrigiert"
+Esc → :wq        → Commit ausführen
+Esc → :q!        → Commit abbrechen
+```
+
+**Editor ändern:** `git config --global core.editor "code --wait"`
+
+---
+
+*Stand: Dezember 2025*
