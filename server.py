@@ -320,17 +320,21 @@ async def serial_reader_task() -> None:
                     try:
                         r, _, _ = select.select([fd_read], [], [], 1.0)
                         if r:
-                            data = os.read(fd_read, 1024)
-                            if data:
-                                buffer += data
-                                while b'\n' in buffer:
-                                    line, buffer = buffer.split(b'\n', 1)
-                                    line_str = line.decode('utf-8', errors='replace').strip()
-                                    if line_str:
-                                        asyncio.run_coroutine_threadsafe(
-                                            handle_serial_line(line_str),
-                                            loop
-                                        )
+                            try:
+                                data = os.read(fd_read, 1024)
+                                if data:
+                                    buffer += data
+                                    while b'\n' in buffer:
+                                        line, buffer = buffer.split(b'\n', 1)
+                                        line_str = line.decode('utf-8', errors='replace').strip()
+                                        if line_str:
+                                            asyncio.run_coroutine_threadsafe(
+                                                handle_serial_line(line_str),
+                                                loop
+                                            )
+                            except BlockingIOError:
+                                # EAGAIN - keine Daten verfügbar, normal bei non-blocking
+                                pass
                     except OSError as e:
                         logging.error(f"Serial-Lesefehler: {e}")
                         break
