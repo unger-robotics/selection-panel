@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.3.2
+Auswahlpanel Server v2.4.0
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
@@ -13,8 +13,8 @@ Serial-Protokoll (1-basiert!):
 - ESP32 sendet: PRESS 001 ... PRESS 100
 - Server sendet: LEDSET 001 ... LEDSET 100
 
-Intern (0-basiert):
-- Medien-IDs: 0-99 (für 000.jpg, 000.mp3, etc.)
+Medien (1-basiert!):
+- Medien-IDs: 1-100 (für 001.jpg, 001.mp3, etc.)
 
 Autor: Jan Unger
 Datum: 2025-12-30
@@ -120,6 +120,7 @@ state = AppState()
 def validate_media() -> tuple[bool, list[str]]:
     """
     Prueft ob alle erwarteten Medien-Dateien vorhanden sind.
+    Medien sind 1-basiert: 001.jpg - 010.jpg (bzw. 100.jpg)
 
     Returns:
         (all_valid, missing_files)
@@ -127,7 +128,7 @@ def validate_media() -> tuple[bool, list[str]]:
     missing = []
     valid_count = 0
 
-    for i in range(NUM_MEDIA):
+    for i in range(1, NUM_MEDIA + 1):  # 1 bis NUM_MEDIA
         media_id = f"{i:03d}"
         id_valid = True
 
@@ -164,8 +165,8 @@ def validate_media() -> tuple[bool, list[str]]:
 
 
 def check_media_exists(media_id: int) -> dict:
-    """Prueft ob Medien fuer eine ID existieren (0-basiert)."""
-    if media_id < 0 or media_id >= NUM_MEDIA:
+    """Prueft ob Medien fuer eine ID existieren (1-basiert)."""
+    if media_id < 1 or media_id > NUM_MEDIA:
         return {"valid": False, "jpg": False, "mp3": False}
 
     return state.media_valid.get(media_id, {"jpg": False, "mp3": False})
@@ -186,10 +187,9 @@ async def handle_serial_line(line: str) -> None:
         try:
             parts = line.split()
             if len(parts) >= 2:
-                # ESP32 sendet 1-basiert (001-100), intern 0-basiert (0-99)
-                serial_id = int(parts[1])  # 1-basiert von ESP32
-                button_id = serial_id - 1   # Konvertiere zu 0-basiert
-                logging.debug(f"PRESS: serial={serial_id} -> intern={button_id}")
+                # ESP32 sendet 1-basiert (001-100), Medien sind auch 1-basiert
+                button_id = int(parts[1])  # 1-basiert, keine Konvertierung
+                logging.debug(f"PRESS: button_id={button_id}")
                 await handle_button_press(button_id)
             else:
                 logging.warning(f"PRESS ohne ID: {line}")
@@ -234,11 +234,11 @@ async def handle_button_press(button_id: int) -> None:
     Verarbeitet Tastendruck (Preempt-Policy).
 
     Args:
-        button_id: 0-basierte ID (intern)
+        button_id: 1-basierte ID (Taster 1-100, Medien 001-100)
     """
-    # ID-Validierung (0-basiert)
-    if button_id < 0 or button_id >= NUM_MEDIA:
-        logging.warning(f"Button-ID ausserhalb Bereich: {button_id} (erlaubt: 0-{NUM_MEDIA - 1})")
+    # ID-Validierung (1-basiert)
+    if button_id < 1 or button_id > NUM_MEDIA:
+        logging.warning(f"Button-ID ausserhalb Bereich: {button_id} (erlaubt: 1-{NUM_MEDIA})")
         return
 
     # Medien-Validierung
@@ -247,16 +247,14 @@ async def handle_button_press(button_id: int) -> None:
         logging.warning(f"Medien fuer ID {button_id} unvollstaendig: {media_status}")
         # Trotzdem fortfahren - Browser zeigt Fehlermeldung
 
-    # 1-basierte Anzeige für Logs (benutzerfreundlich)
-    logging.info(f"Button {button_id + 1} gedrueckt (intern: {button_id})")
+    logging.info(f"Button {button_id} gedrueckt")
 
     state.current_id = button_id
 
-    # ESP32 erwartet 1-basierte LED-ID
-    led_id = button_id + 1
-    await state.send_serial(f"LEDSET {led_id:03d}")
+    # ESP32: LED-ID ist gleich Button-ID (beide 1-basiert)
+    await state.send_serial(f"LEDSET {button_id:03d}")
 
-    # Browser: 0-basierte ID für Medien (000.jpg, 000.mp3)
+    # Browser: Medien-ID ist auch 1-basiert (001.jpg, 001.mp3)
     await state.broadcast({"type": "stop"})
     await state.broadcast({"type": "play", "id": button_id})
 
@@ -266,12 +264,12 @@ async def handle_playback_ended(ended_id: int) -> None:
     Verarbeitet Wiedergabe-Ende mit Race-Condition-Schutz.
 
     Args:
-        ended_id: 0-basierte ID (intern)
+        ended_id: 1-basierte ID
     """
     logging.debug(f"Playback beendet: {ended_id}, current: {state.current_id}")
 
     if state.current_id == ended_id:
-        logging.info(f"Wiedergabe {ended_id + 1} beendet -> LEDs aus")
+        logging.info(f"Wiedergabe {ended_id} beendet -> LEDs aus")
         state.current_id = None
         await state.send_serial("LEDCLR")
     else:
@@ -434,13 +432,13 @@ async def index_handler(request: web.Request) -> web.FileResponse:
 
 
 async def test_play_handler(request: web.Request) -> web.Response:
-    """Test-Endpoint: Simuliert Tastendruck (0-basierte ID)."""
+    """Test-Endpoint: Simuliert Tastendruck (1-basierte ID)."""
     try:
         test_id = int(request.match_info["id"])
-        if 0 <= test_id < NUM_MEDIA:
+        if 1 <= test_id <= NUM_MEDIA:
             await handle_button_press(test_id)
-            return web.Response(text=f"OK: play {test_id} (Button {test_id + 1})")
-        return web.Response(text=f"ERROR: ID muss 0-{NUM_MEDIA - 1} sein", status=400)
+            return web.Response(text=f"OK: play {test_id}")
+        return web.Response(text=f"ERROR: ID muss 1-{NUM_MEDIA} sein", status=400)
     except ValueError:
         return web.Response(text="ERROR: Ungueltige ID", status=400)
 
@@ -456,11 +454,10 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
     return web.json_response({
-        "version": "2.3.2",
+        "version": "2.4.0",
         "mode": "prototype" if PROTOTYPE_MODE else "production",
         "num_media": NUM_MEDIA,
-        "current_id": state.current_id,
-        "current_button": state.current_id + 1 if state.current_id is not None else None,
+        "current_button": state.current_id,  # 1-basiert
         "ws_clients": len(state.ws_clients),
         "serial_connected": state.serial_connected,
         "serial_port": SERIAL_PORT,
@@ -531,9 +528,9 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.3.2 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v2.4.0 ({mode_str})")
     logging.info("=" * 50)
-    logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 000-{NUM_MEDIA-1:03d})")
+    logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 001-{NUM_MEDIA:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
     logging.info(f"Serial: {SERIAL_PORT}")
     logging.info(f"HTTP:   http://{HTTP_HOST}:{HTTP_PORT}/")
