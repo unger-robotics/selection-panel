@@ -1,9 +1,9 @@
 /* ==========================================================================
-   Schematic JavaScript v7.3
-   Stand: 2025-12-27
+   Schematic JavaScript v7.4
+   Stand: 2025-12-29
    Funktionen: Tab-Navigation, LED-Animation
    Farbschema: CSS-gesteuert (Arduino Teal + Raspberry Pi)
-   NEU: Tabs für vollständige Pinout-Tabellen
+   Konsistent mit KiCad-Schaltplan (selection-panel-prototyp.kicad_sch)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -36,6 +36,7 @@ function initTabs() {
 /* --------------------------------------------------------------------------
    LED Animation (Prototype View)
    One-hot Verhalten: Immer nur eine LED aktiv (wie im echten System)
+   LEDs: D1-D10 im KiCad-Schaltplan
    -------------------------------------------------------------------------- */
 function initLEDAnimation() {
     const leds = document.querySelectorAll('.led');
@@ -62,12 +63,12 @@ function copyPinTable() {
     const table = document.querySelector('.card-primary .pin-table');
     if (!table) return;
     
-    let text = 'ESP32-S3 XIAO Pinbelegung\n';
-    text += '─'.repeat(30) + '\n';
+    let text = 'ESP32-S3 XIAO Pinbelegung (KiCad)\n';
+    text += '═'.repeat(40) + '\n';
     
     table.querySelectorAll('tbody tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        text += `${cells[0].textContent.padEnd(4)} ${cells[1].textContent.padEnd(8)} ${cells[2].textContent}\n`;
+        text += `${cells[0].textContent.padEnd(4)} ${cells[1].textContent.padEnd(12)} ${cells[2].textContent}\n`;
     });
     
     navigator.clipboard.writeText(text).then(() => {
@@ -107,5 +108,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'd' && e.ctrlKey) {
         e.preventDefault();
         logState();
+    }
+    
+    // C für Copy Pin Table
+    if (e.key === 'c' && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        copyPinTable();
     }
 });

@@ -1,8 +1,8 @@
 /**
  * @file config.h
  * @brief Konfiguration für Button Panel (Prototyp / Produktion)
- * @version 2.3.0
- * @date 2025-12-30
+ * @version 2.2.0
+ * @date 2025-12-26
  *
  * Hardware:
  * - Seeed XIAO ESP32-S3 (Dual-Core)
@@ -30,57 +30,38 @@
 #define PROTOTYPE_MODE
 
 #ifdef PROTOTYPE_MODE
-constexpr uint8_t NUM_SHIFT_REGS = 2; // 2x ICs = 16 Bits
-constexpr uint8_t NUM_LEDS = 10;
-constexpr uint8_t NUM_BUTTONS = 10;
-
-// Bit-Mapping für Prototyp (Breadboard-Verdrahtung)
-// Ermittelt mit phase3_diagnose
-constexpr bool USE_BUTTON_MAPPING = true;
-constexpr uint8_t BUTTON_BIT_MAP[10] = {
-    15, // Taster 1 -> Bit 15 (IC#1)
-    12, // Taster 2 -> Bit 12 (IC#1)
-    13, // Taster 3 -> Bit 13 (IC#1)
-    11, // Taster 4 -> Bit 11 (IC#1)
-    10, // Taster 5 -> Bit 10 (IC#1)
-    9,  // Taster 6 -> Bit 9  (IC#1)
-    8,  // Taster 7 -> Bit 8  (IC#1)
-    14, // Taster 8 -> Bit 14 (IC#1)
-    7,  // Taster 9 -> Bit 7  (IC#0)
-    4   // Taster 10-> Bit 4  (IC#0)
-};
+    constexpr uint8_t NUM_SHIFT_REGS = 2;    // 2x ICs = 16 Bits
+    constexpr uint8_t NUM_LEDS       = 10;
+    constexpr uint8_t NUM_BUTTONS    = 10;
 #else
-constexpr uint8_t NUM_SHIFT_REGS = 13; // 13x ICs = 104 Bits (100 genutzt)
-constexpr uint8_t NUM_LEDS = 100;
-constexpr uint8_t NUM_BUTTONS = 100;
-
-// Produktion: Lineare Verdrahtung, kein Mapping noetig
-constexpr bool USE_BUTTON_MAPPING = false;
+    constexpr uint8_t NUM_SHIFT_REGS = 13;   // 13x ICs = 104 Bits (100 genutzt)
+    constexpr uint8_t NUM_LEDS       = 100;
+    constexpr uint8_t NUM_BUTTONS    = 100;
 #endif
 
 // Abgeleitete Konstanten
-constexpr uint8_t NUM_595_CHIPS = NUM_SHIFT_REGS;
-constexpr uint8_t NUM_4021_CHIPS = NUM_SHIFT_REGS;
-constexpr uint8_t TOTAL_OUTPUT_BITS = NUM_595_CHIPS * 8;
-constexpr uint8_t TOTAL_INPUT_BITS = NUM_4021_CHIPS * 8;
+constexpr uint8_t NUM_595_CHIPS      = NUM_SHIFT_REGS;
+constexpr uint8_t NUM_4021_CHIPS     = NUM_SHIFT_REGS;
+constexpr uint8_t TOTAL_OUTPUT_BITS  = NUM_595_CHIPS * 8;
+constexpr uint8_t TOTAL_INPUT_BITS   = NUM_4021_CHIPS * 8;
 
 // Maximale Anzahl (fuer statische Buffer)
-constexpr uint8_t MAX_SHIFT_REGS = 13;
-constexpr uint8_t MAX_BUTTONS = 100;
+constexpr uint8_t MAX_SHIFT_REGS     = 13;
+constexpr uint8_t MAX_BUTTONS        = 100;
 
 // =============================================================================
 // PIN-DEFINITIONEN (ESP32-S3 XIAO)
 // =============================================================================
 
 // 74HC595 Output Chain (LEDs)
-constexpr uint8_t PIN_595_DATA = D0;  // GPIO1 - SER (Pin 14)
-constexpr uint8_t PIN_595_CLOCK = D1; // GPIO2 - SRCLK (Pin 11)
-constexpr uint8_t PIN_595_LATCH = D2; // GPIO3 - RCLK (Pin 12)
+constexpr uint8_t PIN_595_DATA   = D0;   // GPIO1 - SER (Pin 14)
+constexpr uint8_t PIN_595_CLOCK  = D1;   // GPIO2 - SRCLK (Pin 11)
+constexpr uint8_t PIN_595_LATCH  = D2;   // GPIO3 - RCLK (Pin 12)
 
 // CD4021BE Input Chain (Buttons)
-constexpr uint8_t PIN_4021_DATA = D3;  // GPIO4 - Q8 (Pin 3) - Input!
-constexpr uint8_t PIN_4021_CLOCK = D4; // GPIO5 - CLK (Pin 10)
-constexpr uint8_t PIN_4021_LOAD = D5;  // GPIO6 - P/S (Pin 9)
+constexpr uint8_t PIN_4021_DATA  = D3;   // GPIO4 - Q8 (Pin 3) - Input!
+constexpr uint8_t PIN_4021_CLOCK = D4;   // GPIO5 - CLK (Pin 10)
+constexpr uint8_t PIN_4021_LOAD  = D5;   // GPIO6 - P/S (Pin 9)
 
 // =============================================================================
 // TIMING-PARAMETER
@@ -89,7 +70,7 @@ constexpr uint8_t PIN_4021_LOAD = D5;  // GPIO6 - P/S (Pin 9)
 // Schieberegister-Timing (Mikrosekunden)
 // 74HC595: min 20ns Clock-Puls @ 5V
 // CD4021:  min 180ns Clock-Puls @ 5V (langsamer!)
-constexpr uint8_t SHIFT_DELAY_US = 1; // 1us sicher fuer beide
+constexpr uint8_t SHIFT_DELAY_US = 1;    // 1us sicher fuer beide
 
 // Button-Debouncing
 constexpr uint32_t DEBOUNCE_TIME_MS = 50;
@@ -109,18 +90,18 @@ constexpr uint32_t LED_TEST_STEP_MS = 150;
 
 // Task-Prioritaeten (hoeher = wichtiger)
 constexpr UBaseType_t TASK_PRIORITY_BUTTONS = 2;
-constexpr UBaseType_t TASK_PRIORITY_SERIAL = 1;
+constexpr UBaseType_t TASK_PRIORITY_SERIAL  = 1;
 
 // Stack-Groessen (in Words, nicht Bytes!)
 constexpr uint32_t TASK_STACK_BUTTONS = 2048;
-constexpr uint32_t TASK_STACK_SERIAL = 4096;
+constexpr uint32_t TASK_STACK_SERIAL  = 4096;
 
 // Core-Zuweisung
 constexpr BaseType_t CORE_BUTTONS = 0;
-constexpr BaseType_t CORE_MAIN = 1;
+constexpr BaseType_t CORE_MAIN    = 1;
 
 // Queue-Groessen
-constexpr uint8_t BUTTON_QUEUE_SIZE = 16;
+constexpr uint8_t BUTTON_QUEUE_SIZE  = 16;
 constexpr uint8_t COMMAND_QUEUE_SIZE = 8;
 
 // =============================================================================
@@ -134,8 +115,6 @@ constexpr uint8_t COMMAND_QUEUE_SIZE = 8;
  *
  * 74HC165: SH/LD = LOW  -> Parallel Load
  *          SH/LD = HIGH -> Serial Shift
- *
- * WICHTIG: Unbenutzte CMOS-Eingaenge muessen auf VCC!
  */
 
 // =============================================================================

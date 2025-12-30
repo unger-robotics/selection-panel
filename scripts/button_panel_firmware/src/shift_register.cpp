@@ -1,8 +1,8 @@
 /**
  * @file shift_register.cpp
  * @brief Thread-sichere Implementation fuer 74HC595 und CD4021BE
- * @version 2.3.0
- * @date 2025-12-30
+ * @version 2.2.0
+ * @date 2025-12-26
  */
 
 #include "shift_register.h"
@@ -13,9 +13,13 @@
 
 OutputShiftRegister::OutputShiftRegister(uint8_t dataPin, uint8_t clockPin,
                                          uint8_t latchPin, uint8_t numChips)
-    : _dataPin(dataPin), _clockPin(clockPin), _latchPin(latchPin),
-      _numChips(min(numChips, MAX_SHIFT_REGS)), _mutex(nullptr),
-      _initialized(false) {
+    : _dataPin(dataPin)
+    , _clockPin(clockPin)
+    , _latchPin(latchPin)
+    , _numChips(min(numChips, MAX_SHIFT_REGS))  // Sicherheitsbegrenzung
+    , _mutex(nullptr)
+    , _initialized(false)
+{
     memset(_buffer, 0, sizeof(_buffer));
 }
 
@@ -47,9 +51,8 @@ bool OutputShiftRegister::begin() {
     return true;
 }
 
-void OutputShiftRegister::write(const uint8_t *data) {
-    if (!takeMutex())
-        return;
+void OutputShiftRegister::write(const uint8_t* data) {
+    if (!takeMutex()) return;
 
     for (uint8_t i = 0; i < _numChips; i++) {
         _buffer[i] = data[i];
@@ -62,10 +65,8 @@ void OutputShiftRegister::write(const uint8_t *data) {
 
 void OutputShiftRegister::setOutput(uint8_t index, bool state) {
     uint8_t maxBits = _numChips * 8;
-    if (index >= maxBits)
-        return;
-    if (!takeMutex())
-        return;
+    if (index >= maxBits) return;
+    if (!takeMutex()) return;
 
     uint8_t chip = index / 8;
     uint8_t bit = index % 8;
@@ -81,8 +82,7 @@ void OutputShiftRegister::setOutput(uint8_t index, bool state) {
 
 bool OutputShiftRegister::getOutput(uint8_t index) const {
     uint8_t maxBits = _numChips * 8;
-    if (index >= maxBits)
-        return false;
+    if (index >= maxBits) return false;
 
     uint8_t chip = index / 8;
     uint8_t bit = index % 8;
@@ -91,22 +91,19 @@ bool OutputShiftRegister::getOutput(uint8_t index) const {
 }
 
 void OutputShiftRegister::clear() {
-    if (!takeMutex())
-        return;
-    memset(_buffer, 0, _numChips);
+    if (!takeMutex()) return;
+    memset(_buffer, 0, _numChips);  // Nur genutzte Bytes
     giveMutex();
 }
 
 void OutputShiftRegister::setAll() {
-    if (!takeMutex())
-        return;
+    if (!takeMutex()) return;
     memset(_buffer, 0xFF, _numChips);
     giveMutex();
 }
 
 void OutputShiftRegister::setOnly(int8_t index) {
-    if (!takeMutex())
-        return;
+    if (!takeMutex()) return;
 
     memset(_buffer, 0, _numChips);
 
@@ -124,8 +121,7 @@ void OutputShiftRegister::setOnly(int8_t index) {
 }
 
 void OutputShiftRegister::update() {
-    if (!takeMutex())
-        return;
+    if (!takeMutex()) return;
     shiftOutData();
     pulseLatch();
     giveMutex();
@@ -160,8 +156,7 @@ void OutputShiftRegister::pulseLatch() {
 }
 
 bool OutputShiftRegister::takeMutex(TickType_t timeout) {
-    if (_mutex == nullptr)
-        return false;
+    if (_mutex == nullptr) return false;
     return xSemaphoreTake(_mutex, timeout) == pdTRUE;
 }
 
@@ -177,9 +172,13 @@ void OutputShiftRegister::giveMutex() {
 
 InputShiftRegister::InputShiftRegister(uint8_t dataPin, uint8_t clockPin,
                                        uint8_t loadPin, uint8_t numChips)
-    : _dataPin(dataPin), _clockPin(clockPin), _loadPin(loadPin),
-      _numChips(min(numChips, MAX_SHIFT_REGS)), _mutex(nullptr),
-      _initialized(false) {
+    : _dataPin(dataPin)
+    , _clockPin(clockPin)
+    , _loadPin(loadPin)
+    , _numChips(min(numChips, MAX_SHIFT_REGS))  // Sicherheitsbegrenzung
+    , _mutex(nullptr)
+    , _initialized(false)
+{
     // Pull-ups: alle HIGH wenn nicht gedrueckt
     memset(_buffer, 0xFF, sizeof(_buffer));
 }
@@ -210,11 +209,10 @@ bool InputShiftRegister::begin() {
     return true;
 }
 
-void InputShiftRegister::read(uint8_t *data) {
+void InputShiftRegister::read(uint8_t* data) {
     update();
 
-    if (!takeMutex())
-        return;
+    if (!takeMutex()) return;
     for (uint8_t i = 0; i < _numChips; i++) {
         data[i] = _buffer[i];
     }
@@ -223,8 +221,7 @@ void InputShiftRegister::read(uint8_t *data) {
 
 bool InputShiftRegister::getInput(uint8_t index) const {
     uint8_t maxBits = _numChips * 8;
-    if (index >= maxBits)
-        return false;
+    if (index >= maxBits) return false;
 
     uint8_t chip = index / 8;
     uint8_t bit = index % 8;
@@ -233,8 +230,7 @@ bool InputShiftRegister::getInput(uint8_t index) const {
 }
 
 void InputShiftRegister::update() {
-    if (!takeMutex())
-        return;
+    if (!takeMutex()) return;
     parallelLoad();
     shiftInData();
     giveMutex();
@@ -244,59 +240,44 @@ void InputShiftRegister::parallelLoad() {
     /**
      * CD4021BE: P/S = HIGH fuer Parallel Load!
      * (Invertiert zum 74HC165 wo SH/LD = LOW fuer Load)
-     *
-     * WICHTIG: CD4021 braucht laengere Pulse als 74HC595!
      */
     digitalWrite(_loadPin, HIGH);
-    delayMicroseconds(5); // Laenger fuer CD4021 (CMOS)
+    delayMicroseconds(SHIFT_DELAY_US);
     digitalWrite(_loadPin, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(SHIFT_DELAY_US);
 }
 
 void InputShiftRegister::shiftInData() {
-    // Gleiche Logik wie in der Test-Firmware (phase4_integration)
-    // Liest alle Bits sequentiell, MSB first
+    for (int8_t chip = _numChips - 1; chip >= 0; chip--) {
+        uint8_t data = 0;
 
-    uint8_t totalBits = _numChips * 8;
+        for (int8_t bit = 7; bit >= 0; bit--) {
+            if (digitalRead(_dataPin)) {
+                data |= (1 << bit);
+            }
 
-    // Temporärer Buffer für alle Bits
-    uint8_t tempBuffer[MAX_SHIFT_REGS];
-    memset(tempBuffer, 0, sizeof(tempBuffer));
-
-    for (uint8_t i = 0; i < totalBits; i++) {
-        // Bit lesen
-        uint8_t bit = digitalRead(_dataPin);
-
-        // Bit-Position berechnen (MSB first)
-        uint8_t bitIndex = totalBits - 1 - i;
-        uint8_t chip = bitIndex / 8;
-        uint8_t bitInChip = bitIndex % 8;
-
-        if (bit) {
-            tempBuffer[chip] |= (1 << bitInChip);
+            if (bit > 0 || chip > 0) {
+                pulseClock();
+            }
         }
 
-        // Clock-Puls für nächstes Bit
-        pulseClock();
-    }
+        if (chip > 0) {
+            pulseClock();
+        }
 
-    // Buffer kopieren
-    for (uint8_t i = 0; i < _numChips; i++) {
-        _buffer[i] = tempBuffer[i];
+        _buffer[chip] = data;
     }
 }
 
 void InputShiftRegister::pulseClock() {
-    // CD4021 braucht laengere Clock-Pulse als 74HC595
     digitalWrite(_clockPin, HIGH);
-    delayMicroseconds(2);
+    delayMicroseconds(SHIFT_DELAY_US);
     digitalWrite(_clockPin, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(SHIFT_DELAY_US);
 }
 
 bool InputShiftRegister::takeMutex(TickType_t timeout) {
-    if (_mutex == nullptr)
-        return false;
+    if (_mutex == nullptr) return false;
     return xSemaphoreTake(_mutex, timeout) == pdTRUE;
 }
 
@@ -310,12 +291,17 @@ void InputShiftRegister::giveMutex() {
 // ButtonManager
 // =============================================================================
 
-ButtonManager::ButtonManager(InputShiftRegister &shiftReg, uint8_t numButtons,
+ButtonManager::ButtonManager(InputShiftRegister& shiftReg, uint8_t numButtons,
                              bool activeLow)
-    : _shiftReg(shiftReg),
-      _numButtons(min(numButtons, static_cast<uint8_t>(MAX_BUTTONS))),
-      _activeLow(activeLow), _currentState(0), _previousState(0),
-      _pressedFlags(0), _releasedFlags(0), _lastPressed(-1) {
+    : _shiftReg(shiftReg)
+    , _numButtons(min(numButtons, static_cast<uint8_t>(MAX_BUTTONS)))
+    , _activeLow(activeLow)
+    , _currentState(0)
+    , _previousState(0)
+    , _pressedFlags(0)
+    , _releasedFlags(0)
+    , _lastPressed(-1)
+{
     memset(_lastChangeTime, 0, sizeof(_lastChangeTime));
 }
 
@@ -338,7 +324,7 @@ bool ButtonManager::begin() {
     return true;
 }
 
-bool ButtonManager::update(ButtonEvent *event) {
+bool ButtonManager::update(ButtonEvent* event) {
     uint32_t now = millis();
     bool eventOccurred = false;
 
@@ -347,6 +333,7 @@ bool ButtonManager::update(ButtonEvent *event) {
     _pressedFlags = 0;
     _releasedFlags = 0;
 
+    // Nur Buttons bis 32 mit Bitmask (fuer 100 Buttons erweitern!)
     uint8_t maxCheck = min(_numButtons, static_cast<uint8_t>(32));
 
     for (uint8_t i = 0; i < maxCheck; i++) {
@@ -397,8 +384,7 @@ bool ButtonManager::update(ButtonEvent *event) {
 }
 
 bool ButtonManager::wasPressed(uint8_t index) {
-    if (index >= _numButtons || index >= 32)
-        return false;
+    if (index >= _numButtons || index >= 32) return false;
 
     bool pressed = (_pressedFlags >> index) & 0x01;
     if (pressed) {
@@ -408,8 +394,7 @@ bool ButtonManager::wasPressed(uint8_t index) {
 }
 
 bool ButtonManager::wasReleased(uint8_t index) {
-    if (index >= _numButtons || index >= 32)
-        return false;
+    if (index >= _numButtons || index >= 32) return false;
 
     bool released = (_releasedFlags >> index) & 0x01;
     if (released) {
@@ -419,8 +404,7 @@ bool ButtonManager::wasReleased(uint8_t index) {
 }
 
 bool ButtonManager::isPressed(uint8_t index) const {
-    if (index >= _numButtons || index >= 32)
-        return false;
+    if (index >= _numButtons || index >= 32) return false;
     return (_currentState >> index) & 0x01;
 }
 
@@ -431,22 +415,7 @@ int8_t ButtonManager::getLastPressed() {
 }
 
 bool ButtonManager::readRawButton(uint8_t index) const {
-    uint8_t bitPos;
-
-#ifdef PROTOTYPE_MODE
-    // Prototyp: Bit-Mapping verwenden
-    if (USE_BUTTON_MAPPING && index < NUM_BUTTONS) {
-        bitPos = BUTTON_BIT_MAP[index];
-    } else {
-        bitPos = index;
-    }
-#else
-    // Produktion: Lineare Verdrahtung
-    bitPos = index;
-#endif
-
-    bool state = _shiftReg.getInput(bitPos);
-
+    bool state = _shiftReg.getInput(index);
     if (_activeLow) {
         state = !state;
     }

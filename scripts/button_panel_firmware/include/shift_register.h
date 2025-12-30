@@ -1,23 +1,22 @@
 /**
  * @file shift_register.h
  * @brief Thread-sichere Klassen fuer 74HC595 (Output) und CD4021BE (Input)
- * @version 2.3.0
- * @date 2025-12-30
+ * @version 2.2.0
+ * @date 2025-12-26
  *
  * Features:
  * - Mutex-geschuetzter Hardware-Zugriff
  * - Skalierbar von Prototyp (2 ICs) bis Produktion (13 ICs)
- * - Bit-Mapping fuer Prototyp-Verdrahtung
  * - Optimierte Bit-Operationen
  */
 
 #ifndef SHIFT_REGISTER_H
 #define SHIFT_REGISTER_H
 
-#include "config.h"
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include "config.h"
 
 // =============================================================================
 // OUTPUT SHIFT REGISTER (74HC595)
@@ -36,13 +35,13 @@
  *   Pin 10 (SRCLR) - Shift Register Clear (Active LOW) -> VCC
  */
 class OutputShiftRegister {
-  public:
-    OutputShiftRegister(uint8_t dataPin, uint8_t clockPin, uint8_t latchPin,
-                        uint8_t numChips = NUM_595_CHIPS);
+public:
+    OutputShiftRegister(uint8_t dataPin, uint8_t clockPin,
+                        uint8_t latchPin, uint8_t numChips = NUM_595_CHIPS);
     ~OutputShiftRegister();
 
     bool begin();
-    void write(const uint8_t *data);
+    void write(const uint8_t* data);
     void setOutput(uint8_t index, bool state);
     bool getOutput(uint8_t index) const;
     void clear();
@@ -53,12 +52,13 @@ class OutputShiftRegister {
     bool isInitialized() const { return _initialized; }
     uint8_t getNumChips() const { return _numChips; }
 
-  private:
+private:
     const uint8_t _dataPin;
     const uint8_t _clockPin;
     const uint8_t _latchPin;
     const uint8_t _numChips;
 
+    // Statischer Buffer fuer maximale Konfiguration
     uint8_t _buffer[MAX_SHIFT_REGS];
     SemaphoreHandle_t _mutex;
     bool _initialized;
@@ -88,30 +88,29 @@ class OutputShiftRegister {
  * WICHTIG: Invertierte Load-Logik!
  *   P/S = HIGH -> Parallel Load
  *   P/S = LOW  -> Serial Shift
- *
- * WICHTIG: Unbenutzte CMOS-Eingaenge -> VCC!
  */
 class InputShiftRegister {
-  public:
-    InputShiftRegister(uint8_t dataPin, uint8_t clockPin, uint8_t loadPin,
-                       uint8_t numChips = NUM_4021_CHIPS);
+public:
+    InputShiftRegister(uint8_t dataPin, uint8_t clockPin,
+                       uint8_t loadPin, uint8_t numChips = NUM_4021_CHIPS);
     ~InputShiftRegister();
 
     bool begin();
-    void read(uint8_t *data);
+    void read(uint8_t* data);
     bool getInput(uint8_t index) const;
     void update();
 
-    const uint8_t *getBuffer() const { return _buffer; }
+    const uint8_t* getBuffer() const { return _buffer; }
     bool isInitialized() const { return _initialized; }
     uint8_t getNumChips() const { return _numChips; }
 
-  private:
+private:
     const uint8_t _dataPin;
     const uint8_t _clockPin;
     const uint8_t _loadPin;
     const uint8_t _numChips;
 
+    // Statischer Buffer fuer maximale Konfiguration
     uint8_t _buffer[MAX_SHIFT_REGS];
     SemaphoreHandle_t _mutex;
     bool _initialized;
@@ -128,7 +127,11 @@ class InputShiftRegister {
 // BUTTON EVENT STRUKTUR
 // =============================================================================
 
-enum class ButtonEventType : uint8_t { NONE = 0, PRESSED, RELEASED };
+enum class ButtonEventType : uint8_t {
+    NONE = 0,
+    PRESSED,
+    RELEASED
+};
 
 struct ButtonEvent {
     uint8_t index;
@@ -137,39 +140,44 @@ struct ButtonEvent {
 };
 
 // =============================================================================
-// BUTTON MANAGER (mit Debouncing, Thread-sicher, Bit-Mapping)
+// BUTTON MANAGER (mit Debouncing, Thread-sicher)
 // =============================================================================
 
 /**
  * @class ButtonManager
- * @brief Thread-sichere Button-Verwaltung mit Debouncing und Bit-Mapping
+ * @brief Thread-sichere Button-Verwaltung mit Debouncing
  *
  * Unterstuetzt bis zu MAX_BUTTONS (100) Taster.
- * Im PROTOTYPE_MODE wird BUTTON_BIT_MAP verwendet.
+ * Nutzt uint32_t Bitmasks fuer bis zu 32 Buttons,
+ * bei mehr Buttons werden Arrays verwendet.
  */
 class ButtonManager {
-  public:
-    ButtonManager(InputShiftRegister &shiftReg, uint8_t numButtons,
+public:
+    ButtonManager(InputShiftRegister& shiftReg, uint8_t numButtons,
                   bool activeLow = true);
 
     bool begin();
-    bool update(ButtonEvent *event);
+    bool update(ButtonEvent* event);
     bool wasPressed(uint8_t index);
     bool wasReleased(uint8_t index);
     bool isPressed(uint8_t index) const;
     int8_t getLastPressed();
 
+    // Fuer Kompatibilitaet: Gibt nur die unteren 16 Bits zurueck
     uint16_t getCurrentState() const {
         return static_cast<uint16_t>(_currentState & 0xFFFF);
     }
 
+    // Neu: Voller 32-Bit Zustand (fuer bis zu 32 Buttons)
     uint32_t getFullState() const { return _currentState; }
 
-  private:
-    InputShiftRegister &_shiftReg;
+private:
+    InputShiftRegister& _shiftReg;
     const uint8_t _numButtons;
     const bool _activeLow;
 
+    // 32-Bit Bitmasks fuer bis zu 32 Buttons
+    // Fuer 100 Buttons: erweitern auf uint8_t Array[13]
     uint32_t _currentState;
     uint32_t _previousState;
     uint32_t _lastChangeTime[MAX_BUTTONS];

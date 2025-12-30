@@ -1,8 +1,8 @@
 /**
  * @file main.cpp
  * @brief Button Panel Controller - ESP32-S3 XIAO (Dual-Core)
- * @version 2.3.0
- * @date 2025-12-30
+ * @version 2.2.0
+ * @date 2025-12-26
  *
  * Architektur:
  * +-------------------------------------------------------------+
@@ -23,14 +23,14 @@
  * Serial-Protokoll (115200 Baud):
  *
  * ESP32 -> Raspberry Pi:
- *   PRESS xxx    - Button wurde gedrueckt (001-100, 1-basiert!)
+ *   PRESS xxx    - Button wurde gedrueckt (000-099)
  *   RELEASE xxx  - Button wurde losgelassen
  *   READY        - Controller ist bereit
  *   OK           - Befehl ausgefuehrt
  *   ERROR msg    - Fehler aufgetreten
  *
  * Raspberry Pi -> ESP32:
- *   LEDSET xxx   - LED einschalten (one-hot, 1-basiert)
+ *   LEDSET xxx   - LED einschalten (one-hot)
  *   LEDON xxx    - LED einschalten (additiv)
  *   LEDOFF xxx   - LED ausschalten
  *   LEDCLR       - Alle LEDs aus
@@ -38,25 +38,22 @@
  *   PING         - Verbindungstest
  *   STATUS       - Zustand abfragen
  *   TEST         - LED-Test (non-blocking)
- *   HELLO        - Startup-Nachricht anzeigen
  */
 
+#include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include <esp_task_wdt.h>
 #include "config.h"
 #include "shift_register.h"
-#include <Arduino.h>
-#include <esp_task_wdt.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-#include <freertos/task.h>
 
 // =============================================================================
 // GLOBALE OBJEKTE
 // =============================================================================
 
-static OutputShiftRegister leds(PIN_595_DATA, PIN_595_CLOCK, PIN_595_LATCH,
-                                NUM_595_CHIPS);
-static InputShiftRegister buttons_hw(PIN_4021_DATA, PIN_4021_CLOCK,
-                                     PIN_4021_LOAD, NUM_4021_CHIPS);
+static OutputShiftRegister leds(PIN_595_DATA, PIN_595_CLOCK, PIN_595_LATCH, NUM_595_CHIPS);
+static InputShiftRegister buttons_hw(PIN_4021_DATA, PIN_4021_CLOCK, PIN_4021_LOAD, NUM_4021_CHIPS);
 static ButtonManager buttons(buttons_hw, NUM_BUTTONS, BUTTON_ACTIVE_LOW);
 
 static TaskHandle_t buttonTaskHandle = nullptr;
@@ -78,84 +75,35 @@ static struct {
 } queueStats = {0, 0};
 
 // =============================================================================
-// STARTUP-NACHRICHT
-// =============================================================================
-
-static void printStartup() {
-    Serial.println();
-    Serial.println("========================================");
-    Serial.print("Button Panel v2.3.0 (");
-#ifdef PROTOTYPE_MODE
-    Serial.print("PROTOTYPE: ");
-#else
-    Serial.print("PRODUCTION: ");
-#endif
-    Serial.print(NUM_LEDS);
-    Serial.println(" LEDs)");
-    Serial.println("========================================");
-    Serial.println();
-    Serial.println("Pinbelegung:");
-    Serial.println("  LED:    D0=Data, D1=Clock, D2=Latch");
-    Serial.println("  Button: D3=Data, D4=Clock, D5=Load");
-    Serial.println();
-#ifdef PROTOTYPE_MODE
-    if (USE_BUTTON_MAPPING) {
-        Serial.println("Bit-Mapping: AKTIV (Prototyp)");
-        Serial.print("  Taster 1-10 -> Bits: ");
-        for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
-            Serial.print(BUTTON_BIT_MAP[i]);
-            if (i < NUM_BUTTONS - 1)
-                Serial.print(",");
-        }
-        Serial.println();
-    }
-#else
-    Serial.println("Bit-Mapping: LINEAR (Produktion)");
-#endif
-    Serial.println();
-    Serial.println("Befehle:");
-    Serial.println("  LEDSET n  - LED n ein (1-basiert, one-hot)");
-    Serial.println("  LEDON n   - LED n ein (additiv)");
-    Serial.println("  LEDOFF n  - LED n aus");
-    Serial.println("  LEDCLR    - Alle LEDs aus");
-    Serial.println("  LEDALL    - Alle LEDs ein");
-    Serial.println("  TEST      - LED-Lauflicht");
-    Serial.println("  STATUS    - Zustand anzeigen");
-    Serial.println("  PING      - Verbindungstest");
-    Serial.println("  HELLO     - Diese Nachricht");
-    Serial.println();
-    Serial.println("READY");
-    Serial.println();
-}
-
-// =============================================================================
 // SERIAL-PROTOKOLL
 // =============================================================================
 
-static void sendReady() { Serial.println("READY"); }
+static void sendReady() {
+    Serial.println("READY");
+}
 
-static void sendOK() { Serial.println("OK"); }
+static void sendOK() {
+    Serial.println("OK");
+}
 
-static void sendError(const char *msg) {
+static void sendError(const char* msg) {
     Serial.print("ERROR ");
     Serial.println(msg);
 }
 
-static void sendButtonEvent(const ButtonEvent &event) {
-    const char *typeStr =
-        (event.type == ButtonEventType::PRESSED) ? "PRESS" : "RELEASE";
+static void sendButtonEvent(const ButtonEvent& event) {
+    const char* typeStr = (event.type == ButtonEventType::PRESSED) ? "PRESS" : "RELEASE";
 
     Serial.print(typeStr);
     Serial.print(' ');
 
-    // 1-basierter Index (001-100)
-    uint8_t displayIndex = event.index + 1;
-    if (displayIndex < 10) {
+    // Zero-padded Index (000-099)
+    if (event.index < 10) {
         Serial.print("00");
-    } else if (displayIndex < 100) {
+    } else if (event.index < 100) {
         Serial.print('0');
     }
-    Serial.println(displayIndex);
+    Serial.println(event.index);
 }
 
 static void sendStatus() {
@@ -194,9 +142,6 @@ static void sendStatus() {
     // Build-Info
 #ifdef PROTOTYPE_MODE
     Serial.println("MODE PROTOTYPE");
-    if (USE_BUTTON_MAPPING) {
-        Serial.println("MAPPING ON");
-    }
 #else
     Serial.println("MODE PRODUCTION");
 #endif
@@ -206,31 +151,27 @@ static void sendStatus() {
 // BEFEHLSVERARBEITUNG
 // =============================================================================
 
-static int16_t extractNumber(const String &str, uint8_t startPos) {
-    if (startPos >= str.length())
-        return -1;
+static int16_t extractNumber(const String& str, uint8_t startPos) {
+    if (startPos >= str.length()) return -1;
 
     String numStr = str.substring(startPos);
     numStr.trim();
 
-    if (numStr.length() == 0)
-        return -1;
+    if (numStr.length() == 0) return -1;
 
     for (size_t i = 0; i < numStr.length(); i++) {
-        if (!isDigit(numStr.charAt(i)))
-            return -1;
+        if (!isDigit(numStr.charAt(i))) return -1;
     }
 
     return numStr.toInt();
 }
 
-static void processCommand(const String &command) {
+static void processCommand(const String& command) {
     String cmd = command;
     cmd.trim();
     cmd.toUpperCase();
 
-    if (cmd.length() == 0)
-        return;
+    if (cmd.length() == 0) return;
 
 #ifdef DEBUG_LEDS
     Serial.print("[CMD] ");
@@ -240,12 +181,6 @@ static void processCommand(const String &command) {
     // PING
     if (cmd == "PING") {
         Serial.println("PONG");
-        return;
-    }
-
-    // HELLO
-    if (cmd == "HELLO") {
-        printStartup();
         return;
     }
 
@@ -275,42 +210,41 @@ static void processCommand(const String &command) {
         return;
     }
 
-    // LEDSET xxx (1-basiert!)
+    // LEDSET xxx
     if (cmd.startsWith("LEDSET ")) {
         int16_t num = extractNumber(cmd, 7);
-        // Benutzer gibt 1-10 ein, intern 0-9
-        if (num < 1 || num > NUM_LEDS) {
-            sendError("Invalid LED (1-100)");
+        if (num < 0 || num >= NUM_LEDS) {
+            sendError("Invalid LED index");
             return;
         }
         ledTest.active = false;
-        leds.setOnly(num - 1); // Konvertiere zu 0-basiert
+        leds.setOnly(num);
         sendOK();
         return;
     }
 
-    // LEDON xxx (1-basiert!)
+    // LEDON xxx
     if (cmd.startsWith("LEDON ")) {
         int16_t num = extractNumber(cmd, 6);
-        if (num < 1 || num > NUM_LEDS) {
-            sendError("Invalid LED (1-100)");
+        if (num < 0 || num >= NUM_LEDS) {
+            sendError("Invalid LED index");
             return;
         }
         ledTest.active = false;
-        leds.setOutput(num - 1, true);
+        leds.setOutput(num, true);
         leds.update();
         sendOK();
         return;
     }
 
-    // LEDOFF xxx (1-basiert!)
+    // LEDOFF xxx
     if (cmd.startsWith("LEDOFF ")) {
         int16_t num = extractNumber(cmd, 7);
-        if (num < 1 || num > NUM_LEDS) {
-            sendError("Invalid LED (1-100)");
+        if (num < 0 || num >= NUM_LEDS) {
+            sendError("Invalid LED index");
             return;
         }
-        leds.setOutput(num - 1, false);
+        leds.setOutput(num, false);
         leds.update();
         sendOK();
         return;
@@ -340,7 +274,7 @@ static void processCommand(const String &command) {
 
     // VERSION
     if (cmd == "VERSION") {
-        Serial.print("FW 2.3.0 (");
+        Serial.print("FW 2.2.0 (");
 #ifdef PROTOTYPE_MODE
         Serial.print("Proto ");
         Serial.print(NUM_LEDS);
@@ -359,25 +293,6 @@ static void processCommand(const String &command) {
         queueStats.lastOverflowTime = 0;
         Serial.println("Queue stats reset");
         sendOK();
-        return;
-    }
-
-    // HELP
-    if (cmd == "HELP") {
-        Serial.println();
-        Serial.println("Befehle:");
-        Serial.println("  LEDSET n  - LED n ein (1-basiert)");
-        Serial.println("  LEDON n   - LED n ein (additiv)");
-        Serial.println("  LEDOFF n  - LED n aus");
-        Serial.println("  LEDCLR    - Alle aus");
-        Serial.println("  LEDALL    - Alle ein");
-        Serial.println("  TEST      - LED-Test");
-        Serial.println("  STOP      - Test stoppen");
-        Serial.println("  STATUS    - Zustand");
-        Serial.println("  VERSION   - Firmware-Version");
-        Serial.println("  HELLO     - Startup-Nachricht");
-        Serial.println("  PING      - Verbindungstest");
-        Serial.println();
         return;
     }
 
@@ -404,8 +319,7 @@ static void handleSerial() {
 // =============================================================================
 
 static void updateLedTest() {
-    if (!ledTest.active)
-        return;
+    if (!ledTest.active) return;
 
     uint32_t now = millis();
 
@@ -429,7 +343,7 @@ static void updateLedTest() {
 // BUTTON TASK (CORE 0)
 // =============================================================================
 
-static void buttonTask(void *parameter) {
+static void buttonTask(void* parameter) {
     (void)parameter;
 
     TickType_t lastWakeTime = xTaskGetTickCount();
@@ -451,11 +365,14 @@ static void buttonTask(void *parameter) {
             if (buttonEventQueue != nullptr) {
                 BaseType_t result = xQueueSend(buttonEventQueue, &event, 0);
 
+                // Queue-Overflow-Handling
                 if (result != pdTRUE) {
                     queueStats.overflowCount++;
                     queueStats.lastOverflowTime = millis();
 
 #ifdef DEBUG_QUEUE_OVERFLOW
+                    // Achtung: Serial aus ISR/Task ist nicht ideal
+                    // Aber fuer Debug-Zwecke akzeptabel
                     Serial.print("[WARN] Queue overflow! Count: ");
                     Serial.println(queueStats.overflowCount);
 #endif
@@ -474,6 +391,7 @@ static void buttonTask(void *parameter) {
 static void handleButtonEvents() {
     ButtonEvent event;
 
+    // Alle Events aus der Queue lesen (non-blocking)
     while (xQueueReceive(buttonEventQueue, &event, 0) == pdTRUE) {
         sendButtonEvent(event);
     }
@@ -493,49 +411,70 @@ void setup() {
 
     serialBuffer.reserve(MAX_COMMAND_LENGTH + 1);
 
+    // Startup-Info
+    Serial.println();
+    Serial.println("================================");
+    Serial.print("Button Panel v2.2.0 (");
+#ifdef PROTOTYPE_MODE
+    Serial.print("PROTOTYPE: ");
+#else
+    Serial.print("PRODUCTION: ");
+#endif
+    Serial.print(NUM_LEDS);
+    Serial.println(" LEDs)");
+    Serial.println("================================");
+
     // LED-Hardware
     if (!leds.begin()) {
         Serial.println("ERROR LED init failed");
-        while (1) {
-            delay(1000);
-        }
+        while (1) { delay(1000); }
     }
+    Serial.print("LEDs: ");
+    Serial.print(leds.getNumChips());
+    Serial.println(" chips OK");
 
     // Button-Manager
     if (!buttons.begin()) {
         Serial.println("ERROR Button init failed");
-        while (1) {
-            delay(1000);
-        }
+        while (1) { delay(1000); }
     }
+    Serial.print("Buttons: ");
+    Serial.print(NUM_BUTTONS);
+    Serial.println(" OK");
 
     // Event-Queue
     buttonEventQueue = xQueueCreate(BUTTON_QUEUE_SIZE, sizeof(ButtonEvent));
     if (buttonEventQueue == nullptr) {
         Serial.println("ERROR Queue create failed");
-        while (1) {
-            delay(1000);
-        }
+        while (1) { delay(1000); }
     }
+    Serial.print("Queue: ");
+    Serial.print(BUTTON_QUEUE_SIZE);
+    Serial.println(" slots OK");
 
     // Button-Task auf Core 0
     BaseType_t result = xTaskCreatePinnedToCore(
-        buttonTask, "ButtonTask", TASK_STACK_BUTTONS, nullptr,
-        TASK_PRIORITY_BUTTONS, &buttonTaskHandle, CORE_BUTTONS);
+        buttonTask,
+        "ButtonTask",
+        TASK_STACK_BUTTONS,
+        nullptr,
+        TASK_PRIORITY_BUTTONS,
+        &buttonTaskHandle,
+        CORE_BUTTONS
+    );
 
     if (result != pdPASS) {
         Serial.println("ERROR Task create failed");
-        while (1) {
-            delay(1000);
-        }
+        while (1) { delay(1000); }
     }
+    Serial.println("ButtonTask: Core 0 OK");
 
     // Watchdog
     esp_task_wdt_init(WATCHDOG_TIMEOUT_MS / 1000, true);
     esp_task_wdt_add(nullptr);
-
-    // Startup-Nachricht
-    printStartup();
+    Serial.print("Watchdog: ");
+    Serial.print(WATCHDOG_TIMEOUT_MS / 1000);
+    Serial.println("s OK");
 
     // Startup-LED-Test
     ledTest.active = true;
@@ -543,6 +482,7 @@ void setup() {
     ledTest.lastStep = millis();
     leds.setOnly(0);
 
+    Serial.println("--------------------------------");
     Serial.println("Running startup LED test...");
 
 #ifdef DEBUG_TASKS
@@ -557,7 +497,7 @@ void loop() {
     handleButtonEvents();
     updateLedTest();
 
-    // READY nach Startup-Test (nur einmal)
+    // READY nach Startup-Test
     static bool readySent = false;
     if (!readySent && !ledTest.active) {
         sendReady();

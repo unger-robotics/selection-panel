@@ -1,17 +1,16 @@
 /* ==========================================================================
-   Schematic Styles v7.3
-   Stand: 2025-12-27
+   Schematic Styles v7.4
+   Stand: 2025-12-29
    Farbschema: Arduino Teal + Raspberry Pi Red + GitHub Dark
-   Konsistent mit LaTeX-Präsentation und Shell-Skript
-   Pinbelegung: D0-D5 (korrigiert nach config.h)
-   NEU: Vollständige Pinout-Tabellen für 74HC595 und CD4021BE
+   Konsistent mit KiCad-Schaltplan (selection-panel-prototyp.kicad_sch)
+   Signalnamen: LED_DATA, LED_CLK, LED_LATCH, BTN_DATA, BTN_CLK, BTN_LOAD
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
    CSS Variables - Einheitliches Farbschema
    --------------------------------------------------------------------------
    
-   FARBPALETTE (konsistent mit praesentation.tex + create_amr_placeholders.sh):
+   FARBPALETTE (konsistent mit KiCad + praesentation.tex):
    
    PRIMÄR (Akzente):
      Arduino Teal:      #00979D  - Hauptfarbe, ESP32, positive Elemente
@@ -29,9 +28,9 @@
      Warning Orange:    #D97706  - Warnung, Hinweise
    
    SIGNALFARBEN:
-     Data (Grün):       #51CF66  - SER, Q8
-     Clock (Gelb):      #FFD43B  - SRCLK, CLK
-     Latch (Blau):      #4DABF7  - RCLK, P/S
+     Data (Grün):       #51CF66  - LED_DATA, BTN_DATA, SER, Q8
+     Clock (Gelb):      #FFD43B  - LED_CLK, BTN_CLK, SRCLK, CLK
+     Latch (Blau):      #4DABF7  - LED_LATCH, BTN_LOAD, RCLK, P/S
      VCC (Rot):         #FF6B6B
      GND (Grau):        #6B7280
    
@@ -361,6 +360,7 @@ svg {
     font-size: 10px;
     fill: var(--raspberry-red);
     text-anchor: middle;
+    font-weight: 600;
 }
 
 .text-chip-sub-green {
@@ -396,7 +396,7 @@ svg {
 }
 
 .text-subtitle {
-    font-size: 12px;
+    font-size: 11px;
     fill: var(--text-secondary);
     text-anchor: middle;
 }
@@ -405,6 +405,91 @@ svg {
     font-size: 18px;
     fill: var(--text-muted);
     text-anchor: middle;
+}
+
+/* --------------------------------------------------------------------------
+   SVG Signal Name Styles - KiCad-Signalnamen
+   -------------------------------------------------------------------------- */
+.text-signal-name {
+    font-size: 8px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-weight: 500;
+}
+
+.text-signal-name.signal-data {
+    fill: var(--color-data);
+}
+
+.text-signal-name.signal-clock {
+    fill: var(--color-clock);
+}
+
+.text-signal-name.signal-latch {
+    fill: var(--color-latch);
+}
+
+/* Signal-Zuordnungs-Box */
+.signal-box {
+    fill: var(--bg-primary);
+    stroke: var(--arduino-teal);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 2;
+}
+
+.text-signal-box-title {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--arduino-teal);
+    text-anchor: middle;
+}
+
+.text-signal-label {
+    font-size: 9px;
+    font-family: 'SF Mono', Monaco, monospace;
+    fill: var(--text-primary);
+}
+
+/* Bus Labels */
+.text-bus-label {
+    font-size: 9px;
+    font-family: 'SF Mono', Monaco, monospace;
+    text-anchor: middle;
+}
+
+.text-bus-label.signal-clock {
+    fill: var(--color-clock);
+}
+
+.text-bus-label.signal-latch {
+    fill: var(--color-latch);
+}
+
+/* Vertikale Signal-Labels */
+.text-signal-vertical {
+    font-size: 9px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-weight: 500;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.text-signal-vertical.signal-data {
+    fill: var(--color-data);
+}
+
+.text-signal-vertical.signal-clock {
+    fill: var(--color-clock);
+}
+
+.text-signal-vertical.signal-latch {
+    fill: var(--color-latch);
+}
+
+/* VCC Label */
+.text-vcc-label {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--color-vcc);
 }
 
 /* --------------------------------------------------------------------------
@@ -489,6 +574,12 @@ svg {
     stroke-width: 1;
 }
 
+.info-box-small {
+    fill: var(--bg-primary);
+    stroke: var(--raspberry-green);
+    stroke-width: 1;
+}
+
 .text-info-title {
     font-size: 13px;
     font-weight: 600;
@@ -499,6 +590,38 @@ svg {
 .text-info {
     font-size: 11px;
     fill: var(--text-primary);
+}
+
+/* Capacitor Box */
+.cap-box {
+    fill: var(--bg-primary);
+    stroke: var(--color-capacitor);
+    stroke-width: 1;
+}
+
+.text-capacitor {
+    fill: var(--color-capacitor);
+}
+
+/* Reference Box */
+.ref-box {
+    fill: var(--bg-primary);
+    stroke: var(--arduino-teal);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+}
+
+.text-ref {
+    font-size: 9px;
+    fill: var(--text-secondary);
+    text-anchor: middle;
+}
+
+.text-ref-file {
+    font-size: 9px;
+    fill: var(--arduino-teal);
+    font-family: 'SF Mono', Monaco, monospace;
+    text-anchor: middle;
 }
 
 /* BOM Box - Success Green */
@@ -1015,11 +1138,6 @@ svg {
 
 .text-label-small {
     font-size: 8px;
-    fill: var(--text-secondary);
-}
-
-.text-subtitle {
-    font-size: 11px;
     fill: var(--text-secondary);
     text-anchor: middle;
 }
