@@ -24,11 +24,12 @@ import asyncio
 import json
 import logging
 import sys
+import threading
 from pathlib import Path
 from typing import Optional
 
 from aiohttp import web, WSMsgType
-import serial_asyncio
+import serial
 
 # =============================================================================
 # KONFIGURATION
@@ -69,8 +70,9 @@ class AppState:
     def __init__(self):
         self.current_id: Optional[int] = None  # 0-basiert (intern)
         self.ws_clients: set[web.WebSocketResponse] = set()
-        self.serial_writer: Optional[asyncio.StreamWriter] = None
+        self.serial_port: Optional[serial.Serial] = None
         self.serial_connected: bool = False
+        self.serial_lock = threading.Lock()
         self.media_valid: dict[int, dict[str, bool]] = {}
         self.missing_media: list[str] = []
 
@@ -93,13 +95,13 @@ class AppState:
 
     async def send_serial(self, command: str) -> bool:
         """Sendet Befehl an ESP32."""
-        if not self.serial_writer or not self.serial_connected:
+        if not self.serial_port or not self.serial_connected:
             logging.warning(f"Serial nicht verbunden: {command}")
             return False
 
         try:
-            self.serial_writer.write(f"{command}\n".encode())
-            await self.serial_writer.drain()
+            with self.serial_lock:
+                self.serial_port.write(f"{command}\n".encode())
             logging.debug(f"Serial TX: {command}")
             return True
         except Exception as e:
@@ -276,41 +278,73 @@ async def handle_playback_ended(ended_id: int) -> None:
 
 
 async def serial_reader_task() -> None:
-    """Liest kontinuierlich vom Serial-Port mit Reconnect."""
+    """Liest kontinuierlich vom Serial-Port mit Reconnect (Thread-basiert)."""
+    loop = asyncio.get_event_loop()
+
+    def serial_thread():
+        """Synchroner Serial-Reader in separatem Thread."""
+        while True:
+            ser = None
+            try:
+                logging.info(f"Serial verbinde: {SERIAL_PORT}")
+
+                ser = serial.Serial(
+                    SERIAL_PORT,
+                    SERIAL_BAUD,
+                    timeout=1.0
+                )
+
+                state.serial_port = ser
+                state.serial_connected = True
+                logging.info("Serial verbunden")
+
+                # PING senden
+                with state.serial_lock:
+                    ser.write(b"PING\n")
+
+                while True:
+                    try:
+                        line = ser.readline()
+                        if line:
+                            line_str = line.decode('utf-8', errors='replace').strip()
+                            if line_str:
+                                # Async-Handler im Event-Loop aufrufen
+                                asyncio.run_coroutine_threadsafe(
+                                    handle_serial_line(line_str),
+                                    loop
+                                )
+                    except serial.SerialException as e:
+                        logging.error(f"Serial-Lesefehler: {e}")
+                        break
+
+            except FileNotFoundError:
+                logging.error(f"Serial-Port nicht gefunden: {SERIAL_PORT}")
+            except PermissionError:
+                logging.error(f"Keine Berechtigung fuer {SERIAL_PORT}")
+            except serial.SerialException as e:
+                logging.error(f"Serial-Fehler: {e}")
+            except Exception as e:
+                logging.error(f"Unerwarteter Fehler: {e}")
+            finally:
+                state.serial_connected = False
+                state.serial_port = None
+                if ser:
+                    try:
+                        ser.close()
+                    except:
+                        pass
+
+            logging.info("Serial Reconnect in 5s...")
+            import time
+            time.sleep(5)
+
+    # Thread starten
+    thread = threading.Thread(target=serial_thread, daemon=True)
+    thread.start()
+
+    # Task am Leben halten
     while True:
-        try:
-            logging.info(f"Serial verbinde: {SERIAL_PORT}")
-
-            reader, writer = await serial_asyncio.open_serial_connection(
-                url=SERIAL_PORT,
-                baudrate=SERIAL_BAUD
-            )
-
-            state.serial_writer = writer
-            state.serial_connected = True
-            logging.info("Serial verbunden")
-
-            # Verbindungstest
-            await state.send_serial("PING")
-
-            while True:
-                line = await reader.readline()
-                if not line:
-                    break
-                await handle_serial_line(line.decode('utf-8', errors='replace'))
-
-        except FileNotFoundError:
-            logging.error(f"Serial-Port nicht gefunden: {SERIAL_PORT}")
-        except PermissionError:
-            logging.error(f"Keine Berechtigung fuer {SERIAL_PORT} - 'sudo usermod -aG dialout $USER'")
-        except Exception as e:
-            logging.error(f"Serial-Fehler: {e}")
-        finally:
-            state.serial_connected = False
-            state.serial_writer = None
-
-        logging.info("Serial Reconnect in 5s...")
-        await asyncio.sleep(5)
+        await asyncio.sleep(1)
 
 # =============================================================================
 # WEBSOCKET-HANDLER
