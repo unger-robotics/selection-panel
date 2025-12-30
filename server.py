@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.3.0
+Auswahlpanel Server v2.3.2
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import Optional
 
 from aiohttp import web, WSMsgType
-import serial
 
 # =============================================================================
 # KONFIGURATION
@@ -70,7 +69,7 @@ class AppState:
     def __init__(self):
         self.current_id: Optional[int] = None  # 0-basiert (intern)
         self.ws_clients: set[web.WebSocketResponse] = set()
-        self.serial_port: Optional[serial.Serial] = None
+        self.serial_fd: Optional[int] = None  # File descriptor für Serial
         self.serial_connected: bool = False
         self.serial_lock = threading.Lock()
         self.media_valid: dict[int, dict[str, bool]] = {}
@@ -95,13 +94,15 @@ class AppState:
 
     async def send_serial(self, command: str) -> bool:
         """Sendet Befehl an ESP32."""
-        if not self.serial_port or not self.serial_connected:
+        import os
+
+        if self.serial_fd is None or not self.serial_connected:
             logging.warning(f"Serial nicht verbunden: {command}")
             return False
 
         try:
             with self.serial_lock:
-                self.serial_port.write(f"{command}\n".encode())
+                os.write(self.serial_fd, f"{command}\n".encode())
             logging.debug(f"Serial TX: {command}")
             return True
         except Exception as e:
@@ -282,38 +283,55 @@ async def serial_reader_task() -> None:
     loop = asyncio.get_event_loop()
 
     def serial_thread():
-        """Synchroner Serial-Reader in separatem Thread."""
+        """Synchroner Serial-Reader mit os.open (ESP32-S3 USB-CDC kompatibel)."""
+        import os
+        import select
+        import subprocess
+
         while True:
-            ser = None
+            fd_read = None
+            fd_write = None
             try:
                 logging.info(f"Serial verbinde: {SERIAL_PORT}")
 
-                ser = serial.Serial(
-                    SERIAL_PORT,
-                    SERIAL_BAUD,
-                    timeout=1.0
+                # stty konfigurieren
+                subprocess.run(
+                    ['stty', '-F', SERIAL_PORT, str(SERIAL_BAUD), 'raw', '-echo'],
+                    check=True,
+                    capture_output=True
                 )
 
-                state.serial_port = ser
+                # Lese-FD öffnen (non-blocking)
+                fd_read = os.open(SERIAL_PORT, os.O_RDONLY | os.O_NONBLOCK)
+
+                # Schreib-FD öffnen (blocking)
+                fd_write = os.open(SERIAL_PORT, os.O_WRONLY)
+
+                state.serial_fd = fd_write
                 state.serial_connected = True
                 logging.info("Serial verbunden")
 
                 # PING senden
                 with state.serial_lock:
-                    ser.write(b"PING\n")
+                    os.write(fd_write, b"PING\n")
 
+                buffer = b''
                 while True:
                     try:
-                        line = ser.readline()
-                        if line:
-                            line_str = line.decode('utf-8', errors='replace').strip()
-                            if line_str:
-                                # Async-Handler im Event-Loop aufrufen
-                                asyncio.run_coroutine_threadsafe(
-                                    handle_serial_line(line_str),
-                                    loop
-                                )
-                    except serial.SerialException as e:
+                        r, _, _ = select.select([fd_read], [], [], 1.0)
+                        if r:
+                            data = os.read(fd_read, 1024)
+                            if data:
+                                buffer += data
+                                while b'\n' in buffer:
+                                    line, buffer = buffer.split(b'\n', 1)
+                                    line_str = line.decode('utf-8', errors='replace').strip()
+                                    if line_str:
+                                        asyncio.run_coroutine_threadsafe(
+                                            handle_serial_line(line_str),
+                                            loop
+                                        )
+                    except OSError as e:
                         logging.error(f"Serial-Lesefehler: {e}")
                         break
 
@@ -321,16 +339,21 @@ async def serial_reader_task() -> None:
                 logging.error(f"Serial-Port nicht gefunden: {SERIAL_PORT}")
             except PermissionError:
                 logging.error(f"Keine Berechtigung fuer {SERIAL_PORT}")
-            except serial.SerialException as e:
-                logging.error(f"Serial-Fehler: {e}")
+            except subprocess.CalledProcessError as e:
+                logging.error(f"stty Fehler: {e}")
             except Exception as e:
                 logging.error(f"Unerwarteter Fehler: {e}")
             finally:
                 state.serial_connected = False
-                state.serial_port = None
-                if ser:
+                state.serial_fd = None
+                if fd_read is not None:
                     try:
-                        ser.close()
+                        os.close(fd_read)
+                    except:
+                        pass
+                if fd_write is not None:
+                    try:
+                        os.close(fd_write)
                     except:
                         pass
 
@@ -429,7 +452,7 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
     return web.json_response({
-        "version": "2.3.0",
+        "version": "2.3.2",
         "mode": "prototype" if PROTOTYPE_MODE else "production",
         "num_media": NUM_MEDIA,
         "current_id": state.current_id,
@@ -504,7 +527,7 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.3.0 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v2.3.2 ({mode_str})")
     logging.info("=" * 50)
     logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 000-{NUM_MEDIA-1:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
