@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.4.0
+Auswahlpanel Server v2.4.1
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
@@ -176,37 +176,41 @@ def check_media_exists(media_id: int) -> dict:
 # =============================================================================
 
 async def handle_serial_line(line: str) -> None:
-    """Verarbeitet eine Zeile vom ESP32."""
+    """Verarbeitet eine Zeile vom ESP32 (robust gegen Fragmentierung)."""
     line = line.strip()
     if not line:
         return
 
-    logging.debug(f"Serial RX: {line}")
+    logging.debug(f"Serial RX: '{line}'")
 
+    # Robustes Parsing - ESP32 sendet manchmal fragmentiert
+    # Normale Formate: "PRESS 001", "RELEASE 001"
+    # Fragmentierte: " 001", "001", "SS 001", "SE 001"
+
+    # PRESS erkennen (auch fragmentiert)
     if line.startswith("PRESS "):
-        try:
-            parts = line.split()
-            if len(parts) >= 2:
-                # ESP32 sendet 1-basiert (001-100), Medien sind auch 1-basiert
-                button_id = int(parts[1])  # 1-basiert, keine Konvertierung
-                logging.debug(f"PRESS: button_id={button_id}")
-                await handle_button_press(button_id)
-            else:
-                logging.warning(f"PRESS ohne ID: {line}")
-        except ValueError as e:
-            logging.warning(f"Ungueltige Button-ID in '{line}': {e}")
-        except Exception as e:
-            logging.error(f"Fehler bei PRESS-Verarbeitung: {e}")
+        button_id = parse_button_id(line[6:])
+        if button_id:
+            await handle_button_press(button_id)
+            return
 
-    elif line.startswith("RELEASE "):
+    # Fragmentiertes PRESS: " 001" oder "001" (nur Zahl, ggf. mit Leerzeichen)
+    # Aber NICHT wenn es mit "SE" oder "RELEASE" anfängt
+    if not line.startswith("SE") and not line.startswith("RELEASE"):
+        button_id = parse_button_id(line)
+        if button_id:
+            logging.debug(f"Fragmentiertes PRESS erkannt: '{line}' -> {button_id}")
+            await handle_button_press(button_id)
+            return
+
+    # RELEASE erkennen (auch fragmentiert "SE 001")
+    if line.startswith("RELEASE ") or line.startswith("SE "):
         # Optional: Release-Events loggen
-        try:
-            serial_id = int(line.split()[1])
-            logging.debug(f"Button {serial_id} losgelassen")
-        except (ValueError, IndexError):
-            pass
+        logging.debug(f"Button released: {line}")
+        return
 
-    elif line == "READY":
+    # Standard-Befehle
+    if line == "READY":
         logging.info("ESP32 ist bereit")
         state.serial_connected = True
 
@@ -227,6 +231,20 @@ async def handle_serial_line(line: str) -> None:
 
     elif line.startswith("MAPPING "):
         logging.info(f"ESP32 Bit-Mapping: {line[8:]}")
+
+
+def parse_button_id(s: str) -> int | None:
+    """Extrahiert Button-ID aus String (1-NUM_MEDIA). Gibt None zurück bei Fehler."""
+    s = s.strip()
+    if not s:
+        return None
+    try:
+        button_id = int(s)
+        if 1 <= button_id <= NUM_MEDIA:
+            return button_id
+    except ValueError:
+        pass
+    return None
 
 
 async def handle_button_press(button_id: int) -> None:
@@ -454,7 +472,7 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
     return web.json_response({
-        "version": "2.4.0",
+        "version": "2.4.1",
         "mode": "prototype" if PROTOTYPE_MODE else "production",
         "num_media": NUM_MEDIA,
         "current_button": state.current_id,  # 1-basiert
@@ -528,7 +546,7 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.4.0 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v2.4.1 ({mode_str})")
     logging.info("=" * 50)
     logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 001-{NUM_MEDIA:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
