@@ -38,8 +38,8 @@ import serial_asyncio
 PROTOTYPE_MODE = True  # True = 10 Medien, False = 100 Medien
 NUM_MEDIA = 10 if PROTOTYPE_MODE else 100
 
-# Serial-Port zum ESP32 (ermitteln mit: ls -l /dev/serial/by-id/)
-SERIAL_PORT = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
+# Serial-Port zum ESP32
+SERIAL_PORT = "/dev/ttyACM0"
 SERIAL_BAUD = 115200
 
 # HTTP-Server
