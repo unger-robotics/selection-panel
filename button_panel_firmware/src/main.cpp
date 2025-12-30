@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @brief Button Panel Controller - ESP32-S3 XIAO (Dual-Core)
- * @version 2.3.0
+ * @version 2.4.0
  * @date 2025-12-30
  *
  * Architektur:
@@ -39,6 +39,8 @@
  *   STATUS       - Zustand abfragen
  *   TEST         - LED-Test (non-blocking)
  *   HELLO        - Startup-Nachricht anzeigen
+ *
+ * WICHTIG: Serial.flush() nach jedem Event für ESP32-S3 USB-CDC!
  */
 
 #include "config.h"
@@ -84,7 +86,7 @@ static struct {
 static void printStartup() {
     Serial.println();
     Serial.println("========================================");
-    Serial.print("Button Panel v2.3.0 (");
+    Serial.print("Button Panel v2.4.0 (");
 #ifdef PROTOTYPE_MODE
     Serial.print("PROTOTYPE: ");
 #else
@@ -126,36 +128,43 @@ static void printStartup() {
     Serial.println();
     Serial.println("READY");
     Serial.println();
+    Serial.flush(); // Alles sofort senden
 }
 
 // =============================================================================
 // SERIAL-PROTOKOLL
 // =============================================================================
 
-static void sendReady() { Serial.println("READY"); }
+static void sendReady() {
+    Serial.println("READY");
+    Serial.flush();
+}
 
-static void sendOK() { Serial.println("OK"); }
+static void sendOK() {
+    Serial.println("OK");
+    Serial.flush();
+}
 
 static void sendError(const char *msg) {
     Serial.print("ERROR ");
     Serial.println(msg);
+    Serial.flush();
 }
 
 static void sendButtonEvent(const ButtonEvent &event) {
-    const char *typeStr =
-        (event.type == ButtonEventType::PRESSED) ? "PRESS" : "RELEASE";
-
-    Serial.print(typeStr);
-    Serial.print(' ');
-
     // 1-basierter Index (001-100)
     uint8_t displayIndex = event.index + 1;
-    if (displayIndex < 10) {
-        Serial.print("00");
-    } else if (displayIndex < 100) {
-        Serial.print('0');
+
+    // Formatierter String in einem Stueck senden (verhindert Fragmentierung!)
+    char buffer[16];
+    if (event.type == ButtonEventType::PRESSED) {
+        snprintf(buffer, sizeof(buffer), "PRESS %03d", displayIndex);
+    } else {
+        snprintf(buffer, sizeof(buffer), "RELEASE %03d", displayIndex);
     }
-    Serial.println(displayIndex);
+
+    Serial.println(buffer);
+    Serial.flush(); // KRITISCH: Sofort senden für USB-CDC!
 }
 
 static void sendStatus() {
@@ -200,6 +209,8 @@ static void sendStatus() {
 #else
     Serial.println("MODE PRODUCTION");
 #endif
+
+    Serial.flush();
 }
 
 // =============================================================================
@@ -240,6 +251,7 @@ static void processCommand(const String &command) {
     // PING
     if (cmd == "PING") {
         Serial.println("PONG");
+        Serial.flush();
         return;
     }
 
@@ -319,6 +331,7 @@ static void processCommand(const String &command) {
     // TEST
     if (cmd == "TEST") {
         Serial.println("Testing LEDs...");
+        Serial.flush();
         ledTest.active = true;
         ledTest.currentLed = 0;
         ledTest.lastStep = millis();
@@ -333,6 +346,7 @@ static void processCommand(const String &command) {
             leds.clear();
             leds.update();
             Serial.println("Test stopped");
+            Serial.flush();
         }
         sendOK();
         return;
@@ -340,7 +354,7 @@ static void processCommand(const String &command) {
 
     // VERSION
     if (cmd == "VERSION") {
-        Serial.print("FW 2.3.0 (");
+        Serial.print("FW 2.4.0 (");
 #ifdef PROTOTYPE_MODE
         Serial.print("Proto ");
         Serial.print(NUM_LEDS);
@@ -349,6 +363,7 @@ static void processCommand(const String &command) {
         Serial.print(NUM_LEDS);
 #endif
         Serial.println(" LEDs)");
+        Serial.flush();
         sendOK();
         return;
     }
@@ -358,6 +373,7 @@ static void processCommand(const String &command) {
         queueStats.overflowCount = 0;
         queueStats.lastOverflowTime = 0;
         Serial.println("Queue stats reset");
+        Serial.flush();
         sendOK();
         return;
     }
@@ -378,6 +394,7 @@ static void processCommand(const String &command) {
         Serial.println("  HELLO     - Startup-Nachricht");
         Serial.println("  PING      - Verbindungstest");
         Serial.println();
+        Serial.flush();
         return;
     }
 
@@ -418,6 +435,7 @@ static void updateLedTest() {
             leds.clear();
             leds.update();
             Serial.println("Test complete");
+            Serial.flush();
             sendOK();
         } else {
             leds.setOnly(ledTest.currentLed);
@@ -440,6 +458,7 @@ static void buttonTask(void *parameter) {
 #ifdef DEBUG_TASKS
     Serial.print("[TASK] Button task started on Core ");
     Serial.println(xPortGetCoreID());
+    Serial.flush();
 #endif
 
     esp_task_wdt_add(nullptr);
@@ -458,6 +477,7 @@ static void buttonTask(void *parameter) {
 #ifdef DEBUG_QUEUE_OVERFLOW
                     Serial.print("[WARN] Queue overflow! Count: ");
                     Serial.println(queueStats.overflowCount);
+                    Serial.flush();
 #endif
                 }
             }
@@ -496,6 +516,7 @@ void setup() {
     // LED-Hardware
     if (!leds.begin()) {
         Serial.println("ERROR LED init failed");
+        Serial.flush();
         while (1) {
             delay(1000);
         }
@@ -504,6 +525,7 @@ void setup() {
     // Button-Manager
     if (!buttons.begin()) {
         Serial.println("ERROR Button init failed");
+        Serial.flush();
         while (1) {
             delay(1000);
         }
@@ -513,6 +535,7 @@ void setup() {
     buttonEventQueue = xQueueCreate(BUTTON_QUEUE_SIZE, sizeof(ButtonEvent));
     if (buttonEventQueue == nullptr) {
         Serial.println("ERROR Queue create failed");
+        Serial.flush();
         while (1) {
             delay(1000);
         }
@@ -525,6 +548,7 @@ void setup() {
 
     if (result != pdPASS) {
         Serial.println("ERROR Task create failed");
+        Serial.flush();
         while (1) {
             delay(1000);
         }
@@ -544,10 +568,12 @@ void setup() {
     leds.setOnly(0);
 
     Serial.println("Running startup LED test...");
+    Serial.flush();
 
 #ifdef DEBUG_TASKS
     Serial.print("[TASK] Main loop on Core ");
     Serial.println(xPortGetCoreID());
+    Serial.flush();
 #endif
 }
 
