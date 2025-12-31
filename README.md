@@ -6,7 +6,7 @@ Tastendruck → Bild + Audio. Der letzte Tastendruck gewinnt.
 
 | Version | Status | Datum |
 |:--------|:-------|:------|
-| 2.4.1 | ✅ Prototyp funktionsfähig | 2025-12-30 |
+| 2.4.1 | ✅ Prototyp funktionsfähig | 2025-12-31 |
 
 ---
 
@@ -19,7 +19,7 @@ source venv/bin/activate
 python server.py
 ```
 
-**Dashboard:** `http://rover:8080/`
+**Dashboard:** `http://rover.local:8080/`
 
 → Details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 
@@ -35,7 +35,7 @@ python server.py
 │ 100 Buttons │  LEDSET 001-100 │  Gateway    │                 │ Fullscreen  │
 │ 100 LEDs    │                 │  + Server   │                 │ Bild+Audio  │
 └─────────────┘                 └─────────────┘                 └─────────────┘
-     v2.4.0                          v2.4.1                        v2.2.4
+     v2.4.0                          v2.4.1                        v2.2.5
 ```
 
 ---
@@ -47,7 +47,7 @@ python server.py
 | Hardware | ✅ | 10 Taster, 10 LEDs, Breadboard |
 | Firmware | ✅ v2.4.0 | Serial.flush() für USB-CDC |
 | Server | ✅ v2.4.1 | os.open statt pyserial |
-| Dashboard | ✅ v2.2.4 | 1-basierte Medien (001-010) |
+| Dashboard | ✅ v2.2.5 | iOS AudioContext, Multi-Device |
 | Zuordnung | ✅ | Taster 1 → Bild/Ton 001 |
 
 ---
@@ -78,7 +78,9 @@ python server.py
 
 | Dokument | Inhalt |
 |:---------|:-------|
-| [RUNBOOK.md](docs/RUNBOOK.md) | Troubleshooting |
+| [COMMANDS.md](docs/COMMANDS.md) | Alle Befehle, Schnellreferenz |
+| [RUNBOOK.md](docs/RUNBOOK.md) | Troubleshooting, Debugging |
+| [ROADMAP.md](docs/ROADMAP.md) | Implementierungsplan, Status |
 | [CHANGELOG.md](docs/CHANGELOG.md) | Versionshistorie |
 
 ---
@@ -128,10 +130,12 @@ selection-panel/
 
 ## Bekannte Einschränkungen
 
-| Problem | Workaround |
-|:--------|:-----------|
+| Problem | Lösung |
+|:--------|:-------|
 | ESP32-S3 USB-CDC fragmentiert | Firmware: `Serial.flush()` nach jedem Event |
 | pyserial funktioniert nicht | Server: `os.open` + `stty` statt pyserial |
+| iOS Audio-Unlock | Dashboard: AudioContext API + Fallback |
+| Hostname `rover` nicht auf allen Geräten | `rover.local` verwenden (alle Apple-Geräte) |
 
 ---
 
