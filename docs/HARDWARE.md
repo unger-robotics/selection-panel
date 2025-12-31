@@ -2,8 +2,10 @@
 
 > Komponenten und Verdrahtung. Pinbelegung und Policy: siehe [SPEC.md](SPEC.md)
 
-| Version | 2.2.5 |
+| Version | 2.4.1 |
 |---------|-------|
+| Stand | 2025-12-30 |
+| Status | Prototyp funktionsfähig |
 
 ---
 
@@ -54,22 +56,37 @@
 
 ---
 
-## 2 Prototyp-Stückliste (10×)
+## 2 Prototyp-Stückliste (10×) ✅
 
-| Komponente | Anzahl |
-|------------|--------|
-| ESP32-S3 XIAO | 1× |
-| 74HC595 | 2× |
-| CD4021BE | 2× |
-| LED 5 mm | 10× |
-| Taster 6×6 mm | 10× |
-| Widerstand 330 Ω | 10× |
-| Widerstand 10 kΩ | 10× |
-| Kondensator 100 nF | 4× |
+| Komponente | Anzahl | Status |
+|------------|--------|--------|
+| ESP32-S3 XIAO | 1× | ✅ |
+| 74HC595 | 2× | ✅ |
+| CD4021BE | 2× | ✅ |
+| LED 5 mm | 10× | ✅ |
+| Taster 6×6 mm | 10× | ✅ |
+| Widerstand 330 Ω | 10× | ✅ |
+| Widerstand 10 kΩ | 10× | ✅ |
+| Kondensator 100 nF | 4× | ✅ |
+
+**Schaltplan:** `kicad/selection-panel-prototyp.kicad_sch` (Rev 1.1)
 
 ---
 
-## 3 Kaskadierung
+## 3 Pinbelegung ESP32-S3 XIAO
+
+| Pin | Signal | Funktion | IC |
+|-----|--------|----------|-----|
+| D0 | LED_DATA | Serial Data | 74HC595 Pin 14 |
+| D1 | LED_CLK | Shift Clock | 74HC595 Pin 11 |
+| D2 | LED_LATCH | Latch/Store | 74HC595 Pin 12 |
+| D3 | BTN_DATA | Serial Data | CD4021 Pin 3 |
+| D4 | BTN_CLK | Clock | CD4021 Pin 10 |
+| D5 | BTN_LOAD | Parallel Load | CD4021 Pin 9 |
+
+---
+
+## 4 Kaskadierung
 
 **Kaskadierung** bedeutet: ICs in Reihe schalten. Der serielle Ausgang eines ICs geht in den seriellen Eingang des nächsten.
 
@@ -104,7 +121,7 @@ D5 ──┬──► #0 Pin 9 (P/S)
 
 ---
 
-## 4 IC-Pinbelegung
+## 5 IC-Pinbelegung
 
 ### 74HC595 (DIP-16)
 
@@ -152,11 +169,36 @@ D5 ──┬──► #0 Pin 9 (P/S)
 | 9 (P/S) | ← D5 (Bus) |
 | 11 (SER) | ← nächster Q8 oder **→ VCC** |
 
-**P/S = HIGH für Load** – invertiert zum 74HC165!
+**P/S = HIGH für Load** — invertiert zum 74HC165!
 
 ---
 
-## 5 Wichtige Regeln
+## 6 Prototyp-Verdrahtung (Bit-Mapping)
+
+Der Prototyp verwendet nicht-lineare Verdrahtung auf dem Breadboard.
+Das Bit-Mapping in `config.h` kompensiert dies:
+
+```cpp
+// config.h
+static const uint8_t BUTTON_BIT_MAP[10] = {
+    7,   // Taster 1 → Bit 7
+    6,   // Taster 2 → Bit 6
+    5,   // Taster 3 → Bit 5
+    4,   // Taster 4 → Bit 4
+    3,   // Taster 5 → Bit 3
+    2,   // Taster 6 → Bit 2
+    1,   // Taster 7 → Bit 1
+    0,   // Taster 8 → Bit 0
+    15,  // Taster 9 → Bit 15 (2. IC)
+    14   // Taster 10 → Bit 14 (2. IC)
+};
+```
+
+**Produktion:** Lineare Verdrahtung (Taster 1 = Bit 0, etc.)
+
+---
+
+## 7 Wichtige Regeln
 
 | Regel | Grund |
 |-------|-------|
@@ -168,7 +210,7 @@ D5 ──┬──► #0 Pin 9 (P/S)
 
 ---
 
-## 6 Stromversorgung
+## 8 Stromversorgung
 
 | Betriebsart | Stromaufnahme |
 |-------------|---------------|
@@ -176,3 +218,22 @@ D5 ──┬──► #0 Pin 9 (P/S)
 | Alle LEDs (Test) | max. 2 A |
 
 **Empfehlung:** 5V vom Pi-Netzteil abzweigen. Bei 3,3V-Betrieb direkt vom ESP32 3V3-Pin.
+
+---
+
+## 9 Bekannte Hardware-Einschränkungen
+
+| Problem | Lösung |
+|---------|--------|
+| ESP32-S3 USB-CDC fragmentiert Serial | Firmware: `Serial.flush()` |
+| CD4021 braucht längere Pulse als 74HC | Firmware: `delayMicroseconds(5)` für Load |
+| Prototyp nicht-lineare Verdrahtung | Firmware: `BUTTON_BIT_MAP` |
+
+---
+
+## 10 Nächste Schritte (Hardware)
+
+- [ ] PCB-Design für 100 Buttons (KiCad)
+- [ ] Lineare Verdrahtung (kein Bit-Mapping nötig)
+- [ ] Gehäuse-Design
+- [ ] Stromversorgung dimensionieren (100 LEDs)

@@ -4,7 +4,9 @@
 
 | Metadaten | Wert |
 |-----------|------|
-| Version | 2.2.5 |
+| Version | 2.2.4 |
+| Stand | 2025-12-30 |
+| Status | ✅ Prototyp funktionsfähig |
 | Framework | Vanilla JavaScript |
 | Farbschema | Arduino Teal + Raspberry Pi Red |
 
@@ -31,6 +33,8 @@ Das Dashboard ist eine **Single-Page-Application (SPA)** – eine Webanwendung, 
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**URL:** `http://rover:8080/`
+
 ---
 
 ## 2 Dateistruktur
@@ -39,7 +43,7 @@ Das Dashboard ist eine **Single-Page-Application (SPA)** – eine Webanwendung, 
 static/
 ├── index.html      # Hauptseite
 ├── styles.css      # Styling mit Design Tokens
-└── app.js          # WebSocket-Client
+└── app.js          # WebSocket-Client (v2.2.4)
 ```
 
 **Design Tokens:** Zentral definierte Farbwerte als CSS-Variablen. Ändert man `--arduino-teal`, ändert sich die Farbe überall.
@@ -63,14 +67,16 @@ static/
 
 | Nachricht | Aktion |
 |-----------|--------|
-| `{"type":"stop"}` | Audio stoppen, Bild ausblenden |
-| `{"type":"play","id":42}` | Bild 042.jpg laden, Audio 042.mp3 abspielen |
+| `{"type":"stop"}` | Audio stoppen, Reset |
+| `{"type":"play","id":5}` | Bild 005.jpg laden, Audio 005.mp3 abspielen |
+
+**Nummerierung:** Die `id` ist 1-basiert (1-100). Das Dashboard formatiert sie als 3-stellige Zahl für Dateinamen.
 
 ### 4.2 Senden (Browser → Server)
 
 | Nachricht | Auslöser |
 |-----------|----------|
-| `{"type":"ended","id":42}` | Audio fertig abgespielt |
+| `{"type":"ended","id":5}` | Audio fertig abgespielt |
 
 ### 4.3 Auto-Reconnect
 
@@ -82,7 +88,30 @@ ws.onclose = () => {
 
 ---
 
-## 5 Audio-Unlock
+## 5 Medien-Laden (1-basiert!)
+
+```javascript
+function handlePlay(id) {
+    // id ist 1-basiert (1, 2, 3, ...)
+    const id3 = id.toString().padStart(3, '0');  // "001", "002", ...
+    
+    // Bild laden
+    elements.imageContainer.innerHTML = 
+        `<img src="/media/${id3}.jpg" alt="${id3}">`;
+    
+    // Audio abspielen
+    elements.audio.src = `/media/${id3}.mp3`;
+    elements.audio.play();
+}
+```
+
+**Dateipfade:**
+- Bild: `/media/001.jpg` bis `/media/010.jpg` (Prototyp)
+- Audio: `/media/001.mp3` bis `/media/010.mp3` (Prototyp)
+
+---
+
+## 6 Audio-Unlock
 
 Browser blockieren automatische Audio-Wiedergabe – die **Autoplay Policy**. Erst nach einer Nutzer-Interaktion darf Audio starten.
 
@@ -93,14 +122,17 @@ function unlockAudio() {
     audio.src = 'data:audio/wav;base64,...';  // Stilles WAV
     audio.play().then(() => {
         state.audioUnlocked = true;
-        unlockButton.style.display = 'none';
+        unlockButton.classList.add('hidden');
+        waiting.classList.remove('hidden');
     });
 }
 ```
 
+**Wichtig:** Vor dem ersten Tastendruck muss der "Sound aktivieren" Button geklickt werden!
+
 ---
 
-## 6 Keyboard-Shortcuts
+## 7 Keyboard-Shortcuts
 
 | Taste | Funktion |
 |-------|----------|
@@ -109,7 +141,7 @@ function unlockAudio() {
 
 ---
 
-## 7 Status-Indikatoren
+## 8 Status-Indikatoren
 
 Zwei Punkte oben rechts zeigen den Verbindungsstatus:
 
@@ -120,20 +152,40 @@ Zwei Punkte oben rechts zeigen den Verbindungsstatus:
 
 ---
 
-## 8 Debug-Panel
+## 9 Debug-Panel
 
-Das Debug-Panel (Ctrl+D) zeigt alle Events:
+Das Debug-Panel (Button unten rechts oder Ctrl+D) zeigt alle Events:
 
 ```
-[14:32:05] WS: {"type":"play","id":5}
-[14:32:05] Audio gestartet: 005.mp3
-[14:32:12] Audio beendet
-[14:32:12] TX: {"type":"ended","id":5}
+[22:33:26] RX: {"type": "play", "id": 5}
+[22:33:26] PLAY: 5
+[22:33:26] Audio gestartet: 005
+[22:33:27] Audio beendet: 5
+[22:33:27] TX: {"type":"ended","id":5}
 ```
+
+**Events:**
+- `RX:` – Vom Server empfangen
+- `TX:` – An Server gesendet
+- `PLAY:` – Wiedergabe gestartet
+- `STOP` – Wiedergabe gestoppt
 
 ---
 
-## 9 Responsive Design
+## 10 Anzeige-Elemente
+
+| Element | Beschreibung |
+|---------|--------------|
+| Header | "🎯 Auswahlpanel" + Status-Dots |
+| Current ID | 3-stellige Nummer (001-010) |
+| Bild | Vollbild-Anzeige des aktuellen Bildes |
+| Progress Bar | Audio-Fortschritt |
+| Zeit-Anzeige | "0:00 / 1:05" Format |
+| Debug-Panel | Event-Log (toggle mit Button) |
+
+---
+
+## 11 Responsive Design
 
 | Breakpoint | Ziel |
 |------------|------|
@@ -144,7 +196,7 @@ Das Debug-Panel (Ctrl+D) zeigt alle Events:
 
 ---
 
-## 10 Accessibility
+## 12 Accessibility
 
 | Feature | CSS-Query |
 |---------|-----------|
@@ -155,13 +207,37 @@ Das Debug-Panel (Ctrl+D) zeigt alle Events:
 
 ---
 
-## 11 Features
+## 13 Features
 
-- [x] WebSocket mit Auto-Reconnect
+- [x] WebSocket mit Auto-Reconnect (5s Intervall)
 - [x] Audio-Unlock für Autoplay-Policy
 - [x] Fortschrittsanzeige mit Zeitanzeige
 - [x] Status-Indikatoren (WebSocket, Audio)
-- [x] Debug-Panel mit Log-History
+- [x] Debug-Panel mit Log-History (max. 50 Einträge)
 - [x] Responsive Design (Mobile → 4K)
 - [x] Dark/Light Theme Support
-- [x] Keyboard-Shortcuts
+- [x] Keyboard-Shortcuts (Space, Ctrl+D)
+- [x] 1-basierte ID-Anzeige (001-100)
+
+---
+
+## 14 Bekannte Einschränkungen
+
+| Problem | Workaround |
+|---------|------------|
+| Audio startet nicht | "Sound aktivieren" Button klicken |
+| WebSocket getrennt | Auto-Reconnect nach 5s |
+| Bild nicht gefunden | Placeholder "Bild nicht gefunden" |
+
+---
+
+## 15 Browser-Kompatibilität
+
+| Browser | Status |
+|---------|--------|
+| Chrome/Chromium | ✅ Getestet |
+| Firefox | ✅ Unterstützt |
+| Safari | ✅ Unterstützt |
+| Edge | ✅ Unterstützt |
+| Mobile Safari | ✅ Unterstützt |
+| Mobile Chrome | ✅ Unterstützt |

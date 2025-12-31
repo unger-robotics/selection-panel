@@ -2,17 +2,18 @@
 
 > Debugging-Checklisten und Testprozeduren. Befehle: siehe [COMMANDS.md](COMMANDS.md)
 
-| Version | 2.2.5 |
+| Version | 2.4.1 |
 |---------|-------|
+| Stand | 2025-12-30 |
 
 ---
 
 ## 1 Schnellstart
 
 ```bash
-open http://rover:8080/           # Dashboard
-curl http://rover:8080/status     # Status
-curl http://rover:8080/test/play/5  # Test
+open http://rover:8080/              # Dashboard
+curl http://rover:8080/status | jq   # Status
+curl http://rover:8080/test/play/5   # Test (1-basiert!)
 ```
 
 ---
@@ -27,6 +28,7 @@ curl http://rover:8080/test/play/5  # Test
 | Falsche Bits | Kaskadierung falsch | Q8 → SER prüfen |
 | Instabil | Fehlende Kondensatoren | 100 nF an VDD/VSS |
 | Zufällige Trigger | SER floatet (letzter IC) | Pin 11 → VCC |
+| Falsche Taster-Zuordnung | Bit-Mapping | `BUTTON_BIT_MAP` in config.h prüfen |
 
 ### 74HC595 (LEDs)
 
@@ -36,17 +38,54 @@ curl http://rover:8080/test/play/5  # Test
 | Alle LEDs an | SRCLR auf LOW | Pin 10 → VCC |
 | Falsche LED | Kaskadierung | QH' → SER prüfen |
 
-### ESP32
+### ESP32-S3 XIAO
 
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
-| Keine Antwort | USB-Port belegt | Server stoppen |
-| Kein Upload | Falscher Port | `ls /dev/serial/by-id/` |
+| Keine Antwort | USB-Port belegt | Server stoppen: `sudo systemctl stop selection-panel` |
+| Kein Upload | Falscher Port | `ls /dev/ttyACM*` |
 | Reboot-Schleife | Watchdog | Firmware prüfen |
+| Fragmentierte Serial-Daten | USB-CDC Timing | Firmware v2.4.0 mit `Serial.flush()` |
 
 ---
 
-## 3 Browser-Debugging
+## 3 Serial-Debugging
+
+### Port testen
+
+```bash
+# Port konfigurieren
+stty -F /dev/ttyACM0 115200 raw -echo
+
+# Daten empfangen (Ctrl+C zum Beenden)
+cat /dev/ttyACM0
+
+# Erwartete Ausgabe bei Tastendruck:
+# PRESS 001
+# RELEASE 001
+```
+
+### Befehle senden
+
+```bash
+echo "PING" > /dev/ttyACM0      # → PONG
+echo "STATUS" > /dev/ttyACM0    # → LEDS, BTNS, HEAP
+echo "LEDSET 001" > /dev/ttyACM0  # LED 1 ein
+echo "LEDCLR" > /dev/ttyACM0    # Alle LEDs aus
+```
+
+### Häufige Serial-Probleme
+
+| Symptom | Ursache | Lösung |
+|---------|---------|--------|
+| "Permission denied" | Fehlende Rechte | `sudo usermod -aG dialout $USER` → Neu einloggen |
+| "Device busy" | Port belegt | `sudo fuser /dev/ttyACM0` → Prozess beenden |
+| Fragmentierte Daten | USB-CDC | Firmware v2.4.0 verwenden |
+| Keine Daten | Falscher Port | `ls /dev/ttyACM*` prüfen |
+
+---
+
+## 4 Browser-Debugging
 
 ### Kein Ton
 
@@ -63,6 +102,18 @@ DevTools → Network → WS → Messages
 | WebSocket | Verbunden | Getrennt |
 | Audio | Entsperrt | Gesperrt |
 
+### Debug-Panel
+
+Button unten rechts oder `Ctrl+D`:
+
+```
+RX: {"type": "play", "id": 5}
+PLAY: 5
+Audio gestartet: 005
+Audio beendet: 5
+TX: {"type":"ended","id":5}
+```
+
 ### Shortcuts
 
 | Taste | Funktion |
@@ -72,7 +123,7 @@ DevTools → Network → WS → Messages
 
 ---
 
-## 4 Server-Debugging
+## 5 Server-Debugging
 
 ```bash
 # Logs live
@@ -81,16 +132,27 @@ journalctl -u selection-panel -f
 # Letzte 10 Minuten
 journalctl -u selection-panel --since "10 min ago"
 
-# Serial-Port prüfen
-ssh pi@rover 'ls -l /dev/serial/by-id/'
+# Service-Status
+sudo systemctl status selection-panel
 
-# Benutzerrechte
-ssh pi@rover 'groups pi'  # dialout muss enthalten sein
+# Server manuell starten (für Debugging)
+cd ~/selection-panel
+source venv/bin/activate
+python server.py
 ```
+
+### Häufige Server-Probleme
+
+| Symptom | Ursache | Lösung |
+|---------|---------|--------|
+| "Serial verbinde..." hängt | Port belegt | `sudo fuser /dev/ttyACM0` |
+| Taster nicht erkannt | Serial-Fragment | Parser prüfen, Firmware v2.4.0 |
+| Medien fehlen | Falscher Pfad | `ls media/` (001.jpg - 010.jpg) |
+| WebSocket-Fehler | Client-Absturz | Browser neu laden |
 
 ---
 
-## 5 End-to-End Tests
+## 6 End-to-End Tests
 
 ### Preempt-Test
 
@@ -100,8 +162,8 @@ ssh pi@rover 'groups pi'  # dialout muss enthalten sein
 
 ### One-hot Test
 
-1. `curl .../test/play/5`
-2. `curl .../test/play/3`
+1. `curl http://rover:8080/test/play/5`
+2. `curl http://rover:8080/test/play/3`
 3. **Erwartet:** Nur LED 3 leuchtet
 
 ### Ende-Test
@@ -117,42 +179,96 @@ ssh pi@rover 'groups pi'  # dialout muss enthalten sein
 3. Audio 3 endet
 4. **Erwartet:** LED 5 bleibt an (nicht aus!)
 
+### Alle-Taster-Test (Prototyp)
+
+```bash
+# Jeden Taster einzeln drücken
+# Erwartete Zuordnung (1-basiert):
+# Taster 1 → Bild 001 + Ton 001
+# Taster 2 → Bild 002 + Ton 002
+# ...
+# Taster 10 → Bild 010 + Ton 010
+```
+
 ### Stresstest
 
 ```bash
 for i in {1..200}; do
-    curl -s "http://rover:8080/test/play/$((RANDOM % 10))"
+    curl -s "http://rover:8080/test/play/$((RANDOM % 10 + 1))"
     sleep 0.2
 done
 ```
 
 ---
 
-## 6 Deployment-Checkliste
+## 7 Deployment-Checkliste
 
-- [ ] Firmware geflasht
-- [ ] server.py auf Pi kopiert
-- [ ] venv mit Paketen erstellt
-- [ ] Serial-Port eingetragen
-- [ ] systemd-Service aktiviert
-- [ ] Medien vorhanden (000–099)
-- [ ] Reboot-Test bestanden
+### Hardware
+- [ ] ESP32 mit Firmware v2.4.0 geflasht
+- [ ] 10 Taster verdrahtet und funktionsfähig
+- [ ] 10 LEDs verdrahtet und funktionsfähig
+- [ ] USB-Kabel ESP32 ↔ Pi verbunden
+
+### Software
+- [ ] Repository auf Pi geklont
+- [ ] venv erstellt: `python3 -m venv venv`
+- [ ] Pakete installiert: `pip install aiohttp`
+- [ ] server.py vorhanden (v2.4.1)
+
+### Medien
+- [ ] 10 Bilder: `media/001.jpg` - `media/010.jpg`
+- [ ] 10 Audio: `media/001.mp3` - `media/010.mp3`
+
+### Tests
+- [ ] Serial-Test: `cat /dev/ttyACM0` zeigt PRESS/RELEASE
+- [ ] Server startet ohne Fehler
+- [ ] Dashboard öffnet sich
+- [ ] "Sound aktivieren" funktioniert
+- [ ] Alle 10 Taster erkannt
+- [ ] Zuordnung Taster → Medien korrekt
 - [ ] Preempt-Test bestanden
+
+### Autostart (optional)
+- [ ] systemd-Service kopiert
+- [ ] Service aktiviert: `sudo systemctl enable selection-panel`
+- [ ] Reboot-Test bestanden
 
 ---
 
-## 7 Nützliche Einzeiler
+## 8 Nützliche Einzeiler
 
 ```bash
 # Medien zählen
-ls ~/selection-panel/media/*.jpg | wc -l
+ls ~/selection-panel/media/*.jpg 2>/dev/null | wc -l
+ls ~/selection-panel/media/*.mp3 2>/dev/null | wc -l
 
 # Service-Status
 systemctl is-active selection-panel
 
-# Firewall öffnen
+# Port-Nutzung prüfen
+sudo fuser /dev/ttyACM0
+
+# USB-Geräte
+lsusb | grep -i espressif
+
+# Firewall öffnen (falls nötig)
 sudo ufw allow 8080/tcp
 
-# USB-Regeln neu laden
-sudo udevadm control --reload-rules && sudo udevadm trigger
+# Server-Version
+grep -m1 "VERSION" ~/selection-panel/server.py
+
+# Firmware-Version (über Serial)
+echo "VERSION" > /dev/ttyACM0 && sleep 0.5 && cat /dev/ttyACM0
 ```
+
+---
+
+## 9 Bekannte Probleme und Lösungen
+
+| Problem | Status | Lösung |
+|---------|--------|--------|
+| ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.4.0 mit `Serial.flush()` |
+| pyserial funktioniert nicht | ✅ Behoben | Server v2.4.1 mit `os.open` |
+| Falsche Taster-Zuordnung | ✅ Behoben | Bit-Mapping in config.h |
+| CD4021 Timing | ✅ Behoben | Längere Load-Pulse (5µs) |
+| 0-basiert vs 1-basiert | ✅ Behoben | Durchgängig 1-basiert |

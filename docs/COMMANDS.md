@@ -1,18 +1,132 @@
 # COMMANDS — Entwickler-Referenz
 
-> Deployment, Build und Test-Befehle. Protokoll: siehe [SPEC.md](SPEC.md)
+> Deployment, Build, Test und Diagnose-Befehle.
 
-| Version | 2.2.5 |
+| Version | 2.4.1 |
 |---------|-------|
+| Stand | 2025-12-30 |
 
 ---
 
-## 1 Deployment (Mac → Pi)
+## 1 Schnellreferenz
 
-**rsync** synchronisiert Dateien zwischen Rechnern – nur geänderte Dateien werden übertragen.
+| Aktion | Befehl |
+|--------|--------|
+| Server starten | `python server.py` |
+| Dashboard | `http://rover:8080/` |
+| Status | `curl http://rover:8080/status \| jq` |
+| Test-Play | `curl http://rover:8080/test/play/5` |
+| Serial-Monitor | `cat /dev/ttyACM0` |
+| Firmware flashen | `pio run -t upload` |
+| Service Status | `sudo systemctl status selection-panel` |
+| Service Logs | `journalctl -u selection-panel -f` |
+
+---
+
+## 2 Server starten
 
 ```bash
-cd ./selection-panel
+# Auf dem Pi
+ssh rover
+cd ~/selection-panel
+source venv/bin/activate
+python server.py
+```
+
+**Erwartete Ausgabe:**
+```
+==================================================
+Auswahlpanel Server v2.4.1 (PROTOTYPE)
+==================================================
+Medien: 10 erwartet (IDs: 001-010)
+Serial: /dev/ttyACM0
+HTTP:   http://0.0.0.0:8080/
+==================================================
+Serial verbunden
+```
+
+---
+
+## 3 Serial direkt testen
+
+### 3.1 Empfangen (ohne Server)
+
+```bash
+# Port konfigurieren
+stty -F /dev/ttyACM0 115200 raw -echo
+
+# Serial-Monitor (Ctrl+C zum Beenden)
+cat /dev/ttyACM0
+```
+
+### 3.2 Befehle senden
+
+```bash
+# Verbindungstest
+echo "PING" > /dev/ttyACM0
+echo "STATUS" > /dev/ttyACM0
+echo "HELLO" > /dev/ttyACM0
+echo "VERSION" > /dev/ttyACM0
+```
+
+### 3.3 LED-Befehle (1-basiert!)
+
+```bash
+# Einzelne LED (one-hot)
+echo "LEDSET 001" > /dev/ttyACM0   # LED 1 ein
+echo "LEDSET 005" > /dev/ttyACM0   # LED 5 ein
+echo "LEDSET 010" > /dev/ttyACM0   # LED 10 ein
+
+# Additiv
+echo "LEDON 001" > /dev/ttyACM0    # LED 1 ein (additiv)
+echo "LEDON 002" > /dev/ttyACM0    # LED 2 ein (additiv)
+echo "LEDOFF 001" > /dev/ttyACM0   # LED 1 aus
+
+# Alle LEDs
+echo "LEDALL" > /dev/ttyACM0       # Alle ein
+echo "LEDCLR" > /dev/ttyACM0       # Alle aus
+
+# LED-Test (Lauflicht)
+echo "TEST" > /dev/ttyACM0
+echo "STOP" > /dev/ttyACM0         # Test stoppen
+```
+
+### 3.4 Screen (interaktiv)
+
+```bash
+screen /dev/ttyACM0 115200
+```
+
+**Beenden:** `Ctrl+A`, dann `K`, dann `Y`
+
+---
+
+## 4 HTTP-Endpoints
+
+```bash
+# Status (JSON)
+curl http://rover:8080/status | jq
+
+# Health-Check
+curl http://rover:8080/health | jq
+
+# Tastendruck simulieren (1-basiert!)
+curl http://rover:8080/test/play/1
+curl http://rover:8080/test/play/5
+curl http://rover:8080/test/play/10
+
+# Wiedergabe stoppen
+curl http://rover:8080/test/stop
+```
+
+---
+
+## 5 Deployment (Mac → Pi)
+
+### 5.1 Mit rsync
+
+```bash
+cd ~/selection-panel
 
 rsync -avz --delete \
     --exclude='button_panel_firmware' \
@@ -29,25 +143,41 @@ rsync -avz --delete \
 | `-z` | Komprimiert Übertragung |
 | `--delete` | Löscht Dateien auf Ziel, die lokal nicht existieren |
 
----
-
-## 2 Server-Steuerung
-
-**systemd** ist der Service-Manager von Linux. Er startet Dienste automatisch und überwacht sie.
+### 5.2 Mit Git
 
 ```bash
-# Starten + Logs verfolgen
-ssh pi@rover 'sudo systemctl restart selection-panel && journalctl -u selection-panel -f'
+# Auf dem Mac
+git add -A && git commit -m "..." && git push
 
-# Nur starten/stoppen
-ssh pi@rover 'sudo systemctl start selection-panel'
-ssh pi@rover 'sudo systemctl stop selection-panel'
-
-# Status prüfen
-ssh pi@rover 'sudo systemctl status selection-panel'
+# Auf dem Pi
+ssh rover "cd ~/selection-panel && git pull"
 ```
 
-**journalctl** zeigt systemd-Logs:
+---
+
+## 6 Server-Steuerung (systemd)
+
+```bash
+# Starten
+sudo systemctl start selection-panel
+
+# Stoppen
+sudo systemctl stop selection-panel
+
+# Neu starten
+sudo systemctl restart selection-panel
+
+# Status prüfen
+sudo systemctl status selection-panel
+
+# Autostart aktivieren
+sudo systemctl enable selection-panel
+
+# Autostart deaktivieren
+sudo systemctl disable selection-panel
+```
+
+### 6.1 Logs (journalctl)
 
 ```bash
 # Live-Logs
@@ -58,92 +188,99 @@ journalctl -u selection-panel -n 50
 
 # Letzte Stunde
 journalctl -u selection-panel --since "1 hour ago"
+
+# Heute
+journalctl -u selection-panel --since today
 ```
 
 ---
 
-## 3 Dashboard testen
+## 7 Firmware flashen (Mac)
 
 ```bash
-# Browser öffnen (Mac)
-open http://rover:8080/
+cd ~/selection-panel/button_panel_firmware
 
-# Status (JSON)
-curl http://rover:8080/status
+# Kompilieren
+pio run
 
-# Health-Check
-curl http://rover:8080/health
+# Flashen
+pio run -t upload
 
-# Wiedergabe simulieren
-curl http://rover:8080/test/play/5
-curl http://rover:8080/test/stop
+# Serial-Monitor (PlatformIO)
+pio device monitor
+
+# Flash + Monitor
+pio run -t upload -t monitor
+
+# Clean Build
+pio run -t clean
 ```
 
 ---
 
-## 4 Firmware flashen
+## 8 Medien verwalten
 
-**PlatformIO** ist ein Build-System für Embedded-Entwicklung.
+### 8.1 Prüfen (1-basiert: 001-010)
 
 ```bash
-cd button_panel_firmware
+# Auf dem Pi
+cd ~/selection-panel
 
-pio run                      # Kompilieren
-pio run -t upload            # Flashen
-pio device monitor           # Serial-Monitor (115200 Baud)
-pio run -t upload -t monitor # Flash + Monitor
+# Medien auflisten
+ls -la media/
+
+# Medien-Check
+for i in $(seq -w 1 10); do
+    echo -n "0$i: "
+    [ -f "media/0$i.jpg" ] && echo -n "JPG✓ " || echo -n "JPG✗ "
+    [ -f "media/0$i.mp3" ] && echo -n "MP3✓" || echo -n "MP3✗"
+    echo
+done
+
+# Anzahl prüfen
+ls media/*.jpg 2>/dev/null | wc -l
+ls media/*.mp3 2>/dev/null | wc -l
 ```
 
----
-
-## 5 Serial-Debugging
-
-**screen** ist ein Terminal-Multiplexer – verbindet sich mit seriellen Geräten.
+### 8.2 Generieren
 
 ```bash
-# Server stoppen (gibt Port frei)
-ssh pi@rover 'sudo systemctl stop selection-panel'
-
-# Serial-Port finden
-ssh pi@rover 'ls -l /dev/serial/by-id/'
-
-# Verbinden
-ssh pi@rover
-screen /dev/serial/by-id/usb-Espressif_... 115200
+# Test-Medien generieren (auf Mac)
+./scripts/generate_test_media.sh 10    # Prototyp
+./scripts/generate_test_media.sh 100   # Produktion
 ```
-
-**Screen beenden:** `Ctrl+A`, dann `K`, dann `Y`
-
-Befehle: siehe [SPEC.md §6](SPEC.md#6-serial-protokoll-esp32--pi)
 
 ---
 
-## 6 Medien verwalten
+## 9 Diagnose
+
+### 9.1 USB / Serial
 
 ```bash
-# Test-Medien generieren
-./generate_test_media.sh      # 10 Stück (Prototyp)
-./generate_test_media.sh 100  # 100 Stück (Produktion)
+# USB-Geräte
+ls -la /dev/ttyACM*
+lsusb | grep -i espressif
 
-# Medien auf Pi prüfen
-ssh pi@rover 'ls ~/selection-panel/media/*.jpg | wc -l'
-ssh pi@rover 'ls ~/selection-panel/media/*.mp3 | wc -l'
+# Wer nutzt den Serial-Port?
+sudo fuser /dev/ttyACM0
+
+# Port freigeben (falls blockiert)
+sudo systemctl stop selection-panel
+sudo systemctl stop microros-agent.service  # falls vorhanden
 ```
 
----
+### 9.2 Netzwerk
 
-## 7 Quick Reference
+```bash
+# IP-Adressen
+ip addr | grep 192.168
+hostname -I
 
-| Aktion | Befehl |
-|--------|--------|
-| Deploy | `rsync -avz --delete --exclude=... . pi@rover:...` |
-| Server starten | `ssh pi@rover 'sudo systemctl restart selection-panel'` |
-| Dashboard | `open http://rover:8080/` |
-| Test-Play | `curl http://rover:8080/test/play/5` |
-| Firmware | `cd button_panel_firmware && pio run -t upload` |
-| Serial-Test | `screen /dev/serial/by-id/usb-Espressif* 115200` |
+# Hostname
+hostname
+```
 
-## System - Python-Pakete (venv) - Pi Hardware-Modell
+### 9.3 Python
 
 ```bash
 # Python-Version
@@ -152,8 +289,15 @@ python3 --version
 # Pakete im venv
 ~/selection-panel/venv/bin/pip list
 
-# Oder detaillierter mit Versionen
+# Detailliert
 ~/selection-panel/venv/bin/pip freeze
+```
+
+### 9.4 System-Info
+
+```bash
+# Pi Hardware-Modell
+cat /proc/device-tree/model
 
 # Pi OS Version
 cat /etc/os-release
@@ -161,27 +305,92 @@ cat /etc/os-release
 # Kernel
 uname -r
 
-# Hostname + IP
-hostname && hostname -I
-
 # Speicherplatz
 df -h /
 
 # RAM
 free -h
 
-# Pi Hardware-Modell
-cat /proc/device-tree/model
-
-# Pi Revision
-cat /proc/cpuinfo | grep Revision
-
-# OS Build-Datum
-cat /etc/rpi-issue
-
-# Installationsdatum (Dateisystem erstellt)
-stat -c %w / 2>/dev/null || ls -ld --time=birth / 2>/dev/null || tune2fs -l /dev/mmcblk0p2 | grep created
-
 # Alles auf einmal
-echo "=== Pi Modell ===" && cat /proc/device-tree/model && echo -e "\n\n=== OS Build ===" && cat /etc/rpi-issue
+echo "=== Pi Modell ===" && cat /proc/device-tree/model && \
+echo -e "\n=== OS ===" && cat /etc/rpi-issue
 ```
+
+---
+
+## 10 Schnelltest (Komplettablauf)
+
+```bash
+# 1. Server starten (Terminal 1)
+ssh rover
+cd ~/selection-panel && source venv/bin/activate && python server.py
+
+# 2. Dashboard öffnen (Mac)
+open http://rover:8080/
+
+# 3. Sound aktivieren (Button im Browser klicken)
+
+# 4. Alle 10 Taster durchdrücken
+#    → Jeder Taster sollte Bild + Ton abspielen
+#    → LED leuchtet während Wiedergabe
+
+# 5. Status prüfen
+curl http://rover:8080/status | jq
+```
+
+---
+
+## 11 Erwartete Ausgaben
+
+### Server-Log (erfolgreich)
+
+```
+Button 1 gedrueckt
+GET /media/001.mp3 HTTP/1.1 206
+Wiedergabe 1 beendet -> LEDs aus
+```
+
+### Dashboard Debug-Panel
+
+```
+RX: {"type": "play", "id": 1}
+PLAY: 1
+Audio gestartet: 001
+Audio beendet: 1
+TX: {"type":"ended","id":1}
+```
+
+### Serial (cat /dev/ttyACM0)
+
+```
+PRESS 001
+RELEASE 001
+```
+
+### Status-Endpoint
+
+```json
+{
+  "version": "2.4.1",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": null,
+  "ws_clients": 1,
+  "serial_connected": true
+}
+```
+
+---
+
+## 12 Troubleshooting
+
+| Problem | Lösung |
+|---------|--------|
+| `ModuleNotFoundError` | `venv/bin/pip install aiohttp` |
+| `Permission denied: /dev/ttyACM0` | `sudo usermod -aG dialout $USER` → Neu einloggen |
+| Port blockiert | `sudo fuser /dev/ttyACM0` → Prozess beenden |
+| Kein Ton | "Sound aktivieren"-Button im Browser klicken |
+| Server startet nicht | `journalctl -u selection-panel -f` |
+| Taster nicht erkannt | Serial testen: `cat /dev/ttyACM0` |
+| Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
+| WebSocket getrennt | Auto-Reconnect nach 5s, Browser neu laden |
