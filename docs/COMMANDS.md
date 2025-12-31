@@ -4,7 +4,7 @@
 
 | Version | 2.4.1 |
 |---------|-------|
-| Stand | 2025-12-30 |
+| Stand | 2025-12-31 |
 
 ---
 
@@ -13,9 +13,9 @@
 | Aktion | Befehl |
 |--------|--------|
 | Server starten | `python server.py` |
-| Dashboard | `http://rover:8080/` |
-| Status | `curl http://rover:8080/status \| jq` |
-| Test-Play | `curl http://rover:8080/test/play/5` |
+| Dashboard | `http://rover.local:8080/` |
+| Status | `curl http://rover.local:8080/status \| jq` |
+| Test-Play | `curl http://rover.local:8080/test/play/5` |
 | Serial-Monitor | `cat /dev/ttyACM0` |
 | Firmware flashen | `pio run -t upload` |
 | Service Status | `sudo systemctl status selection-panel` |
@@ -24,6 +24,9 @@
 ---
 
 ## 2 Server starten
+
+> **URL-Hinweis:** `rover.local` funktioniert auf allen Geräten (Mac, iPhone, iPad).
+> Alternative: IP-Adresse direkt verwenden (`http://192.168.1.24:8080/`)
 
 ```bash
 # Auf dem Pi
@@ -105,18 +108,18 @@ screen /dev/ttyACM0 115200
 
 ```bash
 # Status (JSON)
-curl http://rover:8080/status | jq
+curl http://rover.local:8080/status | jq
 
 # Health-Check
-curl http://rover:8080/health | jq
+curl http://rover.local:8080/health | jq
 
 # Tastendruck simulieren (1-basiert!)
-curl http://rover:8080/test/play/1
-curl http://rover:8080/test/play/5
-curl http://rover:8080/test/play/10
+curl http://rover.local:8080/test/play/1
+curl http://rover.local:8080/test/play/5
+curl http://rover.local:8080/test/play/10
 
 # Wiedergabe stoppen
-curl http://rover:8080/test/stop
+curl http://rover.local:8080/test/stop
 ```
 
 ---
@@ -326,7 +329,7 @@ ssh rover
 cd ~/selection-panel && source venv/bin/activate && python server.py
 
 # 2. Dashboard öffnen (Mac)
-open http://rover:8080/
+open http://rover.local:8080/
 
 # 3. Sound aktivieren (Button im Browser klicken)
 
@@ -335,7 +338,7 @@ open http://rover:8080/
 #    → LED leuchtet während Wiedergabe
 
 # 5. Status prüfen
-curl http://rover:8080/status | jq
+curl http://rover.local:8080/status | jq
 ```
 
 ---

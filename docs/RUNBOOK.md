@@ -4,16 +4,16 @@
 
 | Version | 2.4.1 |
 |---------|-------|
-| Stand | 2025-12-30 |
+| Stand | 2025-12-31 |
 
 ---
 
 ## 1 Schnellstart
 
 ```bash
-open http://rover:8080/              # Dashboard
-curl http://rover:8080/status | jq   # Status
-curl http://rover:8080/test/play/5   # Test (1-basiert!)
+open http://rover.local:8080/              # Dashboard
+curl http://rover.local:8080/status | jq   # Status
+curl http://rover.local:8080/test/play/5   # Test (1-basiert!)
 ```
 
 ---
@@ -93,6 +93,9 @@ echo "LEDCLR" > /dev/ttyACM0    # Alle LEDs aus
 2. Audio-Status muss **grün** werden
 3. DevTools → Console auf Fehler prüfen
 
+> **iOS/Safari:** Falls Unlock fehlschlägt, Safari komplett schließen und neu öffnen.
+> Dashboard v2.2.5 verwendet AudioContext API für bessere iOS-Kompatibilität.
+
 ### WebSocket-Verbindung
 
 DevTools → Network → WS → Messages
@@ -162,8 +165,8 @@ python server.py
 
 ### One-hot Test
 
-1. `curl http://rover:8080/test/play/5`
-2. `curl http://rover:8080/test/play/3`
+1. `curl http://rover.local:8080/test/play/5`
+2. `curl http://rover.local:8080/test/play/3`
 3. **Erwartet:** Nur LED 3 leuchtet
 
 ### Ende-Test
@@ -194,7 +197,7 @@ python server.py
 
 ```bash
 for i in {1..200}; do
-    curl -s "http://rover:8080/test/play/$((RANDOM % 10 + 1))"
+    curl -s "http://rover.local:8080/test/play/$((RANDOM % 10 + 1))"
     sleep 0.2
 done
 ```
@@ -267,6 +270,7 @@ echo "VERSION" > /dev/ttyACM0 && sleep 0.5 && cat /dev/ttyACM0
 
 | Problem | Status | Lösung |
 |---------|--------|--------|
+| iOS Audio-Unlock fehlgeschlagen | ✅ Behoben | Dashboard v2.2.5 mit AudioContext API |
 | ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.4.0 mit `Serial.flush()` |
 | pyserial funktioniert nicht | ✅ Behoben | Server v2.4.1 mit `os.open` |
 | Falsche Taster-Zuordnung | ✅ Behoben | Bit-Mapping in config.h |
