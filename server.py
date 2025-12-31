@@ -67,7 +67,7 @@ class AppState:
     """Zentrale Zustandsverwaltung."""
 
     def __init__(self):
-        self.current_id: Optional[int] = None  # 0-basiert (intern)
+        self.current_id: Optional[int] = None  # 1-basiert (1-100)
         self.ws_clients: set[web.WebSocketResponse] = set()
         self.serial_fd: Optional[int] = None  # File descriptor für Serial
         self.serial_connected: bool = False
@@ -426,7 +426,7 @@ async def handle_ws_message(data: dict) -> None:
     msg_type = data.get("type")
 
     if msg_type == "ended":
-        # Browser sendet 0-basierte ID
+        # Browser sendet 1-basierte ID
         ended_id = data.get("id")
         if isinstance(ended_id, int):
             await handle_playback_ended(ended_id)

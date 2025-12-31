@@ -1,10 +1,10 @@
 /**
- * Auswahlpanel Dashboard Client v2.2.4
+ * Auswahlpanel Dashboard Client v2.2.5
  * =====================================
  *
  * WebSocket-Client für das interaktive Auswahlpanel.
  * Farbschema: Arduino Teal + Raspberry Pi Red (konsistent mit farbschema.tex)
- * Stand: 2025-12-27
+ * Stand: 2025-12-31
  *
  * Protokoll:
  * - Empfängt: {"type": "stop"} und {"type": "play", "id": n}
@@ -210,34 +210,80 @@ function handleAudioEnded() {
 }
 
 // =============================================================================
-// AUDIO-UNLOCK (Browser Autoplay Policy)
+// AUDIO-UNLOCK (Browser Autoplay Policy - iOS-kompatibel)
 // =============================================================================
 
 function unlockAudio() {
     log('Audio-Unlock...');
 
+    // Methode 1: AudioContext (funktioniert besser auf iOS)
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            
+            // Kurzen stillen Ton erzeugen
+            const buffer = ctx.createBuffer(1, 1, 22050);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+            
+            // AudioContext Resume (wichtig für iOS)
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+            
+            log('AudioContext initialisiert');
+        }
+    } catch (e) {
+        log(`AudioContext-Fehler: ${e.message}`, 'warn');
+    }
+
+    // Methode 2: HTML Audio Element
     const audio = elements.audio;
-    audio.volume = 0;
-    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    audio.volume = 1;
+    
+    // Längeres stilles Audio (besser für iOS)
+    // 1 Sekunde Stille als Base64 WAV
+    const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+    
+    audio.src = silentWav;
+    
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.src = '';
 
-    audio.play()
-        .then(() => {
-            audio.pause();
-            audio.volume = 1;
-            audio.src = '';
+                state.audioUnlocked = true;
+                log('Audio entsperrt');
 
-            state.audioUnlocked = true;
-            log('Audio entsperrt');
-
-            elements.unlockBtn.classList.add('hidden');
-            elements.waiting.classList.remove('hidden');
-            elements.audioStatus.classList.remove('disconnected');
-            elements.audioStatus.classList.add('connected');
-        })
-        .catch((e) => {
-            log(`Unlock fehlgeschlagen: ${e.message}`, 'error');
-            elements.audioStatus.classList.add('disconnected');
-        });
+                elements.unlockBtn.classList.add('hidden');
+                elements.waiting.classList.remove('hidden');
+                elements.audioStatus.classList.remove('disconnected');
+                elements.audioStatus.classList.add('connected');
+            })
+            .catch((e) => {
+                log(`Unlock fehlgeschlagen: ${e.message}`, 'error');
+                
+                // Fallback: Nur AudioContext war erfolgreich
+                if (window.AudioContext || window.webkitAudioContext) {
+                    state.audioUnlocked = true;
+                    log('Fallback: AudioContext OK');
+                    
+                    elements.unlockBtn.classList.add('hidden');
+                    elements.waiting.classList.remove('hidden');
+                    elements.audioStatus.classList.remove('disconnected');
+                    elements.audioStatus.classList.add('connected');
+                } else {
+                    elements.audioStatus.classList.add('disconnected');
+                }
+            });
+    }
 }
 
 // =============================================================================
@@ -307,7 +353,7 @@ function setupEventListeners() {
 // =============================================================================
 
 function init() {
-    log('Dashboard v2.2.4 wird initialisiert...');
+    log('Dashboard v2.2.5 wird initialisiert...');
 
     setupEventListeners();
 
