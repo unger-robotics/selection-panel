@@ -9,8 +9,15 @@ Systematische Tests für das Auswahlpanel-Projekt. Jede Phase baut auf der vorhe
 | 1 | `phase1_esp32_test` | MCU verifizieren | Nur ESP32-S3 XIAO |
 | 2 | `phase2_led_test` | LED-Ausgabe | + 74HC595 + LEDs |
 | 3 | `phase3_button_test` | Taster-Eingabe | + CD4021BE + Taster |
-| 3D | `phase3_diagnose` | Bit-Mapping ermitteln | Diagnose-Tool |
+| 3D | `phase3_button_bit_mapping` | Bit-Mapping ermitteln | Diagnose-Tool |
 | 4 | `phase4_integration` | Taster → LED | Alles kombiniert |
+
+### Zusätzliche Ressourcen
+
+| Ordner | Inhalt |
+|--------|--------|
+| `M74HC595` | Datenblätter 74HC595 |
+| `M74HC595_CD4021BE` | Kombinierte Dokumentation |
 
 ## Pinbelegung ESP32-S3 XIAO
 
@@ -147,7 +154,7 @@ pio run -t upload -t monitor
 **Build & Flash:**
 
 ```bash
-cd phase3_diagnose
+cd phase3_button_bit_mapping
 pio run -t upload -t monitor
 ```
 

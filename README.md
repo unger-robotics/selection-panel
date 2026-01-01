@@ -1,172 +1,272 @@
-# Interaktives Auswahlpanel
+# Selection Panel v2.4.2
 
-**100 Taster × 100 LEDs × 100 Bild/Audio-Sets**
+Interaktives Auswahlpanel mit 100 Tastern und LEDs für Multimedia-Wiedergabe.
 
-Tastendruck → Bild + Audio. Der letzte Tastendruck gewinnt.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ARCHITEKTUR                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌─────────┐    Serial     ┌─────────────┐   WebSocket   ┌──────┐ │
+│   │ ESP32-S3│◄─────────────►│   Pi Server │◄─────────────►│Browser│ │
+│   │  XIAO   │   115200 Bd   │  (Python)   │   Port 8080   │      │ │
+│   └────┬────┘               └──────┬──────┘               └──────┘ │
+│        │                           │                               │
+│   ┌────┴────┐                ┌─────┴─────┐                         │
+│   │ 100 LEDs│                │   media/  │                         │
+│   │ 100 BTN │                │ 001.jpg/mp3│                        │
+│   └─────────┘                │ ...       │                         │
+│                              │ 100.jpg/mp3│                        │
+│                              └───────────┘                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-| Version | Status | Datum |
-|:--------|:-------|:------|
-| 2.4.1 | ✅ Prototyp funktionsfähig | 2025-12-31 |
-
----
-
-## Quick Start
+## Schnellstart
 
 ```bash
-ssh rover
-cd ~/selection-panel
-source venv/bin/activate
-python server.py
+# 1. Repository klonen
+git clone <repo-url>
+cd selection-panel
+
+# 2. Server starten
+python3 server.py
+
+# 3. Browser öffnen
+# http://rover.local:8080
 ```
 
-**Dashboard:** `http://rover.local:8080/`
+Für Details siehe [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
-→ Details: [docs/QUICKSTART.md](docs/QUICKSTART.md)
+## Features
 
----
+- **Sofortige Reaktion:** LED leuchtet bei Tastendruck in < 1ms (ESP32 lokal)
+- **Preempt-Policy:** Neuer Tastendruck unterbricht laufende Wiedergabe sofort
+- **One-Hot:** Immer nur eine LED aktiv
+- **Parallele Verarbeitung:** Serial- und WebSocket-Kommunikation gleichzeitig
+- **Robuste Verbindung:** Auto-Reconnect bei Serial-Unterbrechung
+- **Medien-Validierung:** Prüfung aller Dateien beim Start
 
-## Architektur
+## Systemkomponenten
 
-```
-┌─────────────┐     Serial      ┌─────────────┐    WebSocket    ┌─────────────┐
-│  ESP32-S3   │ ──────────────► │ Raspberry   │ ◄─────────────► │   Browser   │
-│    XIAO     │    115200 Bd    │    Pi 5     │     :8080       │  Dashboard  │
-│             │  PRESS 001-100  │             │                 │             │
-│ 100 Buttons │  LEDSET 001-100 │  Gateway    │                 │ Fullscreen  │
-│ 100 LEDs    │                 │  + Server   │                 │ Bild+Audio  │
-└─────────────┘                 └─────────────┘                 └─────────────┘
-     v2.4.0                          v2.4.1                        v2.2.5
-```
+| Komponente | Version | Beschreibung |
+|------------|---------|--------------|
+| ESP32-S3 Firmware | v2.4.1 | Dual-Core FreeRTOS, Taster/LED-Steuerung |
+| Pi Server | v2.4.2 | aiohttp WebSocket + Serial Bridge |
+| Web Dashboard | v1.0.0 | Bild- und Audio-Wiedergabe |
 
----
-
-## Aktueller Stand (Prototyp)
-
-| Komponente | Status | Details |
-|:-----------|:-------|:--------|
-| Hardware | ✅ | 10 Taster, 10 LEDs, Breadboard |
-| Firmware | ✅ v2.4.0 | Serial.flush() für USB-CDC |
-| Server | ✅ v2.4.1 | os.open statt pyserial |
-| Dashboard | ✅ v2.2.5 | iOS AudioContext, Multi-Device |
-| Zuordnung | ✅ | Taster 1 → Bild/Ton 001 |
-
----
-
-## Dokumentation
-
-### Setup
-
-| Dokument | Inhalt |
-|:---------|:-------|
-| [VORAUSSETZUNGEN.md](docs/VORAUSSETZUNGEN.md) | Hardware, Software-Installation |
-| [SSH.md](docs/SSH.md) | Pi einrichten, SSH-Zugang |
-| [GIT.md](docs/GIT.md) | Repository, Commits, Deployment |
-| [QUICKSTART.md](docs/QUICKSTART.md) | Server + Dashboard starten |
-| [LOETEN.md](docs/LOETEN.md) | Bleifreies Löten (SAC305) |
-
-### Referenz
-
-| Dokument | Inhalt |
-|:---------|:-------|
-| [SPEC.md](docs/SPEC.md) | **Single Source of Truth** — Protokoll, Pinbelegung |
-| [HARDWARE.md](docs/HARDWARE.md) | Stückliste, IC-Pinbelegungen |
-| [FIRMWARE.md](docs/FIRMWARE.md) | ESP32 Architektur, Build |
-| [SERVER.md](docs/SERVER.md) | Raspberry Pi Server |
-| [DASHBOARD.md](docs/DASHBOARD.md) | Web-Frontend |
-
-### Betrieb
-
-| Dokument | Inhalt |
-|:---------|:-------|
-| [COMMANDS.md](docs/COMMANDS.md) | Alle Befehle, Schnellreferenz |
-| [RUNBOOK.md](docs/RUNBOOK.md) | Troubleshooting, Debugging |
-| [ROADMAP.md](docs/ROADMAP.md) | Implementierungsplan, Status |
-| [CHANGELOG.md](docs/CHANGELOG.md) | Versionshistorie |
-
----
-
-## Verzeichnisstruktur
+## Projektstruktur
 
 ```
 selection-panel/
-├── button_panel_firmware/    # ESP32 PlatformIO-Projekt
-│   └── src/main.cpp          # Firmware v2.4.0
-├── docs/                     # Dokumentation
-├── media/                    # Bild/Audio (001–100, 1-basiert!)
-├── static/                   # Web-Dashboard
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── scripts/                  # Hilfsskripte
-│   └── generate_test_media.sh
-├── server.py                 # Python Server v2.4.1
-├── requirements.txt          # Python-Abhängigkeiten
-└── selection-panel.service   # systemd-Service
+├── server.py              # Hauptserver (Python)
+├── static/
+│   └── index.html         # Web-Dashboard
+├── media/
+│   ├── 001.jpg            # Bilder (1-100)
+│   ├── 001.mp3            # Audio (1-100)
+│   └── ...
+├── button_panel_firmware/ # ESP32 Firmware
+│   ├── src/
+│   │   ├── main.cpp
+│   │   └── shift_register.cpp
+│   └── include/
+│       ├── config.h
+│       └── shift_register.h
+└── docs/                  # Dokumentation
+    ├── QUICKSTART.md
+    ├── SPEC.md
+    ├── FIRMWARE.md
+    ├── SERVER.md
+    ├── DASHBOARD.md
+    └── ...
 ```
 
----
+## Konfiguration
 
-## Nummerierung (1-basiert)
+### Server (server.py)
 
-| Schicht | Format | Beispiel |
-|:--------|:-------|:---------|
-| Taster (physisch) | 1-100 | Taster 1, Taster 10 |
-| Serial-Protokoll | 001-100 | `PRESS 001`, `LEDSET 010` |
-| Medien-Dateien | 001-100 | `001.jpg`, `010.mp3` |
-| Dashboard-Anzeige | 001-100 | "001", "010" |
+```python
+# Build-Modus
+PROTOTYPE_MODE = True      # True = 10, False = 100 Medien
 
----
+# Serial-Verbindung
+SERIAL_PORT = "/dev/ttyACM0"
+SERIAL_BAUD = 115200
 
-## Referenz-System
+# HTTP-Server
+HTTP_HOST = "0.0.0.0"
+HTTP_PORT = 8080
 
-| Komponente | Version |
-|:-----------|:--------|
-| Raspberry Pi 5 | 4 GB RAM |
-| Seeed XIAO ESP32-S3 | |
-| Pi OS | Debian 12 (bookworm) |
-| Python | 3.13+ |
+# Optimierung (ESP32 v2.4.1+)
+ESP32_SETS_LED_LOCALLY = True  # ESP32 setzt LED selbst
+```
 
----
+### Firmware (config.h)
 
-## Bekannte Einschränkungen
+```cpp
+// Build-Modus
+#define PROTOTYPE_MODE     // Auskommentieren für Produktion
+```
 
-| Problem | Lösung |
-|:--------|:-------|
-| ESP32-S3 USB-CDC fragmentiert | Firmware: `Serial.flush()` nach jedem Event |
-| pyserial funktioniert nicht | Server: `os.open` + `stty` statt pyserial |
-| iOS Audio-Unlock | Dashboard: AudioContext API + Fallback |
-| Hostname `rover` nicht auf allen Geräten | `rover.local` verwenden (alle Apple-Geräte) |
+## Serial-Protokoll
 
----
+### ESP32 → Server
 
-## Policy
+| Nachricht | Bedeutung |
+|-----------|-----------|
+| `PRESS 001` | Taster 1 gedrückt (001-100) |
+| `RELEASE 001` | Taster 1 losgelassen |
+| `READY` | Controller bereit |
+| `OK` | Befehl ausgeführt |
+| `ERROR msg` | Fehler aufgetreten |
 
-| Regel | Bedeutung |
-|:------|:----------|
-| **One-hot** | Maximal eine LED leuchtet |
-| **Preempt** | Neuer Tastendruck unterbricht sofort |
+### Server → ESP32
 
----
+| Befehl | Funktion |
+|--------|----------|
+| `LEDSET n` | LED n einschalten (one-hot) |
+| `LEDCLR` | Alle LEDs aus |
+| `PING` | Verbindungstest |
 
-## Skalierung
+## HTTP-Endpoints
 
-| Datei | Prototyp (10) | Produktion (100) |
-|:------|:--------------|:-----------------|
-| `config.h` | `#define PROTOTYPE_MODE` | auskommentieren |
-| `server.py` | `PROTOTYPE_MODE = True` | `False` |
-| Hardware | 2× Shift Register | 26× Shift Register |
+| Endpoint | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/` | GET | Web-Dashboard |
+| `/ws` | WS | WebSocket-Verbindung |
+| `/status` | GET | Server-Status (JSON) |
+| `/health` | GET | Health-Check |
+| `/test/play/{id}` | GET | Tastendruck simulieren |
+| `/test/stop` | GET | Wiedergabe stoppen |
+| `/media/{file}` | GET | Mediendateien |
+| `/static/{file}` | GET | Statische Dateien |
 
----
+### Status-Response
 
-## Nächste Schritte
+```json
+{
+  "version": "2.4.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 3,
+  "ws_clients": 2,
+  "serial_connected": true,
+  "serial_port": "/dev/ttyACM0",
+  "media_missing": 0,
+  "esp32_local_led": true
+}
+```
 
-- [ ] Systemd-Service für Autostart
-- [ ] Echte Medien hinzufügen
-- [ ] PCB-Design für 100 Buttons
-- [ ] Gehäuse
+## WebSocket-Protokoll
 
----
+### Server → Browser
+
+```json
+{"type": "stop"}              // Wiedergabe stoppen
+{"type": "play", "id": 3}     // Medien-ID 3 abspielen
+```
+
+### Browser → Server
+
+```json
+{"type": "ended", "id": 3}    // Wiedergabe von ID 3 beendet
+{"type": "ping"}              // Heartbeat
+```
+
+## Medien-Anforderungen
+
+Alle Medien im Verzeichnis `media/` mit 3-stelliger ID (001-100):
+
+| Datei | Format | Beschreibung |
+|-------|--------|--------------|
+| `001.jpg` | JPEG | Bild für Taster 1 |
+| `001.mp3` | MP3 | Audio für Taster 1 |
+| ... | ... | ... |
+| `100.jpg` | JPEG | Bild für Taster 100 |
+| `100.mp3` | MP3 | Audio für Taster 100 |
+
+Der Server prüft beim Start, ob alle Dateien vorhanden sind.
+
+## Dokumentation
+
+| Dokument | Inhalt |
+|----------|--------|
+| [QUICKSTART](docs/QUICKSTART.md) | Schnelleinstieg |
+| [SPEC](docs/SPEC.md) | Technische Spezifikation |
+| [FIRMWARE](docs/FIRMWARE.md) | ESP32 Firmware Details |
+| [SERVER](docs/SERVER.md) | Python Server Details |
+| [DASHBOARD](docs/DASHBOARD.md) | Web-Interface |
+| [HARDWARE](docs/HARDWARE.md) | Schaltplan, Verkabelung |
+| [LOETEN](docs/LOETEN.md) | Löt-Anleitung |
+| [COMMANDS](docs/COMMANDS.md) | Befehlsreferenz |
+| [RUNBOOK](docs/RUNBOOK.md) | Betriebshandbuch |
+| [SSH](docs/SSH.md) | Remote-Zugriff |
+| [GIT](docs/GIT.md) | Versionskontrolle |
+| [CHANGELOG](docs/CHANGELOG.md) | Änderungshistorie |
+| [ROADMAP](docs/ROADMAP.md) | Geplante Features |
+| [VORAUSSETZUNGEN](docs/VORAUSSETZUNGEN.md) | Systemanforderungen |
+
+## Troubleshooting
+
+### Server startet nicht
+
+```bash
+# Port bereits belegt?
+sudo lsof -i :8080
+
+# Serial-Berechtigung?
+sudo usermod -a -G dialout $USER
+# Neu einloggen erforderlich!
+```
+
+### Keine Serial-Verbindung
+
+```bash
+# Port vorhanden?
+ls -la /dev/ttyACM*
+
+# ESP32 flashen
+cd button_panel_firmware
+pio run -t upload
+```
+
+### Medien fehlen
+
+```bash
+# Prüfen
+ls media/*.jpg | wc -l  # Sollte 10 oder 100 sein
+ls media/*.mp3 | wc -l
+
+# Status-Endpoint
+curl http://localhost:8080/status | jq .missing_files
+```
+
+## Changelog
+
+### v2.4.2 (2025-01-01)
+
+- Parallele Ausführung von Serial + WebSocket (asyncio.gather)
+- LEDSET wird nur gesendet wenn ESP32 LED nicht selbst gesetzt hat
+- Minimale Latenz durch parallele Broadcasts
+
+### v2.4.1 (2025-01-01)
+
+- ESP32: LED reagiert sofort bei Tastendruck (< 1ms)
+- Redundantes LEDSET wird ignoriert
+
+### v2.3.1 (2025-01-01)
+
+- CD4021 Timing-Fixes
+
+### v2.3.0 (2025-12-30)
+
+- Bit-Mapping für Prototyp
+- 1-basierte Nummerierung
 
 ## Lizenz
 
-MIT License — Jan Unger, 2025
+MIT License
+
+## Autor
+
+Jan Unger - Selection Panel Projekt

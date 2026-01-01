@@ -1,4 +1,4 @@
-# Button Panel Firmware v2.3.0
+# Button Panel Firmware v2.4.1
 
 ESP32-S3 XIAO Firmware für das Selection Panel Projekt mit 100 Tastern und 100 LEDs.
 
@@ -27,6 +27,18 @@ ESP32-S3 XIAO Firmware für das Selection Panel Projekt mit 100 Tastern und 100 
 │      100 Taster                100 LEDs                     │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Neu in v2.4.1: Sofortige LED-Reaktion
+
+Die LED reagiert jetzt sofort bei Tastendruck (< 1ms Latenz), ohne auf den Pi-Roundtrip zu warten. Der Pi wird parallel informiert und kann bei Bedarf übersteuern.
+
+**Ablauf:**
+
+1. Taste wird gedrückt
+2. ESP32 setzt LED sofort (Core 1, < 1ms)
+3. ESP32 sendet `PRESS xxx` an Pi (parallel)
+4. Pi empfängt Event, kann optional `LEDSET` senden
+5. ESP32 ignoriert redundantes `LEDSET` (bereits gesetzt)
 
 ## Hardware
 
@@ -127,6 +139,7 @@ IC#0 SER ← IC#1 Q8 ← IC#2 Q8 ← ... ← IC#12 Q8 ← VCC (LETZTER!)
 | `STATUS` | Zustand abfragen |
 | `VERSION` | Firmware-Version |
 | `HELLO` | Startup-Nachricht |
+| `QRESET` | Queue-Statistik zurücksetzen |
 | `HELP` | Hilfe anzeigen |
 
 ### Beispiel-Session
@@ -143,7 +156,7 @@ PONG
 > LEDSET 5
 OK
 
-# Taster 3 wird gedrückt
+# Taster 3 wird gedrückt (LED 3 leuchtet sofort!)
 PRESS 003
 
 # Taster 3 wird losgelassen
@@ -152,6 +165,7 @@ RELEASE 003
 # Status abfragen
 > STATUS
 LEDS 0000010000
+CURLED 3
 BTNS 0000000000
 HEAP 372756
 CORE 1
@@ -159,6 +173,20 @@ QFREE 16
 MODE PROTOTYPE
 MAPPING ON
 ```
+
+### STATUS-Ausgabe
+
+| Feld | Bedeutung |
+|------|-----------|
+| `LEDS` | Bit-Vektor aller LEDs (MSB links) |
+| `CURLED` | Aktuell aktive LED (1-basiert, 0 = keine) |
+| `BTNS` | Bit-Vektor aller Taster |
+| `HEAP` | Freier Heap-Speicher (Bytes) |
+| `CORE` | Aktueller CPU-Core |
+| `QFREE` | Freie Queue-Slots |
+| `QOVFL` | Queue-Overflow-Zähler (nur wenn > 0) |
+| `MODE` | PROTOTYPE oder PRODUCTION |
+| `MAPPING` | ON wenn Bit-Mapping aktiv |
 
 ## Build & Flash
 
@@ -266,7 +294,26 @@ constexpr uint8_t BUTTON_BIT_MAP[10] = {
 2. Bit-Mapping ermitteln
 3. `BUTTON_BIT_MAP` in `config.h` anpassen
 
+### LED reagiert verzögert (> 50ms)
+
+**Ursache:** Alte Firmware-Version ohne sofortige LED-Reaktion
+
+**Lösung:** Auf v2.4.1 aktualisieren
+
 ## Changelog
+
+### v2.4.1 (2025-01-01)
+
+- LED reagiert sofort bei Tastendruck (< 1ms, ohne Pi-Roundtrip)
+- Pi wird parallel über `PRESS xxx` informiert
+- `LEDSET` wird ignoriert wenn LED bereits korrekt gesetzt
+- Neues `CURLED`-Feld in STATUS-Ausgabe
+- Neuer `QRESET`-Befehl für Queue-Statistik
+
+### v2.3.1 (2025-01-01)
+
+- FIX: CD4021 `shiftInData()` - kein Clock nach letztem Bit
+- FIX: Timing-Delays an Datenblatt angepasst (2µs Load, 1µs Clock)
 
 ### v2.3.0 (2025-12-30)
 

@@ -1,11 +1,11 @@
 # FIRMWARE — ESP32-S3 Architektur
 
-> Dual-Core Firmware für den IO-Controller.
+> Dual-Core Firmware für den IO-Controller mit sofortiger LED-Reaktion.
 
 | Metadaten | Wert |
 |-----------|------|
-| Version | 2.4.0 |
-| Stand | 2025-12-30 |
+| Version | 2.4.1 |
+| Stand | 2025-01-01 |
 | Status | ✅ Prototyp funktionsfähig |
 | Board | Seeed XIAO ESP32-S3 |
 | Framework | Arduino + FreeRTOS |
@@ -14,7 +14,7 @@
 
 ## 1 Überblick
 
-Die Firmware nutzt **FreeRTOS** – ein Echtzeit-Betriebssystem, das mehrere Tasks parallel ausführt. Der ESP32-S3 hat zwei CPU-Kerne: Core 0 scannt Taster, Core 1 verarbeitet Befehle.
+Die Firmware nutzt **FreeRTOS** – ein Echtzeit-Betriebssystem, das mehrere Tasks parallel ausführt. Der ESP32-S3 hat zwei CPU-Kerne: Core 0 scannt Taster, Core 1 verarbeitet Befehle und steuert LEDs.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -29,6 +29,12 @@ Die Firmware nutzt **FreeRTOS** – ein Echtzeit-Betriebssystem, das mehrere Tas
 │  └──────────┬──────────┘    │    └──────────┬──────────┘    │
 │             └───────────────┼───────────────┘               │
 │                    buttonEventQueue                         │
+│                             ↓                               │
+│              ┌──────────────────────────────┐               │
+│              │  handleButtonEvents()        │               │
+│              │  • LED sofort setzen (< 1ms) │  ← NEU v2.4.1 │
+│              │  • PRESS an Pi senden        │               │
+│              └──────────────────────────────┘               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -36,7 +42,62 @@ Die Firmware nutzt **FreeRTOS** – ein Echtzeit-Betriebssystem, das mehrere Tas
 
 ---
 
-## 2 Projektstruktur
+## 2 Neu in v2.4.1: Sofortige LED-Reaktion
+
+Die LED reagiert jetzt direkt bei Tastendruck, ohne auf den Pi-Roundtrip zu warten.
+
+### 2.1 Ablauf
+
+```
+[Taster gedrückt]
+       ↓
+   Core 0: Event in Queue
+       ↓
+   Core 1: handleButtonEvents()
+       ↓
+   ┌───────────────────────────────────┐
+   │  1. LED sofort setzen (< 1ms)    │  ← Lokal, kein Warten
+   │  2. PRESS xxx an Pi senden       │  ← Parallel
+   └───────────────────────────────────┘
+       ↓
+   Pi empfängt PRESS, kann LEDSET senden
+       ↓
+   ESP32 ignoriert redundantes LEDSET (bereits gesetzt)
+```
+
+### 2.2 Code
+
+```cpp
+static void handleButtonEvents() {
+    ButtonEvent event;
+    
+    while (xQueueReceive(buttonEventQueue, &event, 0) == pdTRUE) {
+        if (event.type == ButtonEventType::PRESSED) {
+            // LED SOFORT setzen - ohne auf Pi zu warten!
+            leds.setOnly(event.index);
+            currentLedIndex = event.index;
+        }
+        
+        // Dann Event an Pi senden (parallel)
+        sendButtonEvent(event);
+    }
+}
+```
+
+### 2.3 LEDSET-Optimierung
+
+```cpp
+// In processCommand() für LEDSET:
+if (currentLedIndex == targetIndex) {
+    // LED bereits gesetzt, nichts tun
+    sendOK();
+    return;
+}
+```
+
+---
+
+## 3 Projektstruktur
 
 ```
 button_panel_firmware/
@@ -45,13 +106,13 @@ button_panel_firmware/
 │   ├── config.h            # Pins, Timing, Skalierung, Bit-Mapping
 │   └── shift_register.h    # Hardware-Abstraktion
 └── src/
-    ├── main.cpp            # Setup, Loop, Tasks (v2.4.0)
-    └── shift_register.cpp  # Schieberegister-Treiber
+    ├── main.cpp            # Setup, Loop, Tasks (v2.4.1)
+    └── shift_register.cpp  # Schieberegister-Treiber (v2.3.1)
 ```
 
 ---
 
-## 3 Konfiguration (config.h)
+## 4 Konfiguration (config.h)
 
 ```cpp
 // Skalierung: true = 10 Kanäle (Prototyp), false = 100 Kanäle
@@ -64,14 +125,14 @@ button_panel_firmware/
     
     // Bit-Mapping für Prototyp-Verdrahtung
     constexpr bool USE_BUTTON_MAPPING = true;
-    static const uint8_t BUTTON_BIT_MAP[10] = {
-        7, 6, 5, 4, 3, 2, 1, 0,  // Taster 1-8 → IC 0
-        15, 14                    // Taster 9-10 → IC 1
+    constexpr uint8_t BUTTON_BIT_MAP[10] = {
+        15, 12, 13, 11, 10, 9, 8, 14, 7, 4
     };
 #else
     constexpr uint8_t NUM_SHIFT_REGS = 13;  // 13 ICs pro Kette
     constexpr uint8_t NUM_LEDS = 100;
     constexpr uint8_t NUM_BUTTONS = 100;
+    constexpr bool USE_BUTTON_MAPPING = false;
 #endif
 
 // Timing
@@ -89,7 +150,7 @@ constexpr uint32_t SERIAL_BAUD = 115200;
 
 ---
 
-## 4 Pinbelegung
+## 5 Pinbelegung
 
 | Signal | Pin | Ziel-IC | Funktion |
 |--------|-----|---------|----------|
@@ -104,9 +165,9 @@ constexpr uint32_t SERIAL_BAUD = 115200;
 
 ---
 
-## 5 Serial-Protokoll (1-basiert!)
+## 6 Serial-Protokoll (1-basiert!)
 
-### 5.1 ESP32 → Raspberry Pi
+### 6.1 ESP32 → Raspberry Pi
 
 | Befehl | Bedeutung | Beispiel |
 |--------|-----------|----------|
@@ -117,7 +178,7 @@ constexpr uint32_t SERIAL_BAUD = 115200;
 | `OK` | Befehl ausgeführt | |
 | `ERROR msg` | Fehlermeldung | `ERROR Invalid LED` |
 
-### 5.2 Raspberry Pi → ESP32
+### 6.2 Raspberry Pi → ESP32
 
 | Befehl | Bedeutung | Beispiel |
 |--------|-----------|----------|
@@ -129,15 +190,33 @@ constexpr uint32_t SERIAL_BAUD = 115200;
 | `PING` | Verbindungstest | |
 | `STATUS` | Zustand abfragen | |
 | `TEST` | LED-Lauflicht | |
+| `STOP` | LED-Test stoppen | |
+| `VERSION` | Firmware-Version | |
 | `HELLO` | Startup-Nachricht | |
+| `QRESET` | Queue-Statistik zurücksetzen | |
+| `HELP` | Befehlsliste | |
 
 **Nummerierung:** Alle IDs sind 1-basiert (001-100), nicht 0-basiert!
 
+### 6.3 STATUS-Ausgabe
+
+```
+LEDS 0000100000      # Bit-Vektor (MSB links)
+CURLED 5             # Aktuelle LED (1-basiert, 0 = keine)
+BTNS 0000000000      # Bit-Vektor
+HEAP 372756          # Freier Heap (Bytes)
+CORE 1               # Aktueller CPU-Core
+QFREE 16             # Freie Queue-Slots
+QOVFL 0              # Queue-Overflow-Zähler (nur wenn > 0)
+MODE PROTOTYPE       # Build-Modus
+MAPPING ON           # Bit-Mapping aktiv
+```
+
 ---
 
-## 6 Schieberegister-Treiber
+## 7 Schieberegister-Treiber
 
-### 6.1 LED-Ausgabe (74HC595)
+### 7.1 LED-Ausgabe (74HC595)
 
 ```cpp
 class OutputShiftRegister {
@@ -151,7 +230,7 @@ public:
 
 **One-hot:** Genau ein Bit ist aktiv – alle anderen sind aus. Bei `setOnly(5)` leuchtet nur LED 5.
 
-### 6.2 Taster-Eingabe (CD4021)
+### 7.2 Taster-Eingabe (CD4021)
 
 ```cpp
 class InputShiftRegister {
@@ -161,11 +240,36 @@ public:
 };
 ```
 
+### 7.3 CD4021 Timing (v2.3.1)
+
+```cpp
+void InputShiftRegister::parallelLoad() {
+    digitalWrite(_loadPin, HIGH);
+    delayMicroseconds(2);  // t_WH: min 160 ns @ 5V
+    digitalWrite(_loadPin, LOW);
+    delayMicroseconds(2);  // t_REM: Warten bis Q8 stabil
+}
+
+void InputShiftRegister::shiftInData() {
+    for (uint8_t i = 0; i < totalBits; i++) {
+        // ERST lesen (Q8 enthält aktuelles Bit)
+        uint8_t bit = digitalRead(_dataPin);
+        
+        // DANN clocken - KEIN Clock nach letztem Bit!
+        if (i < (totalBits - 1)) {
+            pulseClock();
+        }
+    }
+}
+```
+
+**Wichtig:** Nach Parallel Load liegt Q8 sofort am Ausgang. Daher: Lesen → Clock → Lesen → Clock → ... → Lesen (kein Clock am Ende).
+
 **Mutex:** Beide Treiber schützen ihren Hardware-Zugriff mit einem Mutex – einer Sperre, die verhindert, dass zwei Tasks gleichzeitig auf dieselbe Ressource zugreifen.
 
 ---
 
-## 7 USB-CDC und Serial.flush()
+## 8 USB-CDC und Serial.flush()
 
 Der ESP32-S3 XIAO nutzt **USB-CDC** (USB Communications Device Class) statt eines separaten UART-Chips. Dies führt zu Fragmentierung bei schnellen Serial-Ausgaben.
 
@@ -177,7 +281,7 @@ Serial.print(' ');
 Serial.println(buttonId);
 ```
 
-**Lösung (v2.4.0):**
+**Lösung (v2.4.0+):**
 ```cpp
 // Atomar - immer komplett
 char buffer[16];
@@ -190,7 +294,7 @@ Serial.flush();  // KRITISCH: Sofort senden!
 
 ---
 
-## 8 Build und Upload
+## 9 Build und Upload
 
 ```bash
 cd button_panel_firmware
@@ -213,7 +317,7 @@ pio run -t clean
 
 ---
 
-## 9 Debugging
+## 10 Debugging
 
 | Meldung | Ursache | Lösung |
 |---------|---------|--------|
@@ -222,21 +326,27 @@ pio run -t clean
 | Keine Button-Events | P/S-Logik falsch | HIGH für Load verwenden |
 | Fragmentierte Serial-Daten | USB-CDC Timing | `Serial.flush()` verwenden |
 | Falsche Taster-Zuordnung | Bit-Mapping | `BUTTON_BIT_MAP` prüfen |
+| LED verzögert | Alte Firmware | Auf v2.4.1 updaten |
 
 ### Debug-Befehle
 
 ```bash
 # Im Serial Monitor
-STATUS    # Zeigt LEDs, Buttons, Heap, Queue
+STATUS    # Zeigt LEDs, CURLED, Buttons, Heap, Queue
 VERSION   # Firmware-Version
 HELLO     # Startup-Nachricht mit Pinbelegung
+QRESET    # Queue-Overflow-Zähler zurücksetzen
 ```
 
 ---
 
-## 10 Features
+## 11 Features
 
 - [x] Dual-Core: Button-Scan auf Core 0, Serial auf Core 1
+- [x] **NEU:** LED reagiert sofort bei Tastendruck (< 1ms)
+- [x] **NEU:** Redundantes LEDSET wird ignoriert
+- [x] **NEU:** CURLED in STATUS-Ausgabe
+- [x] **NEU:** QRESET-Befehl
 - [x] Mutex-geschützter Hardware-Zugriff
 - [x] Non-blocking LED-Test (State Machine)
 - [x] Watchdog mit 5 s Timeout
@@ -249,21 +359,24 @@ HELLO     # Startup-Nachricht mit Pinbelegung
 
 ---
 
-## 11 Bekannte Einschränkungen
+## 12 Bekannte Einschränkungen
 
 | Problem | Status | Workaround |
 |---------|--------|------------|
 | USB-CDC fragmentiert | ✅ Behoben | `Serial.flush()` |
-| CD4021 braucht längere Pulse | ✅ Behoben | `delayMicroseconds(5)` |
+| CD4021 braucht längere Pulse | ✅ Behoben | 2µs Load, 1µs Clock |
 | Nicht-lineare Prototyp-Verdrahtung | ✅ Behoben | `BUTTON_BIT_MAP` |
+| LED-Reaktion langsam | ✅ Behoben | Lokale LED-Steuerung (v2.4.1) |
 
 ---
 
-## 12 Changelog
+## 13 Changelog
 
 | Version | Datum | Änderungen |
 |---------|-------|------------|
+| 2.4.1 | 2025-01-01 | LED sofort bei Tastendruck, CURLED, QRESET, LEDSET-Optimierung |
 | 2.4.0 | 2025-12-30 | Serial.flush(), snprintf für atomare Nachrichten |
+| 2.3.1 | 2025-01-01 | CD4021 Timing (2µs Load, 1µs Clock, kein Clock nach letztem Bit) |
 | 2.3.0 | 2025-12-30 | Bit-Mapping, 1-basierte Kommunikation, HELLO-Befehl |
 | 2.2.5 | 2025-12-27 | CD4021 Timing korrigiert |
 | 2.2.0 | 2025-12-26 | Dual-Core FreeRTOS |
