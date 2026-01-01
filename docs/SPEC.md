@@ -1,11 +1,11 @@
-# SPEC — Spezifikation Auswahlpanel
+# SPEC – Spezifikation Auswahlpanel
 
 > **Single Source of Truth** für Protokolle, Pinbelegung und Policy.
 
 | Metadaten | Wert |
 |-----------|------|
-| Version | 2.4.1 |
-| Datum | 2025-12-30 |
+| Version | 2.4.2 |
+| Datum | 2025-01-01 |
 | Status | ✅ Prototyp funktionsfähig (10×) |
 
 ---
@@ -19,12 +19,13 @@
 | **Race-Condition** | Timing-Problem, wenn zwei Ereignisse fast gleichzeitig auftreten |
 | **FreeRTOS** | Echtzeit-Betriebssystem für Mikrocontroller |
 | **Mutex** | Sperre, die gleichzeitigen Zugriff auf Ressourcen verhindert |
-| **CMOS** | Chip-Technologie — Eingänge nie unbeschaltet lassen |
+| **CMOS** | Chip-Technologie – Eingänge nie unbeschaltet lassen |
 | **Pull-Up** | Widerstand zieht Signal auf HIGH, Taster zieht auf LOW |
 | **Kaskadierung** | ICs in Reihe schalten, um mehr Ein-/Ausgänge zu erhalten |
 | **DIP-16** | IC-Gehäuse mit 16 Pins in zwei Reihen |
 | **USB-CDC** | USB Communications Device Class (virtueller COM-Port) |
 | **1-basiert** | Nummerierung beginnt bei 1 (nicht 0) |
+| **Preloading** | Medien vorladen bevor sie benötigt werden |
 
 ---
 
@@ -43,14 +44,16 @@ Zu jedem Zeitpunkt leuchtet **maximal eine LED**.
 
 ### 2.2 Preempt („Umschalten gewinnt")
 
-Jeder neue Tastendruck unterbricht sofort die aktuelle Wiedergabe:
+Jeder neue Tastendruck unterbricht sofort die aktuelle Wiedergabe.
 
-1. Pi → ESP32: `LEDSET 005`
-2. Pi → Browser: `{"type":"stop"}`
-3. Pi → Browser: `{"type":"play","id":5}`
+**Mit ESP32 v2.4.1+ (lokale LED-Steuerung):**
 
-Nach Audio-Ende meldet der Browser `{"type":"ended","id":5}`.  
-Pi sendet `LEDCLR` **nur wenn** `id == current_id` (Race-Condition-Schutz).
+1. ESP32 setzt LED sofort (< 1ms)
+2. ESP32 → Pi: `PRESS 005`
+3. Pi → Browser: `{"type":"stop"}` + `{"type":"play","id":5}` (parallel)
+4. Browser spielt aus Cache (< 50ms)
+
+**Race-Condition-Schutz:** Nach Audio-Ende meldet der Browser `{"type":"ended","id":5}`. Pi sendet `LEDCLR` **nur wenn** `id == current_id`.
 
 ---
 
@@ -66,7 +69,7 @@ Pi sendet `LEDCLR` **nur wenn** `id == current_id` (Race-Condition-Schutz).
 | Medien-Dateien | 001-100 | `001.jpg`, `010.mp3` |
 | Dashboard-Anzeige | 001-100 | "001", "010" |
 
-**Keine Konvertierung nötig** — durchgängig 1-basiert in allen Schichten.
+**Keine Konvertierung nötig** – durchgängig 1-basiert in allen Schichten.
 
 ---
 
@@ -90,7 +93,8 @@ Pi sendet `LEDCLR` **nur wenn** `id == current_id` (Race-Condition-Schutz).
 | Load-Signal | LOW | **HIGH** |
 | Shift-Signal | HIGH | LOW |
 | DIP-Verfügbarkeit | Schwer | Gut |
-| Load-Puls | 1 µs | **5 µs** (CMOS) |
+| Load-Puls | 1 µs | **2 µs** (CMOS) |
+| Clock-Puls | 1 µs | **1 µs** |
 
 > **Wichtig:** Die invertierte Load-Logik und längere Pulse sind in der Firmware berücksichtigt.
 
@@ -122,6 +126,9 @@ Pi sendet `LEDCLR` **nur wenn** `id == current_id` (Race-Condition-Schutz).
 | `OK` | Befehl erfolgreich |
 | `PONG` | Antwort auf PING |
 | `ERROR msg` | Fehlermeldung |
+| `FW ...` | Firmware-Version |
+| `MODE ...` | Build-Modus |
+| `MAPPING ...` | Bit-Mapping Status |
 
 ### 7.2 Pi → ESP32
 
@@ -138,8 +145,24 @@ Pi sendet `LEDCLR` **nur wenn** `id == current_id` (Race-Condition-Schutz).
 | `STOP` | LED-Test stoppen |
 | `VERSION` | Firmware-Version |
 | `HELLO` | Startup-Nachricht |
+| `QRESET` | Queue-Statistik zurücksetzen |
+| `HELP` | Befehlsliste |
 
-### 7.3 USB-CDC Besonderheit
+### 7.3 STATUS-Ausgabe (v2.4.1+)
+
+```
+LEDS 0000100000      # Bit-Vektor (MSB links)
+CURLED 5             # Aktuelle LED (1-basiert, 0 = keine)
+BTNS 0000000000      # Bit-Vektor
+HEAP 372756          # Freier Heap (Bytes)
+CORE 1               # Aktueller CPU-Core
+QFREE 16             # Freie Queue-Slots
+QOVFL 0              # Queue-Overflow-Zähler
+MODE PROTOTYPE       # Build-Modus
+MAPPING ON           # Bit-Mapping aktiv
+```
+
+### 7.4 USB-CDC Besonderheit
 
 ESP32-S3 XIAO nutzt USB-CDC statt UART. **Wichtig:**
 
@@ -167,6 +190,7 @@ Endpoint: `ws://<pi>:8080/ws`
 | Nachricht | Bedeutung |
 |-----------|-----------|
 | `{"type":"ended","id":5}` | Audio 5 beendet |
+| `{"type":"ping"}` | Heartbeat |
 
 **ID ist 1-basiert** (1-100, nicht 0-99).
 
@@ -183,7 +207,24 @@ Endpoint: `ws://<pi>:8080/ws`
 | `/test/play/{id}` | Wiedergabe simulieren (1-basiert) |
 | `/test/stop` | Wiedergabe stoppen |
 | `/status` | Server-Status (JSON) |
-| `/health` | Health-Check |
+| `/health` | Health-Check (200/503) |
+
+### 9.1 Status-Response (v2.4.2)
+
+```json
+{
+  "version": "2.4.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 5,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "serial_port": "/dev/ttyACM0",
+  "media_missing": 0,
+  "missing_files": [],
+  "esp32_local_led": true
+}
+```
 
 ---
 
@@ -200,7 +241,20 @@ Endpoint: `ws://<pi>:8080/ws`
 
 ---
 
-## 11 Akzeptanztests
+## 11 Latenz-Budget
+
+| Komponente | Latenz | Beschreibung |
+|------------|--------|--------------|
+| ESP32 LED | < 1ms | Lokale Steuerung (v2.4.1+) |
+| Serial | ~5ms | USB-CDC Übertragung |
+| Server | ~1ms | asyncio.gather (v2.4.2) |
+| WebSocket | ~5ms | Netzwerk |
+| Dashboard | < 50ms | Aus Cache (v2.3.0) |
+| **Gesamt** | **< 70ms** | Tastendruck → Wiedergabe |
+
+---
+
+## 12 Akzeptanztests
 
 | Test | Erwartung | Status |
 |------|-----------|--------|
@@ -211,24 +265,28 @@ Endpoint: `ws://<pi>:8080/ws`
 | Debounce | Nur ein Event pro Tastendruck | ✅ |
 | Zuordnung | Taster 1 → Medien 001 | ✅ |
 | Alle Taster | 10/10 erkannt (Prototyp) | ✅ |
+| LED-Latenz | < 1ms | ✅ |
+| Dashboard-Latenz | < 50ms | ✅ |
 
 ---
 
-## 12 Versionen
+## 13 Versionen
 
 | Komponente | Version | Änderung |
 |------------|---------|----------|
-| Firmware | 2.4.0 | Serial.flush() für USB-CDC |
-| Server | 2.4.1 | os.open statt pyserial, robuster Parser |
-| Dashboard | 2.2.4 | 1-basierte Medien |
+| Firmware | 2.4.1 | LED sofort bei Tastendruck, CURLED, QRESET |
+| Server | 2.4.2 | asyncio.gather, ESP32_SETS_LED_LOCALLY |
+| Dashboard | 2.3.0 | Preloading, Cache für sofortige Wiedergabe |
 
 ---
 
-## 13 Bekannte Einschränkungen
+## 14 Bekannte Einschränkungen
 
 | Problem | Status | Lösung |
 |---------|--------|--------|
 | ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | `Serial.flush()` |
 | pyserial funktioniert nicht | ✅ Behoben | `os.open` + `stty` |
-| CD4021 braucht längere Pulse | ✅ Behoben | 5 µs statt 1 µs |
+| CD4021 braucht längere Pulse | ✅ Behoben | 2 µs Load, 1 µs Clock |
 | Prototyp nicht-linear verdrahtet | ✅ Behoben | Bit-Mapping |
+| LED-Latenz durch Roundtrip | ✅ Behoben | Lokale LED-Steuerung |
+| Dashboard-Latenz | ✅ Behoben | Medien-Preloading |

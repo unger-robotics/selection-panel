@@ -2,9 +2,9 @@
 
 > Komponenten und Verdrahtung. Pinbelegung und Policy: siehe [SPEC.md](SPEC.md)
 
-| Version | 2.4.1 |
+| Version | 2.4.2 |
 |---------|-------|
-| Stand | 2025-12-30 |
+| Stand | 2025-01-01 |
 | Status | Prototyp funktionsfähig |
 
 ---
@@ -69,7 +69,7 @@
 | Widerstand 10 kΩ | 10× | ✅ |
 | Kondensator 100 nF | 4× | ✅ |
 
-**Schaltplan:** `kicad/selection-panel-prototyp.kicad_sch` (Rev 1.1)
+**Schaltplan:** `schaltplan.pdf` (KiCad Export)
 
 ---
 
@@ -169,36 +169,47 @@ D5 ──┬──► #0 Pin 9 (P/S)
 | 9 (P/S) | ← D5 (Bus) |
 | 11 (SER) | ← nächster Q8 oder **→ VCC** |
 
-**P/S = HIGH für Load** — invertiert zum 74HC165!
+**P/S = HIGH für Load** – invertiert zum 74HC165!
 
 ---
 
-## 6 Prototyp-Verdrahtung (Bit-Mapping)
+## 6 CD4021BE Timing
+
+```
+Parallel Load:
+  P/S ────┐     ┌─────────────
+          │     │
+          └─────┘
+          ◄─2µs─►  t_WH: min 160ns @ 5V
+
+Clock (nach Load):
+  CLK ────┐  ┌──┐  ┌──┐  ┌──
+          │  │  │  │  │  │
+          └──┘  └──┘  └──┘
+          ◄1µs►
+```
+
+**Wichtig:** Nach Parallel Load liegt Q8 sofort am Ausgang. Daher: Lesen → Clock → Lesen → Clock → ... → Lesen (kein Clock nach letztem Bit).
+
+---
+
+## 7 Prototyp-Verdrahtung (Bit-Mapping)
 
 Der Prototyp verwendet nicht-lineare Verdrahtung auf dem Breadboard.
 Das Bit-Mapping in `config.h` kompensiert dies:
 
 ```cpp
 // config.h
-static const uint8_t BUTTON_BIT_MAP[10] = {
-    7,   // Taster 1 → Bit 7
-    6,   // Taster 2 → Bit 6
-    5,   // Taster 3 → Bit 5
-    4,   // Taster 4 → Bit 4
-    3,   // Taster 5 → Bit 3
-    2,   // Taster 6 → Bit 2
-    1,   // Taster 7 → Bit 1
-    0,   // Taster 8 → Bit 0
-    15,  // Taster 9 → Bit 15 (2. IC)
-    14   // Taster 10 → Bit 14 (2. IC)
+constexpr uint8_t BUTTON_BIT_MAP[10] = {
+    15, 12, 13, 11, 10, 9, 8, 14, 7, 4
 };
 ```
 
-**Produktion:** Lineare Verdrahtung (Taster 1 = Bit 0, etc.)
+**Produktion:** Lineare Verdrahtung (Taster 1 = Bit 0, etc.), `USE_BUTTON_MAPPING = false`
 
 ---
 
-## 7 Wichtige Regeln
+## 8 Wichtige Regeln
 
 | Regel | Grund |
 |-------|-------|
@@ -210,7 +221,7 @@ static const uint8_t BUTTON_BIT_MAP[10] = {
 
 ---
 
-## 8 Stromversorgung
+## 9 Stromversorgung
 
 | Betriebsart | Stromaufnahme |
 |-------------|---------------|
@@ -221,17 +232,17 @@ static const uint8_t BUTTON_BIT_MAP[10] = {
 
 ---
 
-## 9 Bekannte Hardware-Einschränkungen
+## 10 Bekannte Hardware-Einschränkungen
 
 | Problem | Lösung |
 |---------|--------|
 | ESP32-S3 USB-CDC fragmentiert Serial | Firmware: `Serial.flush()` |
-| CD4021 braucht längere Pulse als 74HC | Firmware: `delayMicroseconds(5)` für Load |
+| CD4021 braucht längere Pulse als 74HC | Firmware: 2µs Load, 1µs Clock |
 | Prototyp nicht-lineare Verdrahtung | Firmware: `BUTTON_BIT_MAP` |
 
 ---
 
-## 10 Nächste Schritte (Hardware)
+## 11 Nächste Schritte (Hardware)
 
 - [ ] PCB-Design für 100 Buttons (KiCad)
 - [ ] Lineare Verdrahtung (kein Bit-Mapping nötig)
