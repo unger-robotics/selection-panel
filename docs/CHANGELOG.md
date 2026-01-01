@@ -2,6 +2,32 @@
 
 > Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/)
 
+## [2.4.2] — 2025-01-01
+
+### Hinzugefügt
+
+- **Server:** Parallele Ausführung mit `asyncio.gather()` für minimale Latenz
+- **Server:** `ESP32_SETS_LED_LOCALLY` Flag für optimierte LED-Steuerung
+- **Server:** Health-Endpoint mit Status-Codes (200/503)
+- **Dashboard v2.3.0:** Medien-Preloading nach Audio-Unlock
+- **Dashboard:** Cache für sofortige Wiedergabe (< 50ms)
+- **Dashboard:** Preload-Fortschrittsanzeige
+- **Firmware v2.4.1:** LED reagiert sofort bei Tastendruck (< 1ms)
+- **Firmware:** CURLED in STATUS-Ausgabe
+- **Firmware:** QRESET-Befehl für Queue-Statistik
+
+### Geändert
+
+- Server sendet LEDSET nur wenn ESP32 LED nicht selbst gesetzt hat
+- Dashboard nutzt Semaphore für begrenzte Preload-Parallelität
+- Dokumentation komplett auf v2.4.2 aktualisiert
+
+### Behoben
+
+- LED-Latenz durch lokale Steuerung im ESP32 eliminiert
+
+---
+
 ## [2.4.1] — 2025-12-30
 
 ### Hinzugefügt

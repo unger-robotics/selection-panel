@@ -2,9 +2,9 @@
 
 > Phasen und Status. Details: siehe [SPEC.md](SPEC.md), Tests: siehe [RUNBOOK.md](RUNBOOK.md)
 
-| Version | 2.4.1 |
+| Version | 2.4.2 |
 |---------|-------|
-| Stand | 2025-12-31 |
+| Stand | 2025-01-01 |
 
 ---
 
@@ -51,9 +51,9 @@ Phase 8: Produktivbetrieb     ◯
 
 | Aufgabe | Status |
 |---------|--------|
-| Firmware v2.4.0 (Serial.flush) | ✅ |
-| Server v2.4.1 (os.open + Parser) | ✅ |
-| Dashboard v2.2.5 | ✅ |
+| Firmware v2.4.1 (LED sofort, CURLED) | ✅ |
+| Server v2.4.2 (asyncio.gather) | ✅ |
+| Dashboard v2.3.0 (Preloading) | ✅ |
 | 1-basierte Nummerierung | ✅ |
 
 ### Medien
@@ -62,6 +62,7 @@ Phase 8: Produktivbetrieb     ◯
 |---------|--------|
 | Test-Medien (001–010) | ✅ |
 | Medien-Validierung | ✅ |
+| Preloading im Browser | ✅ |
 
 ### Tests
 
@@ -72,6 +73,8 @@ Phase 8: Produktivbetrieb     ◯
 | Preempt (curl) | ✅ |
 | Ende → LEDCLR | ✅ |
 | WebSocket Broadcast | ✅ |
+| LED-Latenz < 1ms | ✅ |
+| Dashboard-Latenz < 50ms | ✅ |
 
 **Meilenstein M6:** ✅ Prototyp mit 10 Tastern voll funktionsfähig.
 
@@ -128,12 +131,15 @@ Phase 8: Produktivbetrieb     ◯
 
 | Problem | Lösung | Version |
 |---------|--------|---------|
+| LED-Latenz durch Roundtrip | ESP32 setzt LED lokal (< 1ms) | FW 2.4.1 |
+| Dashboard-Latenz | Medien-Preloading + Cache | Dashboard 2.3.0 |
+| Sequentielle Server-Aktionen | `asyncio.gather()` für Parallelität | Server 2.4.2 |
 | iOS Audio-Unlock fehlgeschlagen | AudioContext API + Fallback | Dashboard 2.2.5 |
 | ESP32-S3 USB-CDC fragmentiert | `Serial.flush()` nach jedem Event | FW 2.4.0 |
 | pyserial funktioniert nicht | `os.open` + `stty` statt pyserial | Server 2.4.1 |
 | Fragmentierte Serial-Daten | Robuster Parser | Server 2.4.1 |
 | Falsche Taster-Zuordnung | Bit-Mapping in config.h | FW 2.3.0 |
-| CD4021 Timing-Probleme | Längere Load-Pulse (5µs) | FW 2.2.5 |
+| CD4021 Timing-Probleme | Längere Load-Pulse (2µs) | FW 2.3.1 |
 
 ---
 
@@ -163,9 +169,9 @@ Phase 8: Produktivbetrieb     ◯
 
 | Komponente | Prototyp | Produktion |
 |------------|----------|------------|
-| Firmware | 2.4.0 | 2.5.0 (geplant) |
-| Server | 2.4.1 | 2.5.0 (geplant) |
-| Dashboard | 2.2.5 | 2.3.0 (geplant) |
+| Firmware | 2.4.1 | 2.5.0 (geplant) |
+| Server | 2.4.2 | 2.5.0 (geplant) |
+| Dashboard | 2.3.0 | 2.4.0 (geplant) |
 | Hardware | 2× ICs | 26× ICs |
 | Taster | 10 | 100 |
 | Medien | 001–010 | 001–100 |
