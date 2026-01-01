@@ -2,7 +2,7 @@
 
 Server + Dashboard in 5 Minuten.
 
-| Stand | 2025-12-30 |
+| Stand | 2025-01-01 |
 |-------|------------|
 | Status | ✅ Prototyp funktionsfähig |
 
@@ -41,12 +41,13 @@ python server.py
 Erwartete Ausgabe:
 ```
 ==================================================
-Auswahlpanel Server v2.4.1 (PROTOTYPE)
+Auswahlpanel Server v2.4.2 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Taster: 1-10 (1-basiert)
 Serial: /dev/ttyACM0
 HTTP:   http://0.0.0.0:8080/
+ESP32 lokale LED: aktiviert
 ==================================================
 Medien-Validierung: 10/10 vollstaendig
 ==================================================
@@ -62,8 +63,9 @@ Serial verbunden
 
 1. Dashboard öffnen: `http://rover:8080/`
 2. **"Sound aktivieren"** Button klicken (wichtig!)
-3. Taster drücken → Bild + Ton werden abgespielt
-4. LED leuchtet während Wiedergabe
+3. Warten: "Lade Medien... 5/10" → "Warte auf Tastendruck..."
+4. Taster drücken → Bild + Ton werden sofort abgespielt
+5. LED leuchtet sofort (< 1ms), Wiedergabe aus Cache (< 50ms)
 
 ---
 
@@ -77,6 +79,9 @@ curl http://rover:8080/test/play/10
 
 # Status abfragen
 curl http://rover:8080/status | jq
+
+# Health-Check
+curl http://rover:8080/health | jq
 
 # Wiedergabe stoppen
 curl http://rover:8080/test/stop
@@ -95,6 +100,7 @@ cat /dev/ttyACM0
 
 # Befehle senden
 echo "PING" > /dev/ttyACM0
+echo "STATUS" > /dev/ttyACM0
 echo "LEDSET 001" > /dev/ttyACM0
 echo "LEDCLR" > /dev/ttyACM0
 ```
@@ -126,6 +132,7 @@ sudo systemctl enable --now selection-panel.service
 | Server startet nicht | `journalctl -u selection-panel -f` |
 | Taster nicht erkannt | Serial testen: `cat /dev/ttyACM0` |
 | Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
+| Preload dauert lange | Medien komprimieren oder Concurrency erhöhen |
 
 ---
 
@@ -146,17 +153,28 @@ media/
 
 ---
 
+## Latenz-Budget
+
+| Komponente | Latenz |
+|------------|--------|
+| ESP32 LED | < 1ms |
+| Serial + Server | ~10ms |
+| Dashboard (aus Cache) | < 50ms |
+| **Gesamt** | **< 70ms** |
+
+---
+
 ## Referenz-System
 
 | Komponente | Version |
 |:-----------|:--------|
 | Raspberry Pi 5 | 4 GB RAM |
-| Pi OS | Debian 12 (bookworm) |
+| Pi OS | Debian 13 (trixie) |
 | Python | 3.13+ |
-| aiohttp | 3.11+ |
-| ESP32 Firmware | 2.4.0 |
-| Server | 2.4.1 |
-| Dashboard | 2.2.4 |
+| aiohttp | 3.9+ |
+| ESP32 Firmware | 2.4.1 |
+| Server | 2.4.2 |
+| Dashboard | 2.3.0 |
 
 ---
 
@@ -167,6 +185,7 @@ media/
 | Server starten | `python server.py` |
 | Dashboard | `http://rover:8080/` |
 | Status | `curl http://rover:8080/status` |
+| Health | `curl http://rover:8080/health` |
 | Test Play | `curl http://rover:8080/test/play/5` |
 | Serial Monitor | `cat /dev/ttyACM0` |
 | Service Status | `sudo systemctl status selection-panel` |
@@ -174,4 +193,4 @@ media/
 
 ---
 
-*Stand: Dezember 2025*
+*Stand: Januar 2026*

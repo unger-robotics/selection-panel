@@ -47,8 +47,9 @@ git push                    # Pushen
 | `feat` | Neue Funktion | `feat(server): WebSocket-Broadcast` |
 | `fix` | Bugfix | `fix(firmware): LED-Index korrigiert` |
 | `docs` | Dokumentation | `docs: HARDWARE.md erweitert` |
+| `perf` | Performance | `perf: Latenz-Optimierung` |
 | `refactor` | Umstrukturierung | `refactor: shift_register modularisiert` |
-| `chore` | Build, Tooling | `chore: platformio.ini aktualisiert` |
+| `chore` | Build, Tooling | `chore: requirements.txt vereinfacht` |
 
 **Scopes:** `firmware`, `server`, `dashboard`, `docs`
 
@@ -82,12 +83,15 @@ git branch -d feature/led-animation
 | `git stash` | Änderungen parken |
 | `git stash pop` | Änderungen zurückholen |
 | `git commit --amend -m "..."` | Letzten Commit korrigieren |
+| `git tag -a v2.4.2 -m "..."` | Release-Tag erstellen |
+| `git push origin v2.4.2` | Tag pushen |
 
 ---
 
 ## Deployment (Mac → Pi)
 
 ```bash
+# Option 1: rsync
 rsync -avz --delete \
   --exclude='venv' \
   --exclude='.git' \
@@ -95,6 +99,9 @@ rsync -avz --delete \
   . pi@rover:~/selection-panel/
 
 ssh rover 'sudo systemctl restart selection-panel'
+
+# Option 2: Git (empfohlen)
+ssh rover 'cd ~/selection-panel && git pull && sudo systemctl restart selection-panel'
 ```
 
 ---
@@ -104,11 +111,30 @@ ssh rover 'sudo systemctl restart selection-panel'
 ```gitignore
 button_panel_firmware/.pio/
 button_panel_firmware/.vscode/
+hardwaretest_firmware/*/.pio/
+hardwaretest_firmware/*/.vscode/
 __pycache__/
 *.pyc
 venv/
 .DS_Store
+docs/_site/
 ```
+
+---
+
+## Git-Aliase (optional)
+
+In `~/.gitconfig`:
+
+```ini
+[alias]
+    st = status
+    lg = log --oneline --graph
+    co = checkout
+    br = branch
+```
+
+Dann: `git st`, `git lg`, etc.
 
 ---
 
@@ -127,4 +153,4 @@ Esc → :q!        → Commit abbrechen
 
 ---
 
-*Stand: Dezember 2025*
+*Stand: Januar 2026*

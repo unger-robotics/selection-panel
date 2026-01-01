@@ -109,6 +109,21 @@ ssh -T git@github.com
 
 ---
 
+## 5. Serial-Port Berechtigungen
+
+Für ESP32 USB-Zugriff:
+
+```bash
+# Auf dem Pi
+sudo usermod -aG dialout pi
+# Neu einloggen erforderlich
+
+# Prüfen
+ls -la /dev/ttyACM*
+```
+
+---
+
 ## Troubleshooting
 
 | Problem | Lösung |
@@ -116,7 +131,8 @@ ssh -T git@github.com
 | `Permission denied (publickey)` | `ssh-copy-id` wiederholen |
 | `Could not resolve hostname` | IP nutzen: `ssh pi@192.168.x.x` |
 | `UNPROTECTED PRIVATE KEY FILE` | `chmod 600 ~/.ssh/id_ed25519` |
+| `/dev/ttyACM0` nicht zugänglich | `sudo usermod -aG dialout pi` |
 
 ---
 
-*Stand: Dezember 2025*
+*Stand: Januar 2026*

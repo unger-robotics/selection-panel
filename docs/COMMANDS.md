@@ -2,9 +2,9 @@
 
 > Deployment, Build, Test und Diagnose-Befehle.
 
-| Version | 2.4.1 |
+| Version | 2.4.2 |
 |---------|-------|
-| Stand | 2025-12-31 |
+| Stand | 2025-01-01 |
 
 ---
 
@@ -15,6 +15,7 @@
 | Server starten | `python server.py` |
 | Dashboard | `http://rover.local:8080/` |
 | Status | `curl http://rover.local:8080/status \| jq` |
+| Health | `curl http://rover.local:8080/health` |
 | Test-Play | `curl http://rover.local:8080/test/play/5` |
 | Serial-Monitor | `cat /dev/ttyACM0` |
 | Firmware flashen | `pio run -t upload` |
@@ -39,11 +40,12 @@ python server.py
 **Erwartete Ausgabe:**
 ```
 ==================================================
-Auswahlpanel Server v2.4.1 (PROTOTYPE)
+Auswahlpanel Server v2.4.2 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Serial: /dev/ttyACM0
 HTTP:   http://0.0.0.0:8080/
+ESP32 lokale LED: aktiviert
 ==================================================
 Serial verbunden
 ```
@@ -70,6 +72,7 @@ echo "PING" > /dev/ttyACM0
 echo "STATUS" > /dev/ttyACM0
 echo "HELLO" > /dev/ttyACM0
 echo "VERSION" > /dev/ttyACM0
+echo "HELP" > /dev/ttyACM0
 ```
 
 ### 3.3 LED-Befehle (1-basiert!)
@@ -94,7 +97,25 @@ echo "TEST" > /dev/ttyACM0
 echo "STOP" > /dev/ttyACM0         # Test stoppen
 ```
 
-### 3.4 Screen (interaktiv)
+### 3.4 Diagnose-Befehle
+
+```bash
+# Queue-Statistik zurücksetzen
+echo "QRESET" > /dev/ttyACM0
+
+# Status zeigt CURLED (aktuelle LED)
+echo "STATUS" > /dev/ttyACM0
+# Ausgabe:
+# LEDS 0000100000
+# CURLED 5          ← Aktuelle LED (1-basiert)
+# BTNS 0000000000
+# HEAP 372756
+# QOVFL 0
+# MODE PROTOTYPE
+# MAPPING 15,12,13,11,10,9,8,14,7,4
+```
+
+### 3.5 Screen (interaktiv)
 
 ```bash
 screen /dev/ttyACM0 115200
@@ -110,8 +131,8 @@ screen /dev/ttyACM0 115200
 # Status (JSON)
 curl http://rover.local:8080/status | jq
 
-# Health-Check
-curl http://rover.local:8080/health | jq
+# Health-Check (200 = healthy, 503 = degraded)
+curl -w "%{http_code}" http://rover.local:8080/health
 
 # Tastendruck simulieren (1-basiert!)
 curl http://rover.local:8080/test/play/1
@@ -120,6 +141,23 @@ curl http://rover.local:8080/test/play/10
 
 # Wiedergabe stoppen
 curl http://rover.local:8080/test/stop
+```
+
+### Status-Response (v2.4.2)
+
+```json
+{
+  "version": "2.4.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 5,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "serial_port": "/dev/ttyACM0",
+  "media_missing": 0,
+  "missing_files": [],
+  "esp32_local_led": true
+}
 ```
 
 ---
@@ -133,6 +171,7 @@ cd ~/selection-panel
 
 rsync -avz --delete \
     --exclude='button_panel_firmware' \
+    --exclude='hardwaretest_firmware' \
     --exclude='venv' \
     --exclude='.git' \
     --exclude='__pycache__' \
@@ -146,14 +185,14 @@ rsync -avz --delete \
 | `-z` | Komprimiert Übertragung |
 | `--delete` | Löscht Dateien auf Ziel, die lokal nicht existieren |
 
-### 5.2 Mit Git
+### 5.2 Mit Git (empfohlen)
 
 ```bash
 # Auf dem Mac
 git add -A && git commit -m "..." && git push
 
 # Auf dem Pi
-ssh rover "cd ~/selection-panel && git pull"
+ssh rover "cd ~/selection-panel && git pull && sudo systemctl restart selection-panel"
 ```
 
 ---
@@ -332,10 +371,12 @@ cd ~/selection-panel && source venv/bin/activate && python server.py
 open http://rover.local:8080/
 
 # 3. Sound aktivieren (Button im Browser klicken)
+#    → Medien werden vorgeladen ("Lade Medien... 5/10")
 
 # 4. Alle 10 Taster durchdrücken
 #    → Jeder Taster sollte Bild + Ton abspielen
-#    → LED leuchtet während Wiedergabe
+#    → LED leuchtet sofort (< 1ms)
+#    → Wiedergabe startet aus Cache (< 50ms)
 
 # 5. Status prüfen
 curl http://rover.local:8080/status | jq
@@ -356,9 +397,11 @@ Wiedergabe 1 beendet -> LEDs aus
 ### Dashboard Debug-Panel
 
 ```
+Preloading 10 Medien...
+Preload abgeschlossen: 10/10 OK (1823ms)
 RX: {"type": "play", "id": 1}
-PLAY: 1
-Audio gestartet: 001
+Bild aus Cache: 001 (instant)
+Audio aus Cache gestartet: 001 (12ms)
 Audio beendet: 1
 TX: {"type":"ended","id":1}
 ```
@@ -374,12 +417,13 @@ RELEASE 001
 
 ```json
 {
-  "version": "2.4.1",
+  "version": "2.4.2",
   "mode": "prototype",
   "num_media": 10,
   "current_button": null,
   "ws_clients": 1,
-  "serial_connected": true
+  "serial_connected": true,
+  "esp32_local_led": true
 }
 ```
 
@@ -397,3 +441,5 @@ RELEASE 001
 | Taster nicht erkannt | Serial testen: `cat /dev/ttyACM0` |
 | Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
 | WebSocket getrennt | Auto-Reconnect nach 5s, Browser neu laden |
+| LED reagiert langsam | Firmware v2.4.1 verwenden |
+| Dashboard-Latenz hoch | Preloading abwarten, Browser-Cache prüfen |
