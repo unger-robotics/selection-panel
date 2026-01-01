@@ -2,6 +2,8 @@
 
 *Eine Erklärung im Bloch-Standard – technische Exzellenz gepaart mit didaktischer Klarheit*
 
+**Version:** 1.1.1
+
 ---
 
 ## Einführung: Warum Schieberegister?
@@ -171,6 +173,19 @@ Q8      ──────────┐       ┌───┐       ┌──�
 5. Q8 lesen (zweites Bit)
 6. ... wiederholen
 
+**Warum kein Hardware-SPI für CD4021B?**
+
+SPI sendet immer zuerst einen Clock, dann wird gelesen:
+
+```
+SPI-Sequenz:      Clock → Lesen → Clock → Lesen → ...
+CD4021B braucht:  Lesen → Clock → Lesen → Clock → ...
+                    ↑
+              Erstes Bit liegt SOFORT nach Load an!
+```
+
+Hardware-SPI würde das erste Bit verpassen. Deshalb bleibt CD4021B bei Bit-Banging.
+
 ---
 
 ## Teil 3: Der Code im Detail
@@ -211,10 +226,7 @@ Schiebe-Reihenfolge:
          ┌───────────────┐         ┌───────────────┐
 ESP32 ──►│ b7 b6 ... b0  │────────►│ b7 b6 ... b0  │
          └───────────────┘         └───────────────┘
-         "rutscht durch"           "bleibt hier"
-              │                          │
-              ▼                          ▼
-         LED 9-16                    LED 1-8
+              rutscht durch             bleibt hier
 ```
 
 ### Taster-Einlesen: Der CD4021B-Treiber
@@ -367,6 +379,16 @@ Für 100 LEDs und 100 Taster brauchen wir 13 ICs je Typ (13 × 8 = 104 ≥ 100).
 
 ### Änderungen im Code
 
+| Änderung | Aktuell (10×) | Für 100× |
+|----------|---------------|----------|
+| `NUM_LEDS` | 10 | 100 |
+| `NUM_BTNS` | 10 | 100 |
+| `SHIFT_BITS` | 16 | 104 |
+| `g_ledState` | `uint16_t` | `uint8_t[13]` |
+| `g_btnRaw` | `uint16_t` | `uint8_t[13]` |
+| `LED_BIT_MAP` | `[10]` | `[100]` |
+| `BTN_BIT_MAP` | `[10]` | `[100]` |
+
 ```cpp
 // Vorher (10×)
 constexpr uint8_t NUM_LEDS = 10;
@@ -379,7 +401,7 @@ constexpr uint8_t NUM_SHIFT_BYTES = 13;  // Aufrunden: (100+7)/8
 static uint8_t g_ledState[NUM_SHIFT_BYTES] = {0};
 ```
 
-### Optimierung: Hardware-SPI
+### Optimierung: Hardware-SPI für 74HC595
 
 Bei 100× wird Bit-Banging zum Flaschenhals. Der ESP32-S3 hat Hardware-SPI:
 
@@ -397,6 +419,14 @@ void applyLeds() {
 }
 ```
 
+**Umverdrahtung für Hardware-SPI:**
+
+| Signal | Aktuell (10×) | Hardware-SPI (100×) |
+|--------|---------------|---------------------|
+| SER    | D0            | D10 (MOSI)          |
+| SRCLK  | D1            | D8 (SCK)            |
+| RCLK   | D2            | D2 (bleibt)         |
+
 **Geschwindigkeitsvergleich:**
 
 | Methode | 16 Bits | 104 Bits |
@@ -406,18 +436,20 @@ void applyLeds() {
 
 Faktor 16× schneller – relevant für flimmerfreie LED-Ansteuerung.
 
+**CD4021B bleibt bei Bit-Banging** – Hardware-SPI verpässt das erste Bit nach Parallel Load.
+
 ---
 
 ## Zusammenfassung
 
 Die Kombination aus 74HC595 (Ausgänge) und CD4021B (Eingänge) löst das Pin-Multiplex-Problem elegant:
 
-| Aspekt | 10× (aktuell) | 100× (Ziel) |
-|--------|---------------|-------------|
-| GPIO-Pins | 6 | 6 |
-| ICs | 4 | 26 |
-| Scan-Zeit | ~100 µs | ~500 µs |
-| Code-Änderungen | – | Konstanten + Array-Typen |
+| Aspekt | 10× (aktuell) | 100× (Ziel) | Änderung |
+|--------|---------------|-------------|----------|
+| GPIO-Pins | 6 | 6 | keine |
+| ICs | 4 | 26 | +22 |
+| Scan-Zeit | ~100 µs | ~500 µs | 5× |
+| Code-Änderungen | – | Konstanten + Arrays | minimal |
 
 Das Grundprinzip bleibt identisch – nur die Skalierung ändert sich. Genau das macht gutes Hardware-Abstraktions-Design aus.
 

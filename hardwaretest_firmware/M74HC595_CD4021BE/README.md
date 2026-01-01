@@ -4,7 +4,7 @@ repo: "M74HC595_CD4021BE"
 path: "selection-panel/hardwaretest_firmware/M74HC595_CD4021BE"
 framework: "PlatformIO + Arduino"
 board: "Seeed Studio XIAO ESP32S3"
-version: "1.1.0"
+version: "1.1.1"
 status: "working"
 ---
 
@@ -125,6 +125,10 @@ Load → Lesen → Clock → Lesen → Clock → ... → Lesen (kein Clock am En
 
 Bei 3,3 V verlängern sich die Zeiten. Der Code verwendet 2 µs Delays für Robustheit (Faktor ~25× Sicherheit).
 
+**Warum kein Hardware-SPI für CD4021B?**
+
+SPI sendet immer zuerst einen Clock, dann wird gelesen. Der CD4021B liefert das erste Bit aber **vor** dem ersten Clock. Hardware-SPI würde das erste Bit verpassen.
+
 ### Debouncing
 
 - Stabiler Zustand über `DEBOUNCE_MS` (default: 30 ms)
@@ -172,7 +176,7 @@ Beim Start:
 
 ```text
 =====================================
-74HC595 + CD4021BE Hardwaretest v1.1
+74HC595 + CD4021BE Hardwaretest v1.1.1
 BTN1..BTN10 toggles LED1..LED10
 =====================================
 ```
@@ -197,7 +201,47 @@ BTN10 pressed -> toggle LED10
 
 ---
 
-## 9) Changelog
+## 9) Skalierung auf 100×
+
+Für 100 Taster / 100 LEDs sind folgende Änderungen nötig:
+
+### Hardware
+
+- 13× 74HC595 + 13× CD4021 kaskadieren (= 104 I/Os)
+
+### Firmware
+
+| Änderung | Aktuell (10×) | Für 100× |
+|----------|---------------|----------|
+| `NUM_LEDS` | 10 | 100 |
+| `NUM_BTNS` | 10 | 100 |
+| `SHIFT_BITS` | 16 | 104 |
+| `g_ledState` | `uint16_t` | `uint8_t[13]` |
+| `g_btnRaw` | `uint16_t` | `uint8_t[13]` |
+| `LED_BIT_MAP` | `[10]` | `[100]` |
+| `BTN_BIT_MAP` | `[10]` | `[100]` |
+
+### Optional: Hardware-SPI für 74HC595
+
+Bei 100× wird Bit-Banging zum Flaschenhals (~416 µs vs. ~26 µs mit SPI).
+
+| Signal | Aktuell | Hardware-SPI |
+|--------|---------|--------------|
+| SER    | D0      | D10 (MOSI)   |
+| SRCLK  | D1      | D8 (SCK)     |
+| RCLK   | D2      | D2 (bleibt)  |
+
+**CD4021B bleibt bei Bit-Banging** – SPI verpässt das erste Bit nach Parallel Load.
+
+---
+
+## 10) Changelog
+
+### v1.1.1
+
+- Skalierungs-Dokumentation für 100× im Code-Header ergänzt
+- SPI-Hinweis: Warum CD4021B kein Hardware-SPI nutzen kann
+- README erweitert mit detaillierter Skalierungs-Tabelle
 
 ### v1.1.0
 
@@ -209,19 +253,6 @@ BTN10 pressed -> toggle LED10
 ### v1.0.0
 
 - Initiale Version mit funktionierendem Toggle-Mechanismus
-
----
-
-## 10) Nächster Schritt (Richtung 100×)
-
-Für 100 Taster / 100 LEDs:
-
-1. **Hardware:** 13× 74HC595 + 13× CD4021 kaskadieren (= 104 I/Os)
-2. **Firmware:**
-   - `SHIFT_BITS` auf 104 erhöhen
-   - `uint16_t` → `uint8_t[]` Arrays (13 Bytes)
-   - Optional: Hardware-SPI statt Bit-Banging (~60× schneller)
-3. **Mappings:** aus CSV/Schaltplanliste generieren (einheitliche Wahrheit)
 
 ---
 

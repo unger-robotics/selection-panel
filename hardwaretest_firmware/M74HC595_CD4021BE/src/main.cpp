@@ -1,18 +1,39 @@
 #include <Arduino.h>
 
 /*
+  ===========================================================================
   Target: Seeed Studio XIAO ESP32S3 (PlatformIO + Arduino)
-  Version: 1.1.0 (korrigierte CD4021-Leselogik)
+  Version: 1.1.1
+  ===========================================================================
 
   Aufgabe:
   - 2× 74HC595: LEDs (Ausgänge) schalten
   - 2× CD4021BE: Taster (Eingänge) einlesen
   - BTN1 toggelt LED1, ... BTN10 toggelt LED10
 
-  Änderungen v1.1:
-  - CD4021: Read-Sequenz korrigiert (erst lesen, dann clocken)
-  - Timing-Delays an Datenblatt-Spezifikation angepasst
-  - Vorbereitung für Skalierung auf 100×
+  ===========================================================================
+  SKALIERUNG AUF 100×
+  ===========================================================================
+  Für 100× sind folgende Änderungen nötig:
+
+  1) Konstanten:
+     constexpr uint8_t NUM_LEDS = 100;
+     constexpr uint8_t NUM_BTNS = 100;
+     constexpr uint8_t SHIFT_BITS = 104;  // 13× 8-bit
+
+  2) Datentypen:
+     g_ledState:  uint16_t → uint8_t[13]
+     g_btnRaw:    uint16_t → uint8_t[13] oder uint64_t (bis 64 Buttons)
+     g_btnStable: uint16_t → uint8_t[13] oder uint64_t
+
+  3) Mappings erweitern:
+     LED_BIT_MAP[100] und BTN_BIT_MAP[100]
+
+  4) OPTIONAL - Hardware-SPI für 74HC595 (16× schneller):
+     Umverdrahtung: SER → D10 (MOSI), SRCLK → D8 (SCK)
+     CD4021B bleibt Bit-Banging (SPI verpässt erstes Bit nach Load)
+
+  ===========================================================================
 */
 
 // =============================================================================
@@ -28,13 +49,13 @@ constexpr uint32_t POLL_MS = 1;      // Begrenze Poll-Rate (CPU-Last/Jitter)
 // 74HC595 (LED-Ausgänge)
 // =============================================================================
 // Pins laut Schaltplan: D0/D1/D2
-// WICHTIG: OE (active-low) muss extern auf GND liegen, sonst Ausgänge
-// hochohmig!
+// WICHTIG: OE (Pin 13) muss extern auf GND liegen, sonst Ausgänge hochohmig!
+//          SCLR (Pin 10) muss extern auf VCC liegen!
 constexpr uint8_t LED_DATA_PIN = D0;  // SER (Pin 14)
 constexpr uint8_t LED_CLOCK_PIN = D1; // SRCLK (Pin 11)
 constexpr uint8_t LED_LATCH_PIN = D2; // RCLK (Pin 12)
 
-// Bit-Mapping: LEDn (1-basiert) -> Bit-Position im 16-bit Stream
+// Bit-Mapping: LEDn (1-basiert) → Bit-Position im 16-bit Stream
 // Bei geänderter Verdrahtung nur hier anpassen.
 constexpr uint8_t LED_BIT_MAP[NUM_LEDS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -81,26 +102,26 @@ constexpr uint8_t BTN_DATA_PIN = D3;  // Q8 vom letzten CD4021 (Serial Out)
 constexpr uint8_t BTN_CLOCK_PIN = D4; // CLK (Pin 10)
 constexpr uint8_t BTN_LOAD_PIN = D5;  // P/S (Pin 9) - HIGH=Load, LOW=Shift
 
-// Taster: Pull-Up nach 3V3, Schalter nach GND => gedrückt = 0 (active-low)
+// Taster: Pull-Up nach 3V3, Schalter nach GND → gedrückt = 0 (active-low)
 constexpr bool BTN_ACTIVE_LOW = true;
 
 /*
- * Bit-Mapping: Physischer Taster (1..NUM_BTNS) -> Bit-Position im 16-bit Stream
+ * Bit-Mapping: Physischer Taster (1..NUM_BTNS) → Bit-Position im 16-bit Stream
  *
  * Der Stream wird MSB-first aufgebaut: erstes gelesenes Bit = Bit 15.
  * Diese Werte wurden empirisch gemessen und entsprechen der Verdrahtung.
  */
 constexpr uint8_t BTN_BIT_MAP[NUM_BTNS] = {
-    15, // BTN1  -> Bit 15 (IC#1, Q8)
-    12, // BTN2  -> Bit 12 (IC#1, Q5)
-    13, // BTN3  -> Bit 13 (IC#1, Q6)
-    11, // BTN4  -> Bit 11 (IC#1, Q4)
-    10, // BTN5  -> Bit 10 (IC#1, Q3)
-    9,  // BTN6  -> Bit 9  (IC#1, Q2)
-    8,  // BTN7  -> Bit 8  (IC#1, Q1)
-    14, // BTN8  -> Bit 14 (IC#1, Q7)
-    7,  // BTN9  -> Bit 7  (IC#0, Q8)
-    4   // BTN10 -> Bit 4  (IC#0, Q5)
+    15, // BTN1  → Bit 15 (IC#1, Q8)
+    12, // BTN2  → Bit 12 (IC#1, Q5)
+    13, // BTN3  → Bit 13 (IC#1, Q6)
+    11, // BTN4  → Bit 11 (IC#1, Q4)
+    10, // BTN5  → Bit 10 (IC#1, Q3)
+    9,  // BTN6  → Bit 9  (IC#1, Q2)
+    8,  // BTN7  → Bit 8  (IC#1, Q1)
+    14, // BTN8  → Bit 14 (IC#1, Q7)
+    7,  // BTN9  → Bit 7  (IC#0, Q8)
+    4   // BTN10 → Bit 4  (IC#0, Q5)
 };
 
 /*
@@ -108,13 +129,15 @@ constexpr uint8_t BTN_BIT_MAP[NUM_BTNS] = {
  *
  * Timing laut Datenblatt (CD4021B bei 5V, bei 3.3V konservativer):
  * - t_WH (P/S High Pulse Width): min 80 ns (typ.), 160 ns (max @ 5V)
- * - t_s  (Setup P1-P8 → CLK):   min 25 ns (typ. @ 10V)
- * - t_REM (P/S Removal → CLK):  min 70 ns (typ. @ 10V)
- * - t_W  (Clock Pulse Width):   min 40 ns (typ. @ 10V)
+ * - t_s  (Setup P1-P8 → CLK):    min 25 ns (typ. @ 10V)
+ * - t_REM (P/S Removal → CLK):   min 70 ns (typ. @ 10V)
+ * - t_W  (Clock Pulse Width):    min 40 ns (typ. @ 10V)
  *
  * KRITISCH: Nach Parallel Load liegt Q8 SOFORT am Ausgang!
  * Sequenz: Load → Lesen → Clock → Lesen → Clock → ... → Lesen (kein Clock am
  * Ende)
+ *
+ * Deshalb funktioniert Hardware-SPI hier NICHT - SPI clockt vor dem Lesen.
  *
  * Wir verwenden 2 µs Delays für Robustheit bei 3.3V (Faktor ~25× Sicherheit).
  */
@@ -189,7 +212,7 @@ inline void buttonsTask(uint32_t nowMs) {
         g_btnChangedAt = nowMs;
     }
 
-    // Wenn lange genug stabil -> übernehmen und Rising-Edges auswerten
+    // Wenn lange genug stabil → übernehmen und Rising-Edges auswerten
     if ((nowMs - g_btnChangedAt) >= DEBOUNCE_MS && g_btnStable != g_btnRaw) {
         const uint16_t prev = g_btnStable;
         g_btnStable = g_btnRaw;
@@ -242,7 +265,7 @@ void setup() {
     g_btnChangedAt = now;
 
     Serial.println("=====================================");
-    Serial.println("74HC595 + CD4021BE Hardwaretest v1.1");
+    Serial.println("74HC595 + CD4021BE Hardwaretest v1.1.1");
     Serial.println("BTN1..BTN10 toggles LED1..LED10");
     Serial.println("=====================================");
 }
