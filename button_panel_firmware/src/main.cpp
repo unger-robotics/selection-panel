@@ -1,8 +1,13 @@
 /**
  * @file main.cpp
  * @brief Button Panel Controller - ESP32-S3 XIAO (Dual-Core)
- * @version 2.4.0
- * @date 2025-12-30
+ * @version 2.4.1
+ * @date 2025-01-01
+ *
+ * CHANGELOG v2.4.1:
+ * - LED reagiert sofort bei Tastendruck (< 1ms, ohne Pi-Roundtrip)
+ * - Pi wird parallel informiert (PRESS xxx)
+ * - LEDSET vom Pi wird ignoriert wenn bereits korrekt gesetzt
  *
  * Architektur:
  * +-------------------------------------------------------------+
@@ -79,6 +84,9 @@ static struct {
     uint32_t lastOverflowTime;
 } queueStats = {0, 0};
 
+// Aktuell gesetzte LED (fuer Optimierung: LEDSET ignorieren wenn schon korrekt)
+static int8_t currentLedIndex = -1;  // -1 = keine LED aktiv, 0-99 = LED-Index
+
 // =============================================================================
 // STARTUP-NACHRICHT
 // =============================================================================
@@ -86,7 +94,7 @@ static struct {
 static void printStartup() {
     Serial.println();
     Serial.println("========================================");
-    Serial.print("Button Panel v2.4.0 (");
+    Serial.print("Button Panel v2.4.1 (");
 #ifdef PROTOTYPE_MODE
     Serial.print("PROTOTYPE: ");
 #else
@@ -115,6 +123,8 @@ static void printStartup() {
     Serial.println("Bit-Mapping: LINEAR (Produktion)");
 #endif
     Serial.println();
+    Serial.println("NEU v2.4.1: LED reagiert sofort bei Tastendruck");
+    Serial.println();
     Serial.println("Befehle:");
     Serial.println("  LEDSET n  - LED n ein (1-basiert, one-hot)");
     Serial.println("  LEDON n   - LED n ein (additiv)");
@@ -128,7 +138,7 @@ static void printStartup() {
     Serial.println();
     Serial.println("READY");
     Serial.println();
-    Serial.flush(); // Alles sofort senden
+    Serial.flush();
 }
 
 // =============================================================================
@@ -164,7 +174,7 @@ static void sendButtonEvent(const ButtonEvent &event) {
     }
 
     Serial.println(buffer);
-    Serial.flush(); // KRITISCH: Sofort senden für USB-CDC!
+    Serial.flush();
 }
 
 static void sendStatus() {
@@ -174,6 +184,10 @@ static void sendStatus() {
         Serial.print(leds.getOutput(i) ? '1' : '0');
     }
     Serial.println();
+
+    // Aktuelle LED
+    Serial.print("CURLED ");
+    Serial.println(currentLedIndex + 1);  // 1-basiert, 0 wenn keine
 
     // Button-Zustand
     Serial.print("BTNS ");
@@ -272,6 +286,7 @@ static void processCommand(const String &command) {
         ledTest.active = false;
         leds.clear();
         leds.update();
+        currentLedIndex = -1;
         sendOK();
         return;
     }
@@ -283,6 +298,7 @@ static void processCommand(const String &command) {
             leds.setOutput(i, true);
         }
         leds.update();
+        currentLedIndex = -1;  // Nicht one-hot
         sendOK();
         return;
     }
@@ -295,8 +311,24 @@ static void processCommand(const String &command) {
             sendError("Invalid LED (1-100)");
             return;
         }
+
+        int8_t targetIndex = num - 1;  // Konvertiere zu 0-basiert
+
+        // Optimierung: Wenn LED bereits gesetzt, nichts tun
+        if (currentLedIndex == targetIndex) {
+#ifdef DEBUG_LEDS
+            Serial.print("[OPT] LED ");
+            Serial.print(num);
+            Serial.println(" bereits aktiv, uebersprungen");
+            Serial.flush();
+#endif
+            sendOK();
+            return;
+        }
+
         ledTest.active = false;
-        leds.setOnly(num - 1); // Konvertiere zu 0-basiert
+        leds.setOnly(targetIndex);
+        currentLedIndex = targetIndex;
         sendOK();
         return;
     }
@@ -311,6 +343,7 @@ static void processCommand(const String &command) {
         ledTest.active = false;
         leds.setOutput(num - 1, true);
         leds.update();
+        currentLedIndex = -1;  // Nicht mehr one-hot trackbar
         sendOK();
         return;
     }
@@ -324,6 +357,9 @@ static void processCommand(const String &command) {
         }
         leds.setOutput(num - 1, false);
         leds.update();
+        if (currentLedIndex == num - 1) {
+            currentLedIndex = -1;
+        }
         sendOK();
         return;
     }
@@ -336,6 +372,7 @@ static void processCommand(const String &command) {
         ledTest.currentLed = 0;
         ledTest.lastStep = millis();
         leds.setOnly(0);
+        currentLedIndex = 0;
         return;
     }
 
@@ -345,6 +382,7 @@ static void processCommand(const String &command) {
             ledTest.active = false;
             leds.clear();
             leds.update();
+            currentLedIndex = -1;
             Serial.println("Test stopped");
             Serial.flush();
         }
@@ -354,7 +392,7 @@ static void processCommand(const String &command) {
 
     // VERSION
     if (cmd == "VERSION") {
-        Serial.print("FW 2.4.0 (");
+        Serial.print("FW 2.4.1 (");
 #ifdef PROTOTYPE_MODE
         Serial.print("Proto ");
         Serial.print(NUM_LEDS);
@@ -434,11 +472,13 @@ static void updateLedTest() {
             ledTest.active = false;
             leds.clear();
             leds.update();
+            currentLedIndex = -1;
             Serial.println("Test complete");
             Serial.flush();
             sendOK();
         } else {
             leds.setOnly(ledTest.currentLed);
+            currentLedIndex = ledTest.currentLed;
         }
     }
 }
@@ -495,6 +535,26 @@ static void handleButtonEvents() {
     ButtonEvent event;
 
     while (xQueueReceive(buttonEventQueue, &event, 0) == pdTRUE) {
+        // =====================================================================
+        // NEU v2.4.1: LED SOFORT bei Tastendruck setzen (< 1ms Reaktionszeit)
+        // =====================================================================
+        if (event.type == ButtonEventType::PRESSED) {
+            // LED-Test abbrechen wenn Taste gedrueckt
+            ledTest.active = false;
+
+            // LED sofort setzen - OHNE auf Pi zu warten!
+            leds.setOnly(event.index);
+            currentLedIndex = event.index;
+
+#ifdef DEBUG_LEDS
+            Serial.print("[FAST] LED ");
+            Serial.print(event.index + 1);
+            Serial.println(" sofort gesetzt");
+            Serial.flush();
+#endif
+        }
+
+        // Dann Event an Pi senden (parallel zur bereits leuchtenden LED)
         sendButtonEvent(event);
     }
 }
@@ -566,6 +626,7 @@ void setup() {
     ledTest.currentLed = 0;
     ledTest.lastStep = millis();
     leds.setOnly(0);
+    currentLedIndex = 0;
 
     Serial.println("Running startup LED test...");
     Serial.flush();

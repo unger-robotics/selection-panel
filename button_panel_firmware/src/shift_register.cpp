@@ -1,8 +1,12 @@
 /**
  * @file shift_register.cpp
  * @brief Thread-sichere Implementation fuer 74HC595 und CD4021BE
- * @version 2.3.0
- * @date 2025-12-30
+ * @version 2.3.1
+ * @date 2025-01-01
+ *
+ * CHANGELOG v2.3.1:
+ * - FIX: CD4021 shiftInData() - kein Clock nach letztem Bit (aus v1.1.1)
+ * - FIX: Timing-Delays an Datenblatt angepasst (2µs Load, 1µs Clock)
  */
 
 #include "shift_register.h"
@@ -240,34 +244,50 @@ void InputShiftRegister::update() {
     giveMutex();
 }
 
+/**
+ * parallelLoad() - Uebernimmt Eingaenge in die CD4021-Latches
+ *
+ * Timing laut Datenblatt (CD4021B bei 5V, bei 3.3V konservativer):
+ * - t_WH (P/S High Pulse Width): min 80 ns (typ.), 160 ns (max @ 5V)
+ * - t_REM (P/S Removal -> CLK):  min 70 ns (typ. @ 10V)
+ *
+ * WICHTIG: CD4021BE hat invertierte Load-Logik!
+ *   P/S = HIGH -> Parallel Load (Daten einlesen)
+ *   P/S = LOW  -> Serial Shift  (Daten schieben)
+ *
+ * Wir verwenden 2 us Delays fuer Robustheit bei 3.3V (Faktor ~12x Sicherheit).
+ */
 void InputShiftRegister::parallelLoad() {
-    /**
-     * CD4021BE: P/S = HIGH fuer Parallel Load!
-     * (Invertiert zum 74HC165 wo SH/LD = LOW fuer Load)
-     *
-     * WICHTIG: CD4021 braucht laengere Pulse als 74HC595!
-     */
     digitalWrite(_loadPin, HIGH);
-    delayMicroseconds(5); // Laenger fuer CD4021 (CMOS)
+    delayMicroseconds(2);  // t_WH: Load-Puls (min 160 ns @ 5V)
     digitalWrite(_loadPin, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(2);  // t_REM: Warten bis Q8 stabil (min 140 ns @ 5V)
 }
 
+/**
+ * shiftInData() - Liest alle Bits von der CD4021-Kaskade
+ *
+ * KRITISCH: Nach Parallel Load liegt Q8 SOFORT am Ausgang!
+ * Korrekte Sequenz (aus v1.1.1 Hardwaretest):
+ *
+ *   Load -> Lesen -> Clock -> Lesen -> Clock -> ... -> Lesen (KEIN Clock am Ende!)
+ *
+ * Deshalb funktioniert Hardware-SPI hier NICHT - SPI clockt vor dem Lesen.
+ *
+ * Der Stream wird MSB-first aufgebaut: erstes gelesenes Bit = hoechstes Bit.
+ */
 void InputShiftRegister::shiftInData() {
-    // Gleiche Logik wie in der Test-Firmware (phase4_integration)
-    // Liest alle Bits sequentiell, MSB first
+    const uint8_t totalBits = _numChips * 8;
 
-    uint8_t totalBits = _numChips * 8;
-
-    // Temporärer Buffer für alle Bits
+    // Temporaerer Buffer fuer alle Bits
     uint8_t tempBuffer[MAX_SHIFT_REGS];
     memset(tempBuffer, 0, sizeof(tempBuffer));
 
     for (uint8_t i = 0; i < totalBits; i++) {
-        // Bit lesen
+        // ERST lesen (Q8 enthaelt aktuelles Bit)
         uint8_t bit = digitalRead(_dataPin);
 
-        // Bit-Position berechnen (MSB first)
+        // Bit-Position berechnen (MSB first: erstes Bit = hoechste Position)
         uint8_t bitIndex = totalBits - 1 - i;
         uint8_t chip = bitIndex / 8;
         uint8_t bitInChip = bitIndex % 8;
@@ -276,8 +296,11 @@ void InputShiftRegister::shiftInData() {
             tempBuffer[chip] |= (1 << bitInChip);
         }
 
-        // Clock-Puls für nächstes Bit
-        pulseClock();
+        // DANN clocken (schiebt naechstes Bit nach Q8)
+        // KEIN Clock nach dem letzten Bit! (v1.1.1 Logik)
+        if (i < (totalBits - 1)) {
+            pulseClock();
+        }
     }
 
     // Buffer kopieren
@@ -286,12 +309,20 @@ void InputShiftRegister::shiftInData() {
     }
 }
 
+/**
+ * pulseClock() - Clock-Puls fuer CD4021
+ *
+ * Timing laut Datenblatt:
+ * - t_W (Clock Pulse Width): min 40 ns (typ. @ 10V)
+ *
+ * CD4021 ist CMOS und braucht laengere Pulse als 74HC595.
+ * Wir verwenden 1 us (Faktor ~25x Sicherheit).
+ */
 void InputShiftRegister::pulseClock() {
-    // CD4021 braucht laengere Clock-Pulse als 74HC595
     digitalWrite(_clockPin, HIGH);
-    delayMicroseconds(2);
+    delayMicroseconds(1);  // t_W: Clock High (min 40 ns @ 10V)
     digitalWrite(_clockPin, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(1);  // t_W: Clock Low
 }
 
 bool InputShiftRegister::takeMutex(TickType_t timeout) {

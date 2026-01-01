@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.4.1
+Auswahlpanel Server v2.4.2
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
+
+CHANGELOG v2.4.2:
+- NEU: Parallele Ausführung von Serial + WebSocket (asyncio.gather)
+- NEU: LEDSET wird nur gesendet wenn ESP32 LED nicht selbst gesetzt hat
+- Optimiert: Minimale Latenz durch parallele Broadcasts
 
 Policy: "Umschalten gewinnt" (Preempt)
 - Jeder neue Tastendruck stoppt sofort und startet neue ID
@@ -11,13 +16,13 @@ Policy: "Umschalten gewinnt" (Preempt)
 
 Serial-Protokoll (1-basiert!):
 - ESP32 sendet: PRESS 001 ... PRESS 100
-- Server sendet: LEDSET 001 ... LEDSET 100
+- Server sendet: LEDSET 001 ... LEDSET 100 (optional, ESP32 setzt LED selbst)
 
 Medien (1-basiert!):
 - Medien-IDs: 1-100 (für 001.jpg, 001.mp3, etc.)
 
 Autor: Jan Unger
-Datum: 2025-12-30
+Datum: 2025-01-01
 """
 
 import asyncio
@@ -59,6 +64,9 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 VALIDATE_MEDIA_ON_STARTUP = True
 REQUIRED_EXTENSIONS = [".jpg", ".mp3"]
 
+# Optimierung: ESP32 v2.4.1 setzt LED selbst, Server muss nicht senden
+ESP32_SETS_LED_LOCALLY = True
+
 # =============================================================================
 # GLOBALER ZUSTAND
 # =============================================================================
@@ -83,13 +91,15 @@ class AppState:
         data = json.dumps(message)
         dead_clients = set()
 
-        for ws in self.ws_clients:
+        # Parallel an alle Clients senden
+        async def send_to_client(ws):
             try:
                 await ws.send_str(data)
             except Exception as e:
                 logging.warning(f"WebSocket-Fehler: {e}")
                 dead_clients.add(ws)
 
+        await asyncio.gather(*[send_to_client(ws) for ws in self.ws_clients])
         self.ws_clients -= dead_clients
 
     async def send_serial(self, command: str) -> bool:
@@ -238,6 +248,11 @@ def parse_button_id(s: str) -> int | None:
     s = s.strip()
     if not s:
         return None
+
+    # Nur Ziffern erlaubt
+    if not s.isdigit():
+        return None
+
     try:
         button_id = int(s)
         if 1 <= button_id <= NUM_MEDIA:
@@ -249,7 +264,7 @@ def parse_button_id(s: str) -> int | None:
 
 async def handle_button_press(button_id: int) -> None:
     """
-    Verarbeitet Tastendruck (Preempt-Policy).
+    Verarbeitet Tastendruck (Preempt-Policy) mit minimaler Latenz.
 
     Args:
         button_id: 1-basierte ID (Taster 1-100, Medien 001-100)
@@ -269,12 +284,25 @@ async def handle_button_press(button_id: int) -> None:
 
     state.current_id = button_id
 
-    # ESP32: LED-ID ist gleich Button-ID (beide 1-basiert)
-    await state.send_serial(f"LEDSET {button_id:03d}")
+    # =========================================================================
+    # OPTIMIERT v2.4.2: Alle Aktionen PARALLEL ausführen
+    # =========================================================================
 
-    # Browser: Medien-ID ist auch 1-basiert (001.jpg, 001.mp3)
-    await state.broadcast({"type": "stop"})
-    await state.broadcast({"type": "play", "id": button_id})
+    tasks = []
+
+    # 1. ESP32: LED setzen (optional - ESP32 v2.4.1 macht das selbst)
+    if not ESP32_SETS_LED_LOCALLY:
+        tasks.append(state.send_serial(f"LEDSET {button_id:03d}"))
+
+    # 2. Browser: Stop-Signal (alle laufenden Medien stoppen)
+    tasks.append(state.broadcast({"type": "stop"}))
+
+    # 3. Browser: Play-Signal (neue Medien starten)
+    tasks.append(state.broadcast({"type": "play", "id": button_id}))
+
+    # Alle Tasks parallel ausführen
+    if tasks:
+        await asyncio.gather(*tasks)
 
 
 async def handle_playback_ended(ended_id: int) -> None:
@@ -296,61 +324,58 @@ async def handle_playback_ended(ended_id: int) -> None:
 
 async def serial_reader_task() -> None:
     """Liest kontinuierlich vom Serial-Port mit Reconnect (Thread-basiert)."""
+    import os
+    import subprocess
+    import select
+
     loop = asyncio.get_event_loop()
 
     def serial_thread():
-        """Synchroner Serial-Reader mit os.open (ESP32-S3 USB-CDC kompatibel)."""
-        import os
-        import select
-        import subprocess
-
+        """Blocking Serial-Reader in separatem Thread."""
         while True:
             fd_read = None
             fd_write = None
+            
             try:
-                logging.info(f"Serial verbinde: {SERIAL_PORT}")
-
-                # stty konfigurieren
+                # Port konfigurieren mit stty
                 subprocess.run(
-                    ['stty', '-F', SERIAL_PORT, str(SERIAL_BAUD), 'raw', '-echo'],
+                    ["stty", "-F", SERIAL_PORT, str(SERIAL_BAUD), "raw", "-echo"],
                     check=True,
                     capture_output=True
                 )
 
-                # Lese-FD öffnen (non-blocking)
+                # Port öffnen (separate FDs für Lesen und Schreiben)
                 fd_read = os.open(SERIAL_PORT, os.O_RDONLY | os.O_NONBLOCK)
-
-                # Schreib-FD öffnen (blocking)
                 fd_write = os.open(SERIAL_PORT, os.O_WRONLY)
 
                 state.serial_fd = fd_write
                 state.serial_connected = True
-                logging.info("Serial verbunden")
+                logging.info(f"Serial verbunden: {SERIAL_PORT}")
 
-                # PING senden
-                with state.serial_lock:
-                    os.write(fd_write, b"PING\n")
+                buffer = b""
+                poll = select.poll()
+                poll.register(fd_read, select.POLLIN)
 
-                buffer = b''
-                while True:
+                while state.serial_connected:
                     try:
-                        r, _, _ = select.select([fd_read], [], [], 1.0)
-                        if r:
-                            try:
-                                data = os.read(fd_read, 1024)
-                                if data:
-                                    buffer += data
-                                    while b'\n' in buffer:
-                                        line, buffer = buffer.split(b'\n', 1)
-                                        line_str = line.decode('utf-8', errors='replace').strip()
-                                        if line_str:
-                                            asyncio.run_coroutine_threadsafe(
-                                                handle_serial_line(line_str),
-                                                loop
-                                            )
-                            except BlockingIOError:
-                                # EAGAIN - keine Daten verfügbar, normal bei non-blocking
-                                pass
+                        events = poll.poll(100)  # 100ms Timeout
+                        for fd, event in events:
+                            if event & select.POLLIN:
+                                try:
+                                    data = os.read(fd_read, 1024)
+                                    if data:
+                                        buffer += data
+                                        while b'\n' in buffer:
+                                            line, buffer = buffer.split(b'\n', 1)
+                                            line_str = line.decode('utf-8', errors='replace').strip()
+                                            if line_str:
+                                                asyncio.run_coroutine_threadsafe(
+                                                    handle_serial_line(line_str),
+                                                    loop
+                                                )
+                                except BlockingIOError:
+                                    # EAGAIN - keine Daten verfügbar, normal bei non-blocking
+                                    pass
                     except OSError as e:
                         logging.error(f"Serial-Lesefehler: {e}")
                         break
@@ -472,7 +497,7 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
     return web.json_response({
-        "version": "2.4.1",
+        "version": "2.4.2",
         "mode": "prototype" if PROTOTYPE_MODE else "production",
         "num_media": NUM_MEDIA,
         "current_button": state.current_id,  # 1-basiert
@@ -481,6 +506,7 @@ async def status_handler(request: web.Request) -> web.Response:
         "serial_port": SERIAL_PORT,
         "media_missing": len(state.missing_media),
         "missing_files": state.missing_media[:10] if state.missing_media else [],
+        "esp32_local_led": ESP32_SETS_LED_LOCALLY,
     })
 
 
@@ -546,12 +572,13 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.4.1 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v2.4.2 ({mode_str})")
     logging.info("=" * 50)
     logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 001-{NUM_MEDIA:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
     logging.info(f"Serial: {SERIAL_PORT}")
     logging.info(f"HTTP:   http://{HTTP_HOST}:{HTTP_PORT}/")
+    logging.info(f"ESP32 lokale LED: {'JA' if ESP32_SETS_LED_LOCALLY else 'NEIN'}")
     logging.info("=" * 50)
 
     # Verzeichnisse erstellen
