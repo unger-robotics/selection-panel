@@ -15,7 +15,7 @@ Hardware und Software für das Selection-Panel-Projekt.
 | HDMI Adapter Micro-D → A | Monitor | BerryBase (8007067) | 1,10 € |
 | Seeed XIAO ESP32-S3 | Taster/LEDs | Reichelt | ~9 € |
 
-> **Bezugsquelle:** [BerryBase.de](https://www.berrybase.de) – Preise Stand Dezember 2025
+> **Bezugsquelle:** [BerryBase.de](https://www.berrybase.de) – Preise Stand Januar 2026
 
 ---
 
@@ -53,16 +53,34 @@ sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
 | Kompilieren | `pio run` |
 | Flashen | `pio run -t upload` |
 | Serial-Monitor | `pio device monitor` |
+| Flash + Monitor | `pio run -t upload -t monitor` |
 
 ---
 
-## 4. Checkliste
+## 4. Referenz-System
+
+| Hardware | Version |
+|----------|---------|
+| Board | Raspberry Pi 5 Model B Rev 1.1 |
+| Microcontroller | Seeed XIAO ESP32-S3 |
+
+| Software | Version |
+|----------|---------|
+| Pi OS | Debian 13 (trixie), Build 2025-12-04 |
+| Python | 3.13+ |
+| aiohttp | 3.9+ |
+| PlatformIO | 6.x |
+
+---
+
+## 5. Checkliste
 
 ### Hardware
 
 - [ ] Raspberry Pi 5 + Active Cooler
 - [ ] microSD-Karte (128 GB)
 - [ ] ESP32-S3 XIAO
+- [ ] USB-C Kabel (Daten, nicht nur Laden)
 - [ ] Multimeter
 
 ### Software
@@ -70,6 +88,7 @@ sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
 - [ ] Git: `git --version`
 - [ ] Python: `python3 --version`
 - [ ] VS Code + PlatformIO
+- [ ] SSH-Zugang zum Pi
 
 ---
 
@@ -84,4 +103,4 @@ sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
 
 ---
 
-*Stand: Dezember 2025*
+*Stand: Januar 2026*
