@@ -1,292 +1,237 @@
 /**
- * =============================================================================
- * Phase 2: LED-Ausgabe über 74HC595 Schieberegister
- * =============================================================================
- *
- * Ziel: Verifizieren, dass die LED-Ausgabe über 74HC595 funktioniert
- *
- * Hardware-Aufbau:
- *   ESP32-S3 XIAO          74HC595 (#0)         74HC595 (#1)
- *   ─────────────          ────────────         ────────────
- *   D0 (GPIO1) ──────────► SER (Pin 14)
- *   D1 (GPIO2) ──────────► SRCLK (Pin 11) ◄───► SRCLK (Pin 11)
- *   D2 (GPIO3) ──────────► RCLK (Pin 12)  ◄───► RCLK (Pin 12)
- *                          QH' (Pin 9) ───────► SER (Pin 14)
- *   3V3 ─────────────────► VCC (Pin 16)   ◄───► VCC (Pin 16)
- *   3V3 ─────────────────► SRCLR (Pin 10) ◄───► SRCLR (Pin 10)
- *   GND ─────────────────► GND (Pin 8)    ◄───► GND (Pin 8)
- *   GND ─────────────────► OE (Pin 13)    ◄───► OE (Pin 13)
- *
- *   LEDs mit 330Ω Vorwiderstand an QA-QH (Pin 15, 1-7)
- *
- * Tests via Serial:
- *   LED n      -> Schaltet LED n ein (0-9), alle anderen aus
- *   ALL        -> Alle LEDs ein
- *   CLEAR      -> Alle LEDs aus
- *   CHASE      -> Lauflicht starten/stoppen
- *   BINARY n   -> Zeigt Zahl n binär (0-255)
- *   TEST       -> Durchläuft alle LEDs einzeln
- *
- * =============================================================================
+ * @file main.cpp
+ * @brief LED-Test über Schieberegister 74HC595 (Active-High)
+ * @version 2.0.0
+ * 
+ * Hardware: 2x 74HC595 in Daisy-Chain (10 LEDs)
+ * Active-High: LED an = Bit ist 1
+ * 
+ * Hex-Referenz (Active-High, Bit0 = LED 1):
+ * ┌──────┬──────┬────────────┐
+ * │ LED  │ Hex  │ Binär      │
+ * ├──────┼──────┼────────────┤
+ * │  1   │ 0x01 │ 0000 0001  │
+ * │  2   │ 0x02 │ 0000 0010  │
+ * │  3   │ 0x04 │ 0000 0100  │
+ * │  4   │ 0x08 │ 0000 1000  │
+ * │  5   │ 0x10 │ 0001 0000  │
+ * │  6   │ 0x20 │ 0010 0000  │
+ * │  7   │ 0x40 │ 0100 0000  │
+ * │  8   │ 0x80 │ 1000 0000  │
+ * │ 9-10 │ IC1  │ wie IC0    │
+ * │ alle │ 0xFF │ 1111 1111  │
+ * │ keine│ 0x00 │ 0000 0000  │
+ * └──────┴──────┴────────────┘
  */
 
 #include <Arduino.h>
 
-// -----------------------------------------------------------------------------
-// Pin-Definitionen (ESP32-S3 XIAO)
-// -----------------------------------------------------------------------------
-constexpr uint8_t PIN_LED_DATA = D0;  // GPIO1 -> 74HC595 SER
-constexpr uint8_t PIN_LED_CLK = D1;   // GPIO2 -> 74HC595 SRCLK
-constexpr uint8_t PIN_LED_LATCH = D2; // GPIO3 -> 74HC595 RCLK
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Konfiguration
-// -----------------------------------------------------------------------------
-constexpr uint8_t NUM_SHIFT_REGS = 2; // 2x 74HC595 = 16 Bits
-constexpr uint8_t NUM_LEDS = 10;      // 10 LEDs im Prototyp
-constexpr uint32_t SERIAL_BAUD = 115200;
-constexpr uint32_t CHASE_INTERVAL_MS = 150;
+// =============================================================================
 
-// -----------------------------------------------------------------------------
-// Globale Variablen
-// -----------------------------------------------------------------------------
-uint16_t ledState = 0; // Aktueller LED-Zustand (16 Bit)
-bool chaseMode = false;
-uint8_t chaseIndex = 0;
-uint32_t lastChaseTime = 0;
+constexpr size_t LED_COUNT = 10;
+constexpr uint8_t PWM_DUTY = 50;         // Helligkeit (%)
+constexpr uint32_t PWM_FREQ = 1000;      // PWM-Frequenz (Hz)
+constexpr uint32_t CHASE_DELAY_MS = 300; // Lauflicht-Geschwindigkeit
 
-// Forward Declaration
-void printStartup();
+// Pins (XIAO ESP32-S3)
+// Warum diese Pins? Shared SPI-Bus mit CD4021B für Taster
+constexpr int PIN_SCK = D8;       // Clock (shared)
+constexpr int PIN_LED_MOSI = D10; // Daten zum IC
+constexpr int PIN_LED_RCK = D0;   // Latch
+constexpr int PIN_LED_OE = D2;    // PWM Helligkeit
 
-// -----------------------------------------------------------------------------
-// Schieberegister-Funktionen
-// -----------------------------------------------------------------------------
+// Taster-Pins (zum Deaktivieren)
+constexpr int PIN_BTN_PS = D1;
+constexpr int PIN_BTN_MISO = D9;
 
-/**
- * Schiebt 16 Bit in die beiden kaskadierten 74HC595
- * MSB zuerst -> landet im zweiten IC
- */
-void shiftOut16(uint16_t data) {
-    // Latch LOW halten während des Schiebens
-    digitalWrite(PIN_LED_LATCH, LOW);
+// LEDC PWM
+constexpr uint8_t LEDC_CHANNEL = 0;
+constexpr uint8_t LEDC_RESOLUTION = 8;
 
-    // 16 Bits schieben, MSB zuerst
-    for (int8_t i = 15; i >= 0; i--) {
-        // Datenbit setzen
-        digitalWrite(PIN_LED_DATA, (data >> i) & 0x01);
+// =============================================================================
+// Zustand
+// =============================================================================
 
-        // Clock-Puls: LOW -> HIGH -> LOW
-        digitalWrite(PIN_LED_CLK, LOW);
-        delayMicroseconds(1);
-        digitalWrite(PIN_LED_CLK, HIGH);
-        delayMicroseconds(1);
-    }
+constexpr size_t LED_BYTES = (LED_COUNT + 7) / 8;
+static uint8_t ledState[LED_BYTES];
+static uint8_t currentLED = 1;
 
-    // Latch HIGH -> Daten werden an Ausgänge übernommen
-    digitalWrite(PIN_LED_LATCH, HIGH);
-    delayMicroseconds(1);
-    digitalWrite(PIN_LED_LATCH, LOW);
+// =============================================================================
+// 74HC595 Schreiben
+// =============================================================================
+
+static inline void clockPulse() {
+    // Warum 2µs? 74HC595 braucht min. 20ns, 2µs ist sicher
+    digitalWrite(PIN_SCK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_SCK, LOW);
+    delayMicroseconds(2);
 }
 
-/**
- * Aktualisiert die Hardware mit dem aktuellen ledState
- */
-void updateLEDs() { shiftOut16(ledState); }
+static void writeLEDs() {
+    // Warum rückwärts? Daisy-Chain: Letztes IC zuerst schieben
+    for (int16_t ic = LED_BYTES - 1; ic >= 0; --ic) {
+        uint8_t byte = ledState[ic];
+        // Warum Bit7 zuerst? MSB-first entspricht 74HC595 Pinout
+        for (int8_t bit = 7; bit >= 0; --bit) {
+            digitalWrite(PIN_LED_MOSI, (byte >> bit) & 1);
+            clockPulse();
+        }
+    }
+    
+    // Latch: Daten in Ausgaberegister übernehmen
+    // Warum nötig? 74HC595 hat Shift- und Storage-Register getrennt
+    digitalWrite(PIN_LED_RCK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_LED_RCK, LOW);
+}
 
-/**
- * Setzt eine einzelne LED (One-Hot: nur diese LED an)
- */
-void setLED(uint8_t index) {
-    if (index < NUM_LEDS) {
-        ledState = (1 << index);
-        updateLEDs();
-        Serial.printf("LED %d ON (Pattern: 0x%04X)\n", index, ledState);
+// =============================================================================
+// PWM
+// =============================================================================
+
+static void setLEDBrightness(uint8_t percent) {
+    // Warum invertiert? OE ist Active-LOW (LOW = Ausgänge aktiv)
+    // duty 0 = voll an, duty 255 = aus
+    uint8_t duty = 255 - (percent * 255 / 100);
+    ledcWrite(LEDC_CHANNEL, duty);
+}
+
+// =============================================================================
+// LED-API
+// =============================================================================
+
+static void setLED(uint8_t id, bool on) {
+    if (id < 1 || id > LED_COUNT) return;
+    uint8_t ic = (id - 1) / 8;
+    uint8_t bit = (id - 1) % 8;
+    // Warum so? Bit0 = LED1, Bit1 = LED2, ... (Active-High)
+    if (on) {
+        ledState[ic] |= (1 << bit);
     } else {
-        Serial.printf("ERROR: LED %d out of range (0-%d)\n", index,
-                      NUM_LEDS - 1);
+        ledState[ic] &= ~(1 << bit);
     }
 }
 
-/**
- * Alle LEDs ein
- */
-void setAllLEDs() {
-    ledState = (1 << NUM_LEDS) - 1; // z.B. 0x03FF für 10 LEDs
-    updateLEDs();
-    Serial.printf("ALL LEDs ON (Pattern: 0x%04X)\n", ledState);
-}
-
-/**
- * Alle LEDs aus
- */
-void clearLEDs() {
-    ledState = 0;
-    updateLEDs();
-    Serial.println("ALL LEDs OFF");
-}
-
-/**
- * Zeigt eine Zahl binär an
- */
-void showBinary(uint16_t value) {
-    ledState = value & ((1 << NUM_LEDS) - 1);
-    updateLEDs();
-    Serial.printf("Binary: %d = 0x%04X = ", value, ledState);
-    for (int8_t i = NUM_LEDS - 1; i >= 0; i--) {
-        Serial.print((ledState >> i) & 1);
-    }
-    Serial.println();
-}
-
-/**
- * Durchläuft alle LEDs einzeln
- */
-void runTest() {
-    Serial.println("Running LED test...");
-    for (uint8_t i = 0; i < NUM_LEDS; i++) {
-        ledState = (1 << i);
-        updateLEDs();
-        Serial.printf("  LED %d\n", i);
-        delay(300);
-    }
-    clearLEDs();
-    Serial.println("Test complete.");
-}
-
-// -----------------------------------------------------------------------------
-// Serial-Kommandos
-// -----------------------------------------------------------------------------
-void handleSerialInput() {
-    if (Serial.available()) {
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        input.toUpperCase();
-
-        if (input.length() == 0)
-            return;
-
-        if (input.startsWith("LED ")) {
-            int index = input.substring(4).toInt();
-            chaseMode = false;
-            setLED(index);
-        } else if (input == "ALL") {
-            chaseMode = false;
-            setAllLEDs();
-        } else if (input == "CLEAR" || input == "OFF") {
-            chaseMode = false;
-            clearLEDs();
-        } else if (input == "CHASE") {
-            chaseMode = !chaseMode;
-            Serial.printf("Chase mode: %s\n", chaseMode ? "ON" : "OFF");
-            if (!chaseMode)
-                clearLEDs();
-        } else if (input.startsWith("BINARY ")) {
-            int value = input.substring(7).toInt();
-            chaseMode = false;
-            showBinary(value);
-        } else if (input == "TEST") {
-            chaseMode = false;
-            runTest();
-        } else if (input == "HELP") {
-            Serial.println();
-            Serial.println("Befehle:");
-            Serial.println("  LED n    - LED n einschalten (0-9)");
-            Serial.println("  ALL      - Alle LEDs ein");
-            Serial.println("  CLEAR    - Alle LEDs aus");
-            Serial.println("  CHASE    - Lauflicht ein/aus");
-            Serial.println("  BINARY n - Zahl binär anzeigen");
-            Serial.println("  TEST     - Alle LEDs durchlaufen");
-            Serial.println("  HELLO    - Startup-Nachricht anzeigen");
-            Serial.println();
-        } else if (input == "HELLO") {
-            printStartup();
-        } else if (input == "PING") {
-            Serial.println("PONG");
-        } else {
-            Serial.printf("Unknown command: %s (try HELP)\n", input.c_str());
-        }
+static void clearLEDs() {
+    for (size_t i = 0; i < LED_BYTES; ++i) {
+        ledState[i] = 0x00;
     }
 }
 
-/**
- * Lauflicht-Logik
- */
-void updateChase() {
-    if (!chaseMode)
-        return;
+// =============================================================================
+// Ausgabe
+// =============================================================================
 
-    uint32_t now = millis();
-    if (now - lastChaseTime >= CHASE_INTERVAL_MS) {
-        lastChaseTime = now;
-
-        ledState = (1 << chaseIndex);
-        updateLEDs();
-
-        chaseIndex++;
-        if (chaseIndex >= NUM_LEDS) {
-            chaseIndex = 0;
-        }
+static void printLEDState() {
+    // IC0
+    Serial.print("IC0: ");
+    for (int8_t bit = 7; bit >= 0; --bit) {
+        Serial.print((ledState[0] >> bit) & 1);
     }
+    Serial.print(" (0x");
+    if (ledState[0] < 0x10) Serial.print("0");
+    Serial.print(ledState[0], HEX);
+    Serial.print(")");
+    
+    // IC1
+    Serial.print(" | IC1: ");
+    for (int8_t bit = 7; bit >= 0; --bit) {
+        Serial.print((ledState[1] >> bit) & 1);
+    }
+    Serial.print(" (0x");
+    if (ledState[1] < 0x10) Serial.print("0");
+    Serial.print(ledState[1], HEX);
+    Serial.print(")");
+    
+    // LED-Liste
+    Serial.print(" | LED: ");
+    Serial.println(currentLED);
 }
 
-// -----------------------------------------------------------------------------
-// Startup-Nachricht
-// -----------------------------------------------------------------------------
-void printStartup() {
-    Serial.println();
-    Serial.println("========================================");
-    Serial.println("Phase 2: LED-Test (74HC595)");
-    Serial.println("========================================");
-    Serial.println();
-    Serial.println("Pinbelegung:");
-    Serial.printf("  LED Data  (D0/GPIO%d) -> 74HC595 SER\n", PIN_LED_DATA);
-    Serial.printf("  LED Clock (D1/GPIO%d) -> 74HC595 SRCLK\n", PIN_LED_CLK);
-    Serial.printf("  LED Latch (D2/GPIO%d) -> 74HC595 RCLK\n", PIN_LED_LATCH);
-    Serial.println();
-    Serial.printf("Konfiguration: %d Schieberegister, %d LEDs\n",
-                  NUM_SHIFT_REGS, NUM_LEDS);
-    Serial.println();
-    Serial.println(
-        "Befehle: LED n, ALL, CLEAR, CHASE, BINARY n, TEST, HELLO, HELP");
-    Serial.println();
-    Serial.println("READY");
-    Serial.println();
+// =============================================================================
+// Taster deaktivieren
+// =============================================================================
+
+static void disableButtons() {
+    // Warum nötig? CD4021B P/S-Pin auf definiertem Zustand halten
+    // P/S LOW = Shift-Modus (kein versehentliches Laden)
+    pinMode(PIN_BTN_PS, OUTPUT);
+    pinMode(PIN_BTN_MISO, INPUT_PULLUP);
+    digitalWrite(PIN_BTN_PS, LOW);
 }
 
-// -----------------------------------------------------------------------------
-// Setup & Loop
-// -----------------------------------------------------------------------------
+// =============================================================================
+// Setup
+// =============================================================================
+
 void setup() {
-    // Serial initialisieren
-    Serial.begin(SERIAL_BAUD);
-    delay(1000);
-
-    // Pins konfigurieren
-    pinMode(PIN_LED_DATA, OUTPUT);
-    pinMode(PIN_LED_CLK, OUTPUT);
-    pinMode(PIN_LED_LATCH, OUTPUT);
-
-    // Initiale Zustände
-    digitalWrite(PIN_LED_DATA, LOW);
-    digitalWrite(PIN_LED_CLK, LOW);
-    digitalWrite(PIN_LED_LATCH, LOW);
-
-    // LEDs ausschalten
+    Serial.begin(115200);
+    while (!Serial && millis() < 2000) {}
+    
+    Serial.println();
+    Serial.println("========================================");
+    Serial.println("LED-Test - 74HC595 (Active-High)");
+    Serial.println("========================================");
+    Serial.println();
+    Serial.println("Hex-Referenz:");
+    Serial.println("L1=0x01 L2=0x02 L3=0x04 L4=0x08");
+    Serial.println("L5=0x10 L6=0x20 L7=0x40 L8=0x80");
+    Serial.println("L9/L10 auf IC1 (gleiche Werte)");
+    Serial.println();
+    Serial.print("PWM Helligkeit: ");
+    Serial.print(PWM_DUTY);
+    Serial.println("%");
+    Serial.println();
+    
+    // LED-Pins
+    pinMode(PIN_SCK, OUTPUT);
+    pinMode(PIN_LED_MOSI, OUTPUT);
+    pinMode(PIN_LED_RCK, OUTPUT);
+    digitalWrite(PIN_SCK, LOW);
+    digitalWrite(PIN_LED_RCK, LOW);
+    
+    // PWM Setup
+    ledcSetup(LEDC_CHANNEL, PWM_FREQ, LEDC_RESOLUTION);
+    ledcAttachPin(PIN_LED_OE, LEDC_CHANNEL);
+    setLEDBrightness(PWM_DUTY);
+    
+    // Taster deaktivieren
+    disableButtons();
+    
+    // LEDs initialisieren
     clearLEDs();
-
-    // Startup-Nachricht
-    printStartup();
-
-    // Kurzer Test: Alle LEDs kurz aufleuchten lassen
-    setAllLEDs();
-    delay(500);
-    clearLEDs();
+    writeLEDs();
+    
+    Serial.println("Starte Lauflicht...");
+    Serial.println();
 }
+
+// =============================================================================
+// Loop
+// =============================================================================
 
 void loop() {
-    handleSerialInput();
-    updateChase();
-
-    // WICHTIG: Watchdog füttern - ESP32-S3 USB-CDC braucht das!
-    delay(1);
+    static uint32_t lastUpdate = 0;
+    uint32_t now = millis();
+    
+    if (now - lastUpdate >= CHASE_DELAY_MS) {
+        lastUpdate = now;
+        
+        // Lauflicht: Eine LED nach der anderen
+        clearLEDs();
+        setLED(currentLED, true);
+        writeLEDs();
+        
+        // Ausgabe
+        printLEDState();
+        
+        // Nächste LED
+        currentLED++;
+        if (currentLED > LED_COUNT) {
+            currentLED = 1;
+        }
+    }
 }

@@ -1,325 +1,237 @@
 /**
- * =============================================================================
- * Phase 3: Taster-Eingabe über CD4021BE Schieberegister
- * =============================================================================
- *
- * Ziel: Verifizieren, dass die Taster-Eingabe über CD4021BE funktioniert
- *
- * Hardware-Aufbau:
- *   ESP32-S3 XIAO          CD4021BE (#0)        CD4021BE (#1)
- *   ─────────────          ─────────────        ─────────────
- *   D3 (GPIO4) ◄────────── Q8 (Pin 3)
- *   D4 (GPIO5) ──────────► CLK (Pin 10)   ◄───► CLK (Pin 10)
- *   D5 (GPIO6) ──────────► P/S (Pin 9)    ◄───► P/S (Pin 9)
- *                          SER (Pin 11) ◄────── Q8 (Pin 3)
- *   3V3 ─────────────────► VDD (Pin 16)   ◄───► VDD (Pin 16)
- *   3V3 ────────────────────────────────────────► SER (Pin 11) am LETZTEN IC!
- *   GND ─────────────────► VSS (Pin 8)    ◄───► VSS (Pin 8)
- *
- *   Taster zwischen P1-P8 (Pins 1,13,14,4,5,6,7,15) und GND
- *   Pull-Up 10kΩ von jedem Px nach VDD
- *
- * WICHTIG: CD4021BE Load-Logik ist INVERTIERT zum 74HC165!
- *   P/S = HIGH -> Parallel Load (Taster einlesen)
- *   P/S = LOW  -> Serial Shift (Daten auslesen)
- *
- * Tests via Serial:
- *   SCAN       -> Einmaliges Auslesen aller Taster
- *   MONITOR    -> Kontinuierliches Monitoring (Toggle)
- *   RAW        -> Zeigt Roh-Bits
- *   HELP       -> Hilfe
- *
- * =============================================================================
+ * @file main.cpp
+ * @brief Taster-Test über Schieberegister CD4021B (Active-Low)
+ * @version 2.2.0
+ * 
+ * Hardware: 2x CD4021B in Daisy-Chain (10 Taster)
+ * Active-Low: Taster gedrückt = Bit ist 0
+ * 
+ * Bit-Zuordnung (Hardware-bedingt):
+ * Bit 7 = Taster 1, Bit 6 = Taster 2, ... Bit 0 = Taster 8
+ * (gespiegelt zu LED, da CD4021B anders verdrahtet als 74HC595)
+ * 
+ * Hex-Referenz (Active-Low, Bit7 = Taster 1):
+ * ┌────────┬──────┬────────────┐
+ * │ Taster │ Hex  │ Binär      │
+ * ├────────┼──────┼────────────┤
+ * │   1    │ 0x7F │ 0111 1111  │
+ * │   2    │ 0xBF │ 1011 1111  │
+ * │   3    │ 0xDF │ 1101 1111  │
+ * │   4    │ 0xEF │ 1110 1111  │
+ * │   5    │ 0xF7 │ 1111 0111  │
+ * │   6    │ 0xFB │ 1111 1011  │
+ * │   7    │ 0xFD │ 1111 1101  │
+ * │   8    │ 0xFE │ 1111 1110  │
+ * │  9-10  │ IC1  │ wie IC0    │
+ * │  kein  │ 0xFF │ 1111 1111  │
+ * └────────┴──────┴────────────┘
  */
 
 #include <Arduino.h>
 
-// -----------------------------------------------------------------------------
-// Pin-Definitionen (ESP32-S3 XIAO)
-// -----------------------------------------------------------------------------
-// LED-Ausgabe (74HC595) - nur zum Ausschalten
-constexpr uint8_t PIN_LED_DATA = D0;  // GPIO1 -> 74HC595 SER
-constexpr uint8_t PIN_LED_CLK = D1;   // GPIO2 -> 74HC595 SRCLK
-constexpr uint8_t PIN_LED_LATCH = D2; // GPIO3 -> 74HC595 RCLK
-
-// Taster-Eingabe (CD4021BE)
-constexpr uint8_t PIN_BTN_DATA = D3; // GPIO4 <- CD4021 Q8
-constexpr uint8_t PIN_BTN_CLK = D4;  // GPIO5 -> CD4021 CLK
-constexpr uint8_t PIN_BTN_LOAD = D5; // GPIO6 -> CD4021 P/S
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Konfiguration
-// -----------------------------------------------------------------------------
-constexpr uint8_t NUM_SHIFT_REGS = 2; // 2x CD4021BE = 16 Bits
-constexpr uint8_t NUM_BUTTONS = 10;   // 10 Taster im Prototyp
-constexpr uint32_t SERIAL_BAUD = 115200;
-constexpr uint32_t SCAN_INTERVAL_MS = 50;
-constexpr uint32_t DEBOUNCE_MS = 50;
+// =============================================================================
 
-// -----------------------------------------------------------------------------
-// Bit-Mapping: Physischer Taster -> Bit-Position im Schieberegister
-// -----------------------------------------------------------------------------
-constexpr uint8_t BUTTON_BIT_MAP[10] = {
-    15, // Taster 1 -> Bit 15 (IC#1)
-    12, // Taster 2 -> Bit 12 (IC#1)
-    13, // Taster 3 -> Bit 13 (IC#1)
-    11, // Taster 4 -> Bit 11 (IC#1)
-    10, // Taster 5 -> Bit 10 (IC#1)
-    9,  // Taster 6 -> Bit 9  (IC#1)
-    8,  // Taster 7 -> Bit 8  (IC#1)
-    14, // Taster 8 -> Bit 14 (IC#1)
-    7,  // Taster 9 -> Bit 7  (IC#0)
-    4   // Taster 10-> Bit 4  (IC#0)
-};
+constexpr size_t BTN_COUNT = 10;
 
-// -----------------------------------------------------------------------------
-// Globale Variablen
-// -----------------------------------------------------------------------------
-uint16_t buttonState = 0;            // Aktueller Taster-Zustand
-uint16_t lastRawState = 0xFFFF;      // Letzter Roh-Zustand
-uint32_t lastDebounceTime[10] = {0}; // Debounce-Timer pro Taste
-bool monitorMode = false;
-uint32_t lastScanTime = 0;
+// Pins (XIAO ESP32-S3)
+// Warum diese Pins? Shared SPI-Bus mit 74HC595 für LEDs
+constexpr int PIN_SCK = D8;       // Clock (shared)
+constexpr int PIN_BTN_PS = D1;    // Parallel/Serial
+constexpr int PIN_BTN_MISO = D9;  // Daten vom IC
 
-// Forward Declaration
-void printStartup();
+// LED-Pins (nur zum Ausschalten)
+constexpr int PIN_LED_MOSI = D10;
+constexpr int PIN_LED_RCK = D0;
+constexpr int PIN_LED_OE = D2;
 
-// -----------------------------------------------------------------------------
-// Schieberegister-Funktionen
-// -----------------------------------------------------------------------------
+// =============================================================================
+// Zustand
+// =============================================================================
 
-/**
- * Liest 16 Bit aus den kaskadierten CD4021BE
- */
-uint16_t shiftIn16() {
-    uint16_t data = 0;
+constexpr size_t BTN_BYTES = (BTN_COUNT + 7) / 8;
+static uint8_t btnRaw[BTN_BYTES];
+static uint8_t btnLast[BTN_BYTES];
 
-    // Parallel Load: P/S = HIGH
-    digitalWrite(PIN_BTN_LOAD, HIGH);
-    delayMicroseconds(5);
+// =============================================================================
+// CD4021B Lesen
+// =============================================================================
 
-    // Serial Mode: P/S = LOW
-    digitalWrite(PIN_BTN_LOAD, LOW);
+static inline void clockPulse() {
+    // Warum 2µs? CD4021B braucht min. 180ns, 2µs ist sicher
+    digitalWrite(PIN_SCK, HIGH);
     delayMicroseconds(2);
-
-    // 16 Bits einlesen
-    for (uint8_t i = 0; i < 16; i++) {
-        uint8_t bit = digitalRead(PIN_BTN_DATA);
-        data = (data << 1) | bit;
-
-        digitalWrite(PIN_BTN_CLK, HIGH);
-        delayMicroseconds(2);
-        digitalWrite(PIN_BTN_CLK, LOW);
-        delayMicroseconds(2);
-    }
-
-    return data;
+    digitalWrite(PIN_SCK, LOW);
+    delayMicroseconds(2);
 }
 
-/**
- * Prüft Taster mit Bit-Mapping und Debouncing
- */
-void checkButtonChanges() {
-    uint16_t raw = shiftIn16();
-    uint32_t now = millis();
-
-    for (uint8_t taster = 0; taster < NUM_BUTTONS; taster++) {
-        uint8_t bitPos = BUTTON_BIT_MAP[taster];
-
-        // Bit auslesen und invertieren (gedrückt = LOW = 0, wir wollen 1)
-        bool currentPressed = !((raw >> bitPos) & 1);
-        bool lastPressed = (buttonState >> taster) & 1;
-
-        if (currentPressed != lastPressed) {
-            if (now - lastDebounceTime[taster] > DEBOUNCE_MS) {
-                lastDebounceTime[taster] = now;
-
-                if (currentPressed) {
-                    buttonState |= (1 << taster);
-                    Serial.printf("PRESS %d\n", taster + 1); // 1-basiert
-                } else {
-                    buttonState &= ~(1 << taster);
-                    Serial.printf("RELEASE %d\n", taster + 1);
-                }
+static void readButtons() {
+    // Parallel Load: Alle 8 Eingänge gleichzeitig übernehmen
+    // Warum HIGH→LOW? Fallende Flanke triggert den Latch
+    digitalWrite(PIN_BTN_PS, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(PIN_BTN_PS, LOW);
+    delayMicroseconds(2);
+    
+    // Serial Shift
+    // Warum erst lesen, dann clocken? Q8 liegt nach Load SOFORT am Ausgang
+    // (Hardware-SPI würde erstes Bit verlieren)
+    for (size_t ic = 0; ic < BTN_BYTES; ++ic) {
+        uint8_t byte = 0;
+        for (int8_t bit = 7; bit >= 0; --bit) {
+            if (digitalRead(PIN_BTN_MISO)) {
+                byte |= (1 << bit);
             }
-        } else {
-            lastDebounceTime[taster] = now;
+            clockPulse();
+        }
+        btnRaw[ic] = byte;
+    }
+}
+
+// =============================================================================
+// Hilfsfunktionen
+// =============================================================================
+
+static bool btnChanged() {
+    for (size_t i = 0; i < BTN_BYTES; ++i) {
+        if (btnRaw[i] != btnLast[i]) return true;
+    }
+    return false;
+}
+
+static void btnSave() {
+    for (size_t i = 0; i < BTN_BYTES; ++i) {
+        btnLast[i] = btnRaw[i];
+    }
+}
+
+static bool anyPressed() {
+    // 0xFF = kein Taster gedrückt (Active-Low)
+    for (size_t i = 0; i < BTN_BYTES; ++i) {
+        if (btnRaw[i] != 0xFF) return true;
+    }
+    return false;
+}
+
+// =============================================================================
+// Ausgabe
+// =============================================================================
+
+static void printPressed() {
+    // IC0
+    Serial.print("IC0: ");
+    for (int8_t bit = 7; bit >= 0; --bit) {
+        Serial.print((btnRaw[0] >> bit) & 1);
+    }
+    Serial.print(" (0x");
+    if (btnRaw[0] < 0x10) Serial.print("0");
+    Serial.print(btnRaw[0], HEX);
+    Serial.print(")");
+    
+    // IC1
+    Serial.print(" | IC1: ");
+    for (int8_t bit = 7; bit >= 0; --bit) {
+        Serial.print((btnRaw[1] >> bit) & 1);
+    }
+    Serial.print(" (0x");
+    if (btnRaw[1] < 0x10) Serial.print("0");
+    Serial.print(btnRaw[1], HEX);
+    Serial.print(")");
+    
+    // Taster-Liste
+    // Bit7 = T1, Bit6 = T2, ... (Hardware-bedingt, CD4021B Verdrahtung)
+    Serial.print(" | Taster: ");
+    bool any = false;
+    for (uint8_t id = 1; id <= BTN_COUNT; ++id) {
+        uint8_t ic = (id - 1) / 8;
+        uint8_t bit = 7 - ((id - 1) % 8);  // Bit7=T1, Bit6=T2, ...
+        // Warum invertiert? Active-Low: Bit=0 bedeutet gedrückt
+        bool pressed = !(btnRaw[ic] & (1 << bit));
+        if (pressed) {
+            if (any) Serial.print(",");
+            Serial.print(id);
+            any = true;
         }
     }
-
-    lastRawState = raw;
-}
-
-/**
- * Einmaliges Auslesen und Anzeigen
- */
-void scanButtons() {
-    uint16_t raw = shiftIn16();
-
-    Serial.println();
-    Serial.println("Button Scan:");
-    Serial.printf("  Raw data: 0x%04X\n", raw);
-    Serial.println();
-
-    // Gemappte Taster anzeigen
-    Serial.println("  Taster-Status (mit Mapping):");
-    for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
-        uint8_t bitPos = BUTTON_BIT_MAP[i];
-        bool pressed = !((raw >> bitPos) & 1);
-        Serial.printf("    Taster %2d -> Bit %2d: %s\n", i + 1, bitPos,
-                      pressed ? "GEDRUECKT" : "-");
-    }
-    Serial.println();
-
-    // Gedrückte Taster
-    Serial.print("  Gedrueckt: ");
-    bool anyPressed = false;
-    for (uint8_t i = 0; i < NUM_BUTTONS; i++) {
-        uint8_t bitPos = BUTTON_BIT_MAP[i];
-        if (!((raw >> bitPos) & 1)) {
-            if (anyPressed)
-                Serial.print(", ");
-            Serial.printf("%d", i + 1);
-            anyPressed = true;
-        }
-    }
-    if (!anyPressed)
-        Serial.print("keine");
-    Serial.println();
+    if (!any) Serial.print("-");
     Serial.println();
 }
 
-/**
- * Zeigt Roh-Bits für Debugging
- */
-void showRawBits() {
-    uint16_t raw = shiftIn16();
+// =============================================================================
+// LEDs ausschalten
+// =============================================================================
 
-    Serial.println();
-    Serial.println("Raw Bits (MSB first):");
-    Serial.print("  IC#1[");
-    for (int8_t i = 15; i >= 8; i--) {
-        Serial.print((raw >> i) & 1);
+static void disableLEDs() {
+    // Warum nötig? 74HC595 behält Latch-Zustand nach Reset
+    pinMode(PIN_LED_MOSI, OUTPUT);
+    pinMode(PIN_LED_RCK, OUTPUT);
+    pinMode(PIN_LED_OE, OUTPUT);
+    
+    digitalWrite(PIN_LED_OE, HIGH);  // Ausgänge deaktivieren
+    digitalWrite(PIN_LED_MOSI, LOW);
+    
+    // 16 Nullen einschieben (2x 74HC595)
+    for (int i = 0; i < 16; ++i) {
+        clockPulse();
     }
-    Serial.print("] IC#0[");
-    for (int8_t i = 7; i >= 0; i--) {
-        Serial.print((raw >> i) & 1);
-    }
-    Serial.println("]");
-    Serial.printf("  Hex: 0x%04X\n", raw);
-    Serial.println();
+    
+    // Latch: Nullen übernehmen
+    digitalWrite(PIN_LED_RCK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_LED_RCK, LOW);
 }
 
-// -----------------------------------------------------------------------------
-// Serial-Kommandos
-// -----------------------------------------------------------------------------
-void handleSerialInput() {
-    if (Serial.available()) {
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        input.toUpperCase();
+// =============================================================================
+// Setup
+// =============================================================================
 
-        if (input.length() == 0)
-            return;
-
-        if (input == "SCAN" || input == "S") {
-            scanButtons();
-        } else if (input == "MONITOR" || input == "M") {
-            monitorMode = !monitorMode;
-            Serial.printf("Monitor mode: %s\n", monitorMode ? "ON" : "OFF");
-            if (monitorMode) {
-                Serial.println("(Taster druecken, MONITOR zum Stoppen)");
-            }
-        } else if (input == "RAW" || input == "R") {
-            showRawBits();
-        } else if (input == "HELP" || input == "H") {
-            Serial.println();
-            Serial.println("Befehle:");
-            Serial.println("  SCAN (S)     - Einmaliges Auslesen");
-            Serial.println("  MONITOR (M)  - Kontinuierliches Monitoring");
-            Serial.println("  RAW (R)      - Roh-Bits anzeigen");
-            Serial.println("  HELLO        - Startup-Nachricht anzeigen");
-            Serial.println("  HELP (H)     - Diese Hilfe");
-            Serial.println();
-        } else if (input == "HELLO") {
-            printStartup();
-        } else if (input == "PING") {
-            Serial.println("PONG");
-        } else {
-            Serial.printf("Unknown: %s (try HELP)\n", input.c_str());
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Setup & Loop
-// -----------------------------------------------------------------------------
 void setup() {
-    Serial.begin(SERIAL_BAUD);
-    delay(1000);
-
-    // LED-Pins (um LEDs auszuschalten)
-    pinMode(PIN_LED_DATA, OUTPUT);
-    pinMode(PIN_LED_CLK, OUTPUT);
-    pinMode(PIN_LED_LATCH, OUTPUT);
-    digitalWrite(PIN_LED_DATA, LOW);
-    digitalWrite(PIN_LED_CLK, LOW);
-    digitalWrite(PIN_LED_LATCH, LOW);
-
-    // LEDs ausschalten
-    for (uint8_t i = 0; i < 16; i++) {
-        digitalWrite(PIN_LED_CLK, HIGH);
-        delayMicroseconds(1);
-        digitalWrite(PIN_LED_CLK, LOW);
+    Serial.begin(115200);
+    while (!Serial && millis() < 2000) {}
+    
+    Serial.println();
+    Serial.println("========================================");
+    Serial.println("Taster-Test - CD4021B (Active-Low)");
+    Serial.println("========================================");
+    Serial.println();
+    Serial.println("Hex-Referenz (Bit7=T1, Hardware-bedingt):");
+    Serial.println("T1=0x7F T2=0xBF T3=0xDF T4=0xEF");
+    Serial.println("T5=0xF7 T6=0xFB T7=0xFD T8=0xFE");
+    Serial.println("T9/T10 auf IC1 (gleiche Werte)");
+    Serial.println();
+    Serial.println("Warte auf Tastendruck...");
+    Serial.println();
+    
+    // Taster-Pins
+    pinMode(PIN_SCK, OUTPUT);
+    pinMode(PIN_BTN_PS, OUTPUT);
+    pinMode(PIN_BTN_MISO, INPUT_PULLUP);
+    digitalWrite(PIN_SCK, LOW);
+    digitalWrite(PIN_BTN_PS, LOW);
+    
+    // LEDs aus
+    disableLEDs();
+    
+    // Init: Alle Taster "nicht gedrückt" (0xFF = alle Bits HIGH)
+    for (size_t i = 0; i < BTN_BYTES; ++i) {
+        btnRaw[i] = 0xFF;
+        btnLast[i] = 0xFF;
     }
-    digitalWrite(PIN_LED_LATCH, HIGH);
-    delayMicroseconds(1);
-    digitalWrite(PIN_LED_LATCH, LOW);
-
-    // Button-Pins
-    pinMode(PIN_BTN_DATA, INPUT);
-    pinMode(PIN_BTN_CLK, OUTPUT);
-    pinMode(PIN_BTN_LOAD, OUTPUT);
-    digitalWrite(PIN_BTN_CLK, LOW);
-    digitalWrite(PIN_BTN_LOAD, LOW);
-
-    printStartup();
-    scanButtons();
 }
 
-void printStartup() {
-    Serial.println();
-    Serial.println("========================================");
-    Serial.println("Phase 3: Taster-Test (CD4021BE)");
-    Serial.println("========================================");
-    Serial.println();
-    Serial.println("Pinbelegung:");
-    Serial.printf("  Btn Data (D3/GPIO%d) <- CD4021 Q8\n", PIN_BTN_DATA);
-    Serial.printf("  Btn Clock(D4/GPIO%d) -> CD4021 CLK\n", PIN_BTN_CLK);
-    Serial.printf("  Btn Load (D5/GPIO%d) -> CD4021 P/S\n", PIN_BTN_LOAD);
-    Serial.println();
-    Serial.println("Bit-Mapping:");
-    Serial.println("  Taster 1-8  -> Bits 15,12,13,11,10,9,8,14 (IC#1)");
-    Serial.println("  Taster 9-10 -> Bits 7,4 (IC#0)");
-    Serial.println();
-    Serial.println("WICHTIG: Unbenutzte Eingaenge -> VCC!");
-    Serial.println();
-    Serial.println("Befehle: SCAN, MONITOR, RAW, HELLO, HELP");
-    Serial.println();
-    Serial.println("READY");
-    Serial.println();
-}
+// =============================================================================
+// Loop
+// =============================================================================
 
 void loop() {
-    handleSerialInput();
-
-    if (monitorMode) {
-        uint32_t now = millis();
-        if (now - lastScanTime >= SCAN_INTERVAL_MS) {
-            lastScanTime = now;
-            checkButtonChanges();
-        }
+    readButtons();
+    
+    // Nur ausgeben wenn: Änderung UND mindestens ein Taster gedrückt
+    if (btnChanged() && anyPressed()) {
+        printPressed();
     }
-
-    delay(1);
+    btnSave();
+    
+    delay(10);
 }
