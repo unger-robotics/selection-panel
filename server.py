@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.5.1
+Auswahlpanel Server v2.5.2
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
+
+CHANGELOG v2.5.2:
+- FIX: "/" liefert jetzt index.html aus Repo-Root (BASE_DIR/index.html)
+- FIX: /favicon.ico Route (kein 404 in Browser-Logs)
+- Compat: Fallback auf static/index.html, falls Root-index fehlt
 
 CHANGELOG v2.5.1:
 - NEU: Robustere Serial-Fragment-Erkennung mit Pending-Buffer
@@ -27,23 +32,24 @@ Medien (1-basiert!):
 - Medien-IDs: 1-100 (für 001.jpg, 001.mp3, etc.)
 
 Autor: Jan Unger
-Datum: 2025-01-07
+Datum: 2026-01-08
 """
 
 import asyncio
 import json
 import logging
-import sys
 import threading
 import time
 from pathlib import Path
 from typing import Optional
 
-from aiohttp import web, WSMsgType
+from aiohttp import WSMsgType, web
 
 # =============================================================================
 # KONFIGURATION
 # =============================================================================
+
+VERSION = "2.5.2"
 
 # Build-Modus: Anzahl der erwarteten Medien
 PROTOTYPE_MODE = True  # True = 10 Medien, False = 100 Medien
@@ -63,6 +69,9 @@ BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
 
+# NEU: index.html im Repo-Root (Absicht: Root-Index)
+INDEX_FILE = BASE_DIR / "index.html"
+
 # Logging
 LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
@@ -80,6 +89,7 @@ FRAGMENT_TIMEOUT_MS = 50
 # =============================================================================
 # GLOBALER ZUSTAND
 # =============================================================================
+
 
 class AppState:
     """Zentrale Zustandsverwaltung."""
@@ -101,7 +111,6 @@ class AppState:
         data = json.dumps(message)
         dead_clients = set()
 
-        # Parallel an alle Clients senden
         async def send_to_client(ws):
             try:
                 await ws.send_str(data)
@@ -136,6 +145,7 @@ state = AppState()
 # =============================================================================
 # MEDIEN-VALIDIERUNG
 # =============================================================================
+
 
 def validate_media() -> tuple[bool, list[str]]:
     """
@@ -176,7 +186,7 @@ def validate_media() -> tuple[bool, list[str]]:
     logging.info(f"Medien-Validierung: {valid_count}/{NUM_MEDIA} vollstaendig")
     if missing:
         logging.warning(f"Fehlende Medien: {len(missing)} Dateien")
-        for m in missing[:10]:  # Nur erste 10 anzeigen
+        for m in missing[:10]:
             logging.warning(f"  - {m}")
         if len(missing) > 10:
             logging.warning(f"  ... und {len(missing) - 10} weitere")
@@ -191,9 +201,11 @@ def check_media_exists(media_id: int) -> dict:
 
     return state.media_valid.get(media_id, {"jpg": False, "mp3": False})
 
+
 # =============================================================================
 # SERIAL-HANDLER
 # =============================================================================
+
 
 async def handle_serial_line(line: str) -> None:
     """Verarbeitet eine Zeile vom ESP32."""
@@ -254,7 +266,6 @@ def parse_button_id(s: str) -> int | None:
     if not s:
         return None
 
-    # Nur Ziffern erlaubt
     if not s.isdigit():
         return None
 
@@ -274,24 +285,17 @@ async def handle_button_press(button_id: int) -> None:
     Args:
         button_id: 1-basierte ID (Taster 1-100, Medien 001-100)
     """
-    # ID-Validierung (1-basiert)
     if button_id < 1 or button_id > NUM_MEDIA:
         logging.warning(f"Button-ID ausserhalb Bereich: {button_id} (erlaubt: 1-{NUM_MEDIA})")
         return
 
-    # Medien-Validierung
     media_status = check_media_exists(button_id)
     if not media_status.get("jpg") or not media_status.get("mp3"):
         logging.warning(f"Medien fuer ID {button_id} unvollstaendig: {media_status}")
-        # Trotzdem fortfahren - Browser zeigt Fehlermeldung
 
     logging.info(f"Button {button_id} gedrueckt")
 
     state.current_id = button_id
-
-    # =========================================================================
-    # OPTIMIERT v2.4.2: Alle Aktionen PARALLEL ausführen
-    # =========================================================================
 
     tasks = []
 
@@ -299,13 +303,12 @@ async def handle_button_press(button_id: int) -> None:
     if not ESP32_SETS_LED_LOCALLY:
         tasks.append(state.send_serial(f"LEDSET {button_id:03d}"))
 
-    # 2. Browser: Stop-Signal (alle laufenden Medien stoppen)
+    # 2. Browser: Stop-Signal
     tasks.append(state.broadcast({"type": "stop"}))
 
-    # 3. Browser: Play-Signal (neue Medien starten)
+    # 3. Browser: Play-Signal
     tasks.append(state.broadcast({"type": "play", "id": button_id}))
 
-    # Alle Tasks parallel ausführen
     if tasks:
         await asyncio.gather(*tasks)
 
@@ -330,8 +333,8 @@ async def handle_playback_ended(ended_id: int) -> None:
 async def serial_reader_task() -> None:
     """Liest kontinuierlich vom Serial-Port mit Reconnect (Thread-basiert)."""
     import os
-    import subprocess
     import select
+    import subprocess
 
     loop = asyncio.get_event_loop()
 
@@ -342,14 +345,12 @@ async def serial_reader_task() -> None:
             fd_write = None
 
             try:
-                # Port konfigurieren mit stty
                 subprocess.run(
                     ["stty", "-F", SERIAL_PORT, str(SERIAL_BAUD), "raw", "-echo"],
                     check=True,
-                    capture_output=True
+                    capture_output=True,
                 )
 
-                # Port öffnen (separate FDs für Lesen und Schreiben)
                 fd_read = os.open(SERIAL_PORT, os.O_RDONLY | os.O_NONBLOCK)
                 fd_write = os.open(SERIAL_PORT, os.O_WRONLY)
 
@@ -357,9 +358,6 @@ async def serial_reader_task() -> None:
                 state.serial_connected = True
                 logging.info(f"Serial verbunden: {SERIAL_PORT}")
 
-                # ============================================================
-                # Robuster Ringpuffer mit Fragment-Handling
-                # ============================================================
                 buffer = b""
                 pending_fragment = ""
                 last_data_time = 0
@@ -368,7 +366,7 @@ async def serial_reader_task() -> None:
 
                 while state.serial_connected:
                     try:
-                        events = poll.poll(20)  # 20ms Timeout für responsive Fragment-Handling
+                        events = poll.poll(20)
                         current_time = time.time() * 1000  # ms
 
                         for fd, event in events:
@@ -379,61 +377,42 @@ async def serial_reader_task() -> None:
                                         buffer += data
                                         last_data_time = current_time
 
-                                        # Komplette Zeilen verarbeiten
-                                        while b'\n' in buffer:
-                                            line, buffer = buffer.split(b'\n', 1)
-                                            line_str = line.decode('utf-8', errors='replace').strip()
+                                        while b"\n" in buffer:
+                                            line, buffer = buffer.split(b"\n", 1)
+                                            line_str = line.decode("utf-8", errors="replace").strip()
 
                                             if line_str:
-                                                # Prüfen ob pending fragment dazugehört
                                                 if pending_fragment:
-                                                    # Fragment + aktuelle Zeile zusammenfügen
                                                     combined = pending_fragment + line_str
-                                                    logging.debug(f"Fragment kombiniert: '{pending_fragment}' + '{line_str}' = '{combined}'")
+                                                    logging.debug(
+                                                        f"Fragment kombiniert: '{pending_fragment}' + '{line_str}' = '{combined}'"
+                                                    )
                                                     pending_fragment = ""
 
-                                                    # Prüfen ob kombiniert ein PRESS ist
                                                     if combined.startswith("PRESS "):
-                                                        asyncio.run_coroutine_threadsafe(
-                                                            handle_serial_line(combined),
-                                                            loop
-                                                        )
+                                                        asyncio.run_coroutine_threadsafe(handle_serial_line(combined), loop)
                                                         continue
 
-                                                # Normale Zeile verarbeiten
-                                                asyncio.run_coroutine_threadsafe(
-                                                    handle_serial_line(line_str),
-                                                    loop
-                                                )
+                                                asyncio.run_coroutine_threadsafe(handle_serial_line(line_str), loop)
 
                                 except BlockingIOError:
                                     pass
 
-                        # Fragment-Timeout: Wenn Buffer Daten hat aber kein \n kam
                         if buffer and (current_time - last_data_time) > FRAGMENT_TIMEOUT_MS:
-                            # Buffer als Fragment speichern (ohne \n empfangen)
-                            fragment = buffer.decode('utf-8', errors='replace').strip()
+                            fragment = buffer.decode("utf-8", errors="replace").strip()
                             if fragment:
-                                # Ist es ein bekanntes Fragment-Muster?
                                 if fragment in ("PRESS", "PRES", "PRE", "PR", "P"):
-                                    # Anfang eines PRESS - als pending speichern
                                     pending_fragment = fragment + " "
                                     logging.debug(f"Pending fragment gespeichert: '{fragment}'")
                                 elif fragment.startswith("PRESS"):
-                                    # Unvollständiges PRESS (z.B. "PRESS 0")
                                     pending_fragment = fragment
                                     logging.debug(f"Incomplete PRESS fragment: '{fragment}'")
                                 else:
-                                    # Unbekanntes Fragment - versuche zu verarbeiten
                                     logging.debug(f"Fragment-Timeout: '{fragment}'")
-                                    # Prüfen ob es eine reine Zahl ist (fragmentiertes PRESS)
                                     button_id = parse_button_id(fragment)
                                     if button_id:
                                         logging.debug(f"Fragmentiertes PRESS erkannt: '{fragment}' -> {button_id}")
-                                        asyncio.run_coroutine_threadsafe(
-                                            handle_button_press(button_id),
-                                            loop
-                                        )
+                                        asyncio.run_coroutine_threadsafe(handle_button_press(button_id), loop)
                             buffer = b""
 
                     except OSError as e:
@@ -454,28 +433,28 @@ async def serial_reader_task() -> None:
                 if fd_read is not None:
                     try:
                         os.close(fd_read)
-                    except:
+                    except Exception:
                         pass
                 if fd_write is not None:
                     try:
                         os.close(fd_write)
-                    except:
+                    except Exception:
                         pass
 
             logging.info("Serial Reconnect in 5s...")
             time.sleep(5)
 
-    # Thread starten
     thread = threading.Thread(target=serial_thread, daemon=True)
     thread.start()
 
-    # Task am Leben halten
     while True:
         await asyncio.sleep(1)
+
 
 # =============================================================================
 # WEBSOCKET-HANDLER
 # =============================================================================
+
 
 async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
     """WebSocket-Endpoint fuer Browser-Clients."""
@@ -492,7 +471,7 @@ async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
                 try:
                     data = json.loads(msg.data)
                     await handle_ws_message(data)
-                except json.JSONDecodeError as e:
+                except json.JSONDecodeError:
                     logging.warning(f"Ungueltiges JSON von {client_ip}: {msg.data[:50]}")
             elif msg.type == WSMsgType.ERROR:
                 logging.error(f"WS-Fehler: {ws.exception()}")
@@ -510,7 +489,6 @@ async def handle_ws_message(data: dict) -> None:
     msg_type = data.get("type")
 
     if msg_type == "ended":
-        # Browser sendet 1-basierte ID
         ended_id = data.get("id")
         if isinstance(ended_id, int):
             await handle_playback_ended(ended_id)
@@ -518,19 +496,36 @@ async def handle_ws_message(data: dict) -> None:
             logging.warning(f"'ended' ohne gueltige ID: {data}")
 
     elif msg_type == "ping":
-        # Heartbeat von Client
         pass
 
     else:
         logging.debug(f"Unbekannter WS-Nachrichtentyp: {msg_type}")
 
+
 # =============================================================================
 # HTTP-HANDLER
 # =============================================================================
 
+
+def _file_response_first_existing(*paths: Path) -> web.FileResponse:
+    """Gibt die erste existierende Datei als FileResponse zurück, sonst 404."""
+    for p in paths:
+        if p.exists() and p.is_file():
+            return web.FileResponse(p)
+    raise web.HTTPNotFound()
+
+
 async def index_handler(request: web.Request) -> web.FileResponse:
-    """Liefert die Hauptseite."""
-    return web.FileResponse(STATIC_DIR / "index.html")
+    """Liefert die Hauptseite. Primär: Repo-Root index.html, Fallback: static/index.html."""
+    return _file_response_first_existing(INDEX_FILE, STATIC_DIR / "index.html")
+
+
+async def favicon_handler(request: web.Request) -> web.FileResponse:
+    """Favicon ohne 404 (Browser fragt oft /favicon.ico an)."""
+    return _file_response_first_existing(
+        STATIC_DIR / "favicon.ico",
+        BASE_DIR / "favicon.ico",
+    )
 
 
 async def test_play_handler(request: web.Request) -> web.Response:
@@ -555,18 +550,20 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
-    return web.json_response({
-        "version": "2.5.1",
-        "mode": "prototype" if PROTOTYPE_MODE else "production",
-        "num_media": NUM_MEDIA,
-        "current_button": state.current_id,  # 1-basiert
-        "ws_clients": len(state.ws_clients),
-        "serial_connected": state.serial_connected,
-        "serial_port": SERIAL_PORT,
-        "media_missing": len(state.missing_media),
-        "missing_files": state.missing_media[:10] if state.missing_media else [],
-        "esp32_local_led": ESP32_SETS_LED_LOCALLY,
-    })
+    return web.json_response(
+        {
+            "version": VERSION,
+            "mode": "prototype" if PROTOTYPE_MODE else "production",
+            "num_media": NUM_MEDIA,
+            "current_button": state.current_id,
+            "ws_clients": len(state.ws_clients),
+            "serial_connected": state.serial_connected,
+            "serial_port": SERIAL_PORT,
+            "media_missing": len(state.missing_media),
+            "missing_files": state.missing_media[:10] if state.missing_media else [],
+            "esp32_local_led": ESP32_SETS_LED_LOCALLY,
+        }
+    )
 
 
 async def health_handler(request: web.Request) -> web.Response:
@@ -579,18 +576,21 @@ async def health_handler(request: web.Request) -> web.Response:
             "serial": state.serial_connected,
             "media_complete": len(state.missing_media) == 0,
         },
-        status=200 if healthy else 503
+        status=200 if healthy else 503,
     )
+
 
 # =============================================================================
 # APP-SETUP
 # =============================================================================
+
 
 def create_app() -> web.Application:
     """Erstellt die aiohttp-Application."""
     app = web.Application()
 
     app.router.add_get("/", index_handler)
+    app.router.add_get("/favicon.ico", favicon_handler)
     app.router.add_get("/ws", websocket_handler)
     app.router.add_get("/status", status_handler)
     app.router.add_get("/health", health_handler)
@@ -621,9 +621,11 @@ async def cleanup_background_tasks(app: web.Application) -> None:
     except asyncio.CancelledError:
         pass
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT)
@@ -631,7 +633,7 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.5.1 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v{VERSION} ({mode_str})")
     logging.info("=" * 50)
     logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 001-{NUM_MEDIA:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
@@ -646,7 +648,7 @@ def main() -> None:
 
     # Medien validieren
     if VALIDATE_MEDIA_ON_STARTUP:
-        all_valid, missing = validate_media()
+        all_valid, _missing = validate_media()
         if not all_valid:
             logging.warning("WARNUNG: Nicht alle Medien vorhanden!")
             logging.warning("System startet trotzdem - fehlende Medien erzeugen Fehler im Browser")
