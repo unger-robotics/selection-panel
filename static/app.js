@@ -1,16 +1,18 @@
 /**
- * Auswahlpanel Dashboard Client v2.3.0
+ * Auswahlpanel Dashboard Client v2.5.1
  * =====================================
  *
  * WebSocket-Client für das interaktive Auswahlpanel.
  * Farbschema: Arduino Teal + Raspberry Pi Red
- * Stand: 2025-01-01
+ * Stand: 2026-01-08
  *
- * CHANGELOG v2.3.0:
+ * CHANGELOG v2.5.1:
  * - NEU: Medien-Preloading nach Audio-Unlock (instant playback)
  * - NEU: Preload-Statusanzeige
  * - NEU: Gecachte Audio/Image-Objekte für sofortige Wiedergabe
  * - Optimiert: handlePlay() nutzt vorgeladene Medien
+ * - FIX: WebSocket-Protokoll automatisch (ws/wss)
+ * - FIX: onended an ID gebunden (Race-Condition bei schnellem Umschalten)
  *
  * Protokoll:
  * - Empfängt: {"type": "stop"} und {"type": "play", "id": n}
@@ -21,8 +23,10 @@
 // KONFIGURATION
 // =============================================================================
 
+const wsProto = (window.location.protocol === 'https:') ? 'wss' : 'ws';
+
 const CONFIG = {
-    wsUrl: `ws://${window.location.host}/ws`,
+    wsUrl: `${wsProto}://${window.location.host}/ws`,
     reconnectInterval: 5000,
     debug: true,
     numMedia: 10,  // PROTOTYPE_MODE - auf 100 ändern für Produktion
@@ -91,7 +95,7 @@ function log(message, level = 'info') {
 }
 
 // =============================================================================
-// MEDIEN-PRELOADING (NEU v2.3.0)
+// MEDIEN-PRELOADING
 // =============================================================================
 
 /**
@@ -298,7 +302,7 @@ function handleServerMessage(data) {
 }
 
 // =============================================================================
-// PLAYBACK-STEUERUNG (OPTIMIERT v2.3.0)
+// PLAYBACK-STEUERUNG
 // =============================================================================
 
 function handleStop() {
@@ -319,7 +323,19 @@ function handleStop() {
     }
 
     state.isPlaying = false;
+    state.currentId = null;
+
+    elements.currentId.textContent = '---';
     elements.progressFill.style.width = '0%';
+    elements.timeDisplay.textContent = '0:00 / 0:00';
+
+    elements.mediaContainer.classList.remove('active');
+    elements.imageContainer.innerHTML = `<span class="placeholder">Kein Bild</span>`;
+
+    if (state.audioUnlocked) {
+        elements.waiting.classList.remove('hidden');
+        updateWaitingText('Warte auf Tastendruck...');
+    }
 }
 
 function handlePlay(id) {
@@ -350,10 +366,6 @@ function handlePlay(id) {
     elements.mediaContainer.classList.add('active');
     elements.waiting.classList.add('hidden');
 
-    // =========================================================================
-    // OPTIMIERT: Gecachte Medien verwenden (instant!)
-    // =========================================================================
-
     // Bild aus Cache oder neu laden
     const cachedImg = mediaCache.images[id];
     if (cachedImg) {
@@ -363,17 +375,17 @@ function handlePlay(id) {
         elements.imageContainer.appendChild(imgClone);
         log(`Bild aus Cache: ${id3} (instant)`);
     } else {
-        // Fallback: Neu laden
         const imageUrl = `/media/${id3}.jpg`;
-        elements.imageContainer.innerHTML = `<img src="${imageUrl}" alt="${id3}" onerror="this.parentElement.innerHTML='<span class=\\'placeholder\\'>Bild nicht gefunden</span>'">`;
+        elements.imageContainer.innerHTML =
+            `<img src="${imageUrl}" alt="${id3}" onerror="this.parentElement.innerHTML='<span class=\\'placeholder\\'>Bild nicht gefunden</span>'">`;
         log(`Bild neu geladen: ${id3}`);
     }
 
     // Audio aus Cache oder neu laden
     const cachedAudio = mediaCache.audio[id];
     if (cachedAudio) {
-        // Event-Handler für gecachtes Audio setzen
-        cachedAudio.onended = handleAudioEnded;
+        // Wichtig: ended an ID binden (Race-Fix)
+        cachedAudio.onended = () => handleAudioEnded(id);
         cachedAudio.ontimeupdate = () => updateProgressFromAudio(cachedAudio);
         cachedAudio.onerror = (e) => {
             log(`Audio-Fehler: ${e.target.error?.message || 'unbekannt'}`, 'error');
@@ -387,7 +399,6 @@ function handlePlay(id) {
             })
             .catch((e) => log(`Audio-Fehler: ${e.message}`, 'error'));
     } else {
-        // Fallback: Haupt-Audio-Element verwenden
         const audio = elements.audio;
         audio.src = `/media/${id3}.mp3`;
         audio.load();
@@ -401,17 +412,34 @@ function handlePlay(id) {
     }
 }
 
-function handleAudioEnded() {
-    log(`Audio beendet: ${state.currentId}`);
+function handleAudioEnded(endedId) {
+    log(`Audio beendet: ${endedId}`);
 
-    if (state.currentId !== null) {
-        sendMessage({ type: 'ended', id: state.currentId });
+    // Schutz gegen Race-Conditions: nur reagieren, wenn dieses ended zur aktuellen ID passt
+    if (endedId === null || endedId === undefined) {
+        return;
+    }
+    if (endedId !== state.currentId) {
+        log(`Ignored ended(${endedId}) - currentId=${state.currentId}`, 'warn');
+        return;
     }
 
+    sendMessage({ type: 'ended', id: endedId });
+
     state.isPlaying = false;
+    state.currentId = null;
+
     elements.currentId.textContent = '---';
     elements.progressFill.style.width = '0%';
     elements.timeDisplay.textContent = '0:00 / 0:00';
+
+    elements.mediaContainer.classList.remove('active');
+    elements.imageContainer.innerHTML = `<span class="placeholder">Kein Bild</span>`;
+
+    if (state.audioUnlocked) {
+        elements.waiting.classList.remove('hidden');
+        updateWaitingText('Warte auf Tastendruck...');
+    }
 }
 
 // =============================================================================
@@ -468,9 +496,7 @@ async function unlockAudio() {
         elements.audioStatus.classList.remove('disconnected');
         elements.audioStatus.classList.add('connected');
 
-        // =====================================================================
-        // NEU v2.3.0: Medien vorladen nach Unlock
-        // =====================================================================
+        // Medien vorladen nach Unlock
         await preloadAllMedia();
 
     } catch (e) {
@@ -486,7 +512,6 @@ async function unlockAudio() {
             elements.audioStatus.classList.remove('disconnected');
             elements.audioStatus.classList.add('connected');
 
-            // Trotzdem preloaden versuchen
             await preloadAllMedia();
         } else {
             elements.audioStatus.classList.add('disconnected');
@@ -527,7 +552,11 @@ function setupEventListeners() {
     elements.unlockBtn.addEventListener('click', unlockAudio);
 
     // Audio-Events (Haupt-Element, Fallback)
-    elements.audio.addEventListener('ended', handleAudioEnded);
+    elements.audio.addEventListener('ended', () => {
+        if (state.currentId !== null) {
+            handleAudioEnded(state.currentId);
+        }
+    });
     elements.audio.addEventListener('timeupdate', updateProgress);
     elements.audio.addEventListener('error', (e) => {
         log(`Audio-Fehler: ${e.target.error?.message || 'unbekannt'}`, 'error');
@@ -570,7 +599,7 @@ function setupEventListeners() {
 // =============================================================================
 
 function init() {
-    log('Dashboard v2.3.0 wird initialisiert...');
+    log('Dashboard v2.5.1 wird initialisiert...');
     log(`Konfiguration: ${CONFIG.numMedia} Medien, Preload-Concurrency: ${CONFIG.preloadConcurrency}`);
 
     setupEventListeners();
