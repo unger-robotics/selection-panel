@@ -11,7 +11,15 @@
 #include "freertos/task.h"
 
 // =============================================================================
-// Serial Task Implementation
+// Serial Task Implementation (v2.5.1 - Robuste USB-CDC Kommunikation)
+// =============================================================================
+//
+// Problem: USB-CDC kann Nachrichten fragmentieren (z.B. "PRE" + "SS 001\n")
+// Lösung: 
+//   1. Komplette Zeile als ein write() senden (nicht printf)
+//   2. Kurzer Delay nach flush() damit USB-Paket abgeschlossen wird
+//   3. Server hat zusätzlich Fragment-Timeout
+//
 // =============================================================================
 
 static QueueHandle_t logQueue_ = nullptr;
@@ -23,6 +31,9 @@ static uint8_t lastActiveId_ = 0;
 // Serial-Eingabepuffer
 static char rxBuffer_[64];
 static size_t rxIndex_ = 0;
+
+// TX-Puffer für atomische Sends
+static char txBuffer_[64];
 
 // =============================================================================
 // Debug Helpers (nur wenn SERIAL_PROTOCOL_ONLY == false)
@@ -78,42 +89,67 @@ static void printLEDsVerbose(const uint8_t *led) {
 }
 
 // =============================================================================
+// Robuste Serial-Ausgabe (atomisch, mit Delay)
+// =============================================================================
+
+// Sendet eine Zeile atomar über USB-CDC
+// Warum: USB-CDC hat 64-Byte Pakete, printf kann fragmentieren
+static void sendLine(const char* line) {
+    Serial.print(line);
+    Serial.print('\n');
+    Serial.flush();
+    delayMicroseconds(800);  // USB-CDC Paket abschließen lassen
+}
+
+// Formatiert und sendet eine Zeile atomar
+static void sendLinef(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(txBuffer_, sizeof(txBuffer_), fmt, args);
+    va_end(args);
+    sendLine(txBuffer_);
+}
+
+// =============================================================================
 // Protokoll-Funktionen (ESP32 → Pi)
 // =============================================================================
 
 static void sendPong() {
-    Serial.println("PONG");
-    Serial.flush();
+    sendLine("PONG");
 }
 
 static void sendOk() {
-    Serial.println("OK");
-    Serial.flush();
+    sendLine("OK");
 }
 
 static void sendError(const char* msg) {
-    Serial.printf("ERROR %s\n", msg);
-    Serial.flush();
+    sendLinef("ERROR %s", msg);
 }
 
 static void sendVersion() {
-    Serial.println("FW selection-panel v2.5.0");
-    Serial.flush();
+    sendLine("FW selection-panel v2.5.1");
 }
 
 static void sendHelp() {
-    Serial.println("Commands: PING, STATUS, VERSION, HELP");
-    Serial.println("          LEDSET n, LEDON n, LEDOFF n, LEDCLR, LEDALL");
-    Serial.flush();
+    sendLine("Commands: PING, STATUS, VERSION, HELP");
+    sendLine("          LEDSET n, LEDON n, LEDOFF n, LEDCLR, LEDALL");
 }
 
 static void sendStatus() {
-    Serial.printf("CURLED %u\n", lastActiveId_);
-    Serial.printf("BTNS %u\n", BTN_COUNT);
-    Serial.printf("LEDS %u\n", LED_COUNT);
-    Serial.printf("HEAP %u\n", ESP.getFreeHeap());
-    Serial.printf("MODE %s\n", BTN_COUNT <= 10 ? "PROTOTYPE" : "PRODUCTION");
+    sendLinef("CURLED %u", lastActiveId_);
+    sendLinef("BTNS %u", BTN_COUNT);
+    sendLinef("LEDS %u", LED_COUNT);
+    sendLinef("HEAP %u", ESP.getFreeHeap());
+    sendLinef("MODE %s", BTN_COUNT <= 10 ? "PROTOTYPE" : "PRODUCTION");
     sendOk();
+}
+
+static void sendPress(uint8_t id) {
+    sendLinef("PRESS %03u", id);
+}
+
+static void sendRelease(uint8_t id) {
+    sendLinef("RELEASE %03u", id);
 }
 
 // =============================================================================
@@ -250,17 +286,17 @@ static void readSerialInput() {
 
 static void serialTaskFunction(void *) {
     Serial.begin(SERIAL_BAUD);
-    delay(50);
+    delay(100);  // USB-CDC stabilisieren
 
     if (SERIAL_PROTOCOL_ONLY) {
         // Protokoll-Modus: Nur READY und FW senden
-        if (SERIAL_SEND_READY) Serial.println("READY");
-        if (SERIAL_SEND_FW_LINE) Serial.println("FW selection-panel v2.5.0");
+        if (SERIAL_SEND_READY) sendLine("READY");
+        if (SERIAL_SEND_FW_LINE) sendLine("FW selection-panel v2.5.1");
     } else {
         // Debug-Modus: Ausführlicher Header
         Serial.println();
         Serial.println("========================================");
-        Serial.println("Selection Panel v2.5.0");
+        Serial.println("Selection Panel v2.5.1");
         Serial.println("========================================");
         Serial.printf("BTN_COUNT:       %u\n", BTN_COUNT);
         Serial.printf("LED_COUNT:       %u\n", LED_COUNT);
@@ -268,7 +304,7 @@ static void serialTaskFunction(void *) {
         Serial.printf("DEBOUNCE_MS:     %u\n", DEBOUNCE_MS);
         Serial.printf("LATCH_SELECTION: %s\n", LATCH_SELECTION ? "true" : "false");
         Serial.println("========================================");
-        Serial.println("READY");
+        sendLine("READY");
     }
 
     LogEvent event = {};
@@ -285,13 +321,11 @@ static void serialTaskFunction(void *) {
                 if (event.activeChanged) {
                     if (event.activeId > 0 && event.activeId <= BTN_COUNT) {
                         // Neuer Button aktiv → PRESS senden
-                        Serial.printf("PRESS %03u\n", event.activeId);
-                        Serial.flush();
+                        sendPress(event.activeId);
                         lastActiveId_ = event.activeId;
                     } else if (lastActiveId_ > 0) {
                         // Kein Button mehr aktiv → RELEASE senden
-                        Serial.printf("RELEASE %03u\n", lastActiveId_);
-                        Serial.flush();
+                        sendRelease(lastActiveId_);
                         lastActiveId_ = 0;
                     }
                 }

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Auswahlpanel Server v2.4.2
+Auswahlpanel Server v2.5.1
 ==========================
 
 Verbindet ESP32-S3 (Serial) mit Web-Clients (WebSocket).
+
+CHANGELOG v2.5.1:
+- NEU: Robustere Serial-Fragment-Erkennung mit Pending-Buffer
+- NEU: Timeout-basierte Fragment-Vervollständigung (50ms)
+- FIX: USB-CDC Fragmentierung wird jetzt korrekt behandelt
 
 CHANGELOG v2.4.2:
 - NEU: Parallele Ausführung von Serial + WebSocket (asyncio.gather)
@@ -22,7 +27,7 @@ Medien (1-basiert!):
 - Medien-IDs: 1-100 (für 001.jpg, 001.mp3, etc.)
 
 Autor: Jan Unger
-Datum: 2025-01-01
+Datum: 2025-01-07
 """
 
 import asyncio
@@ -30,6 +35,7 @@ import json
 import logging
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -57,8 +63,7 @@ STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
 
 # Logging
-#LOG_LEVEL = logging.INFO
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 
 # Medien-Validierung
@@ -67,6 +72,9 @@ REQUIRED_EXTENSIONS = [".jpg", ".mp3"]
 
 # Optimierung: ESP32 v2.4.1 setzt LED selbst, Server muss nicht senden
 ESP32_SETS_LED_LOCALLY = True
+
+# Fragment-Timeout (ms): Warte auf Rest der Zeile bevor Fragment verarbeitet wird
+FRAGMENT_TIMEOUT_MS = 50
 
 # =============================================================================
 # GLOBALER ZUSTAND
@@ -187,37 +195,23 @@ def check_media_exists(media_id: int) -> dict:
 # =============================================================================
 
 async def handle_serial_line(line: str) -> None:
-    """Verarbeitet eine Zeile vom ESP32 (robust gegen Fragmentierung)."""
+    """Verarbeitet eine Zeile vom ESP32."""
     line = line.strip()
     if not line:
         return
 
     logging.debug(f"Serial RX: '{line}'")
 
-    # Robustes Parsing - ESP32 sendet manchmal fragmentiert
-    # Normale Formate: "PRESS 001", "RELEASE 001"
-    # Fragmentierte: " 001", "001", "SS 001", "SE 001"
-
-    # PRESS erkennen (auch fragmentiert)
+    # PRESS erkennen (vollständig)
     if line.startswith("PRESS "):
         button_id = parse_button_id(line[6:])
         if button_id:
             await handle_button_press(button_id)
             return
 
-    # Fragmentiertes PRESS: " 001" oder "001" (nur Zahl, ggf. mit Leerzeichen)
-    # Aber NICHT wenn es mit "SE" oder "RELEASE" anfängt
-    if not line.startswith("SE") and not line.startswith("RELEASE"):
-        button_id = parse_button_id(line)
-        if button_id:
-            logging.debug(f"Fragmentiertes PRESS erkannt: '{line}' -> {button_id}")
-            await handle_button_press(button_id)
-            return
-
-    # RELEASE erkennen (auch fragmentiert "SE 001")
-    if line.startswith("RELEASE ") or line.startswith("SE "):
-        # Optional: Release-Events loggen
-        logging.debug(f"Button released: {line}")
+    # RELEASE erkennen
+    if line.startswith("RELEASE "):
+        logging.debug(f"Button released: {line[8:]}")
         return
 
     # Standard-Befehle
@@ -240,8 +234,8 @@ async def handle_serial_line(line: str) -> None:
     elif line.startswith("MODE "):
         logging.info(f"ESP32 Modus: {line[5:]}")
 
-    elif line.startswith("MAPPING "):
-        logging.info(f"ESP32 Bit-Mapping: {line[8:]}")
+    elif line.startswith("CURLED ") or line.startswith("BTNS ") or line.startswith("LEDS ") or line.startswith("HEAP "):
+        logging.debug(f"ESP32 Status: {line}")
 
 
 def parse_button_id(s: str) -> int | None:
@@ -332,7 +326,7 @@ async def serial_reader_task() -> None:
     loop = asyncio.get_event_loop()
 
     def serial_thread():
-        """Blocking Serial-Reader in separatem Thread."""
+        """Blocking Serial-Reader in separatem Thread mit robustem Parsing."""
         while True:
             fd_read = None
             fd_write = None
@@ -353,30 +347,85 @@ async def serial_reader_task() -> None:
                 state.serial_connected = True
                 logging.info(f"Serial verbunden: {SERIAL_PORT}")
 
+                # ============================================================
+                # Robuster Ringpuffer mit Fragment-Handling
+                # ============================================================
                 buffer = b""
+                pending_fragment = ""
+                last_data_time = 0
                 poll = select.poll()
                 poll.register(fd_read, select.POLLIN)
 
                 while state.serial_connected:
                     try:
-                        events = poll.poll(100)  # 100ms Timeout
+                        events = poll.poll(20)  # 20ms Timeout für responsive Fragment-Handling
+                        current_time = time.time() * 1000  # ms
+                        
                         for fd, event in events:
                             if event & select.POLLIN:
                                 try:
                                     data = os.read(fd_read, 1024)
                                     if data:
                                         buffer += data
+                                        last_data_time = current_time
+                                        
+                                        # Komplette Zeilen verarbeiten
                                         while b'\n' in buffer:
                                             line, buffer = buffer.split(b'\n', 1)
                                             line_str = line.decode('utf-8', errors='replace').strip()
+                                            
                                             if line_str:
+                                                # Prüfen ob pending fragment dazugehört
+                                                if pending_fragment:
+                                                    # Fragment + aktuelle Zeile zusammenfügen
+                                                    combined = pending_fragment + line_str
+                                                    logging.debug(f"Fragment kombiniert: '{pending_fragment}' + '{line_str}' = '{combined}'")
+                                                    pending_fragment = ""
+                                                    
+                                                    # Prüfen ob kombiniert ein PRESS ist
+                                                    if combined.startswith("PRESS "):
+                                                        asyncio.run_coroutine_threadsafe(
+                                                            handle_serial_line(combined),
+                                                            loop
+                                                        )
+                                                        continue
+                                                
+                                                # Normale Zeile verarbeiten
                                                 asyncio.run_coroutine_threadsafe(
                                                     handle_serial_line(line_str),
                                                     loop
                                                 )
+                                                
                                 except BlockingIOError:
-                                    # EAGAIN - keine Daten verfügbar, normal bei non-blocking
                                     pass
+                        
+                        # Fragment-Timeout: Wenn Buffer Daten hat aber kein \n kam
+                        if buffer and (current_time - last_data_time) > FRAGMENT_TIMEOUT_MS:
+                            # Buffer als Fragment speichern (ohne \n empfangen)
+                            fragment = buffer.decode('utf-8', errors='replace').strip()
+                            if fragment:
+                                # Ist es ein bekanntes Fragment-Muster?
+                                if fragment in ("PRESS", "PRES", "PRE", "PR", "P"):
+                                    # Anfang eines PRESS - als pending speichern
+                                    pending_fragment = fragment + " "
+                                    logging.debug(f"Pending fragment gespeichert: '{fragment}'")
+                                elif fragment.startswith("PRESS"):
+                                    # Unvollständiges PRESS (z.B. "PRESS 0")
+                                    pending_fragment = fragment
+                                    logging.debug(f"Incomplete PRESS fragment: '{fragment}'")
+                                else:
+                                    # Unbekanntes Fragment - versuche zu verarbeiten
+                                    logging.debug(f"Fragment-Timeout: '{fragment}'")
+                                    # Prüfen ob es eine reine Zahl ist (fragmentiertes PRESS)
+                                    button_id = parse_button_id(fragment)
+                                    if button_id:
+                                        logging.debug(f"Fragmentiertes PRESS erkannt: '{fragment}' -> {button_id}")
+                                        asyncio.run_coroutine_threadsafe(
+                                            handle_button_press(button_id),
+                                            loop
+                                        )
+                            buffer = b""
+                            
                     except OSError as e:
                         logging.error(f"Serial-Lesefehler: {e}")
                         break
@@ -404,7 +453,6 @@ async def serial_reader_task() -> None:
                         pass
 
             logging.info("Serial Reconnect in 5s...")
-            import time
             time.sleep(5)
 
     # Thread starten
@@ -498,7 +546,7 @@ async def test_stop_handler(request: web.Request) -> web.Response:
 async def status_handler(request: web.Request) -> web.Response:
     """Server-Status als JSON."""
     return web.json_response({
-        "version": "2.4.2",
+        "version": "2.5.1",
         "mode": "prototype" if PROTOTYPE_MODE else "production",
         "num_media": NUM_MEDIA,
         "current_button": state.current_id,  # 1-basiert
@@ -573,7 +621,7 @@ def main() -> None:
     mode_str = "PROTOTYPE" if PROTOTYPE_MODE else "PRODUCTION"
 
     logging.info("=" * 50)
-    logging.info(f"Auswahlpanel Server v2.4.2 ({mode_str})")
+    logging.info(f"Auswahlpanel Server v2.5.1 ({mode_str})")
     logging.info("=" * 50)
     logging.info(f"Medien: {NUM_MEDIA} erwartet (IDs: 001-{NUM_MEDIA:03d})")
     logging.info(f"Taster: 1-{NUM_MEDIA} (1-basiert)")
