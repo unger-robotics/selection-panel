@@ -241,10 +241,3 @@ constexpr uint8_t BUTTON_BIT_MAP[10] = {
 | Prototyp nicht-lineare Verdrahtung | Firmware: `BUTTON_BIT_MAP` |
 
 ---
-
-## 11 Nächste Schritte (Hardware)
-
-- [ ] PCB-Design für 100 Buttons (KiCad)
-- [ ] Lineare Verdrahtung (kein Bit-Mapping nötig)
-- [ ] Gehäuse-Design
-- [ ] Stromversorgung dimensionieren (100 LEDs)
