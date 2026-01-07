@@ -57,7 +57,8 @@ STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
 
 # Logging
-LOG_LEVEL = logging.INFO
+#LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 
 # Medien-Validierung
@@ -335,7 +336,7 @@ async def serial_reader_task() -> None:
         while True:
             fd_read = None
             fd_write = None
-            
+
             try:
                 # Port konfigurieren mit stty
                 subprocess.run(
