@@ -15,7 +15,7 @@
 // =============================================================================
 //
 // Problem: USB-CDC kann Nachrichten fragmentieren (z.B. "PRE" + "SS 001\n")
-// Lösung: 
+// Lösung:
 //   1. Komplette Zeile als ein write() senden (nicht printf)
 //   2. Kurzer Delay nach flush() damit USB-Paket abgeschlossen wird
 //   3. Server hat zusätzlich Fragment-Timeout
@@ -45,10 +45,12 @@ static void printBinary(uint8_t value) {
     }
 }
 
-static void printByteArray(const char *label, const uint8_t *arr, size_t bytes) {
+static void printByteArray(const char *label, const uint8_t *arr,
+                           size_t bytes) {
     Serial.print(label);
     for (size_t i = 0; i < bytes; ++i) {
-        if (i) Serial.print(" | ");
+        if (i)
+            Serial.print(" | ");
         Serial.printf("IC%d: ", (int)i);
         printBinary(arr[i]);
         Serial.printf(" (0x%02X)", arr[i]);
@@ -65,7 +67,8 @@ static void printPressedList(const uint8_t *deb) {
             any = true;
         }
     }
-    if (!any) Serial.print('-');
+    if (!any)
+        Serial.print('-');
     Serial.println();
 }
 
@@ -94,15 +97,15 @@ static void printLEDsVerbose(const uint8_t *led) {
 
 // Sendet eine Zeile atomar über USB-CDC
 // Warum: USB-CDC hat 64-Byte Pakete, printf kann fragmentieren
-static void sendLine(const char* line) {
+static void sendLine(const char *line) {
     Serial.print(line);
     Serial.print('\n');
     Serial.flush();
-    delayMicroseconds(800);  // USB-CDC Paket abschließen lassen
+    delayMicroseconds(2000); // 2ms statt 800µs USB-CDC Paket abschließen lassen
 }
 
 // Formatiert und sendet eine Zeile atomar
-static void sendLinef(const char* fmt, ...) {
+static void sendLinef(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vsnprintf(txBuffer_, sizeof(txBuffer_), fmt, args);
@@ -114,21 +117,13 @@ static void sendLinef(const char* fmt, ...) {
 // Protokoll-Funktionen (ESP32 → Pi)
 // =============================================================================
 
-static void sendPong() {
-    sendLine("PONG");
-}
+static void sendPong() { sendLine("PONG"); }
 
-static void sendOk() {
-    sendLine("OK");
-}
+static void sendOk() { sendLine("OK"); }
 
-static void sendError(const char* msg) {
-    sendLinef("ERROR %s", msg);
-}
+static void sendError(const char *msg) { sendLinef("ERROR %s", msg); }
 
-static void sendVersion() {
-    sendLine("FW selection-panel v2.5.1");
-}
+static void sendVersion() { sendLine("FW selection-panel v2.5.1"); }
 
 static void sendHelp() {
     sendLine("Commands: PING, STATUS, VERSION, HELP");
@@ -144,21 +139,18 @@ static void sendStatus() {
     sendOk();
 }
 
-static void sendPress(uint8_t id) {
-    sendLinef("PRESS %03u", id);
-}
+static void sendPress(uint8_t id) { sendLinef("PRESS %03u", id); }
 
-static void sendRelease(uint8_t id) {
-    sendLinef("RELEASE %03u", id);
-}
+static void sendRelease(uint8_t id) { sendLinef("RELEASE %03u", id); }
 
 // =============================================================================
 // Befehlsverarbeitung (Pi → ESP32)
 // =============================================================================
 
 // Parst eine ID (001-100) aus einem String
-static int parseId(const char* str) {
-    while (*str == ' ') str++;  // Leerzeichen überspringen
+static int parseId(const char *str) {
+    while (*str == ' ')
+        str++; // Leerzeichen überspringen
     int id = atoi(str);
     if (id >= 1 && id <= LED_COUNT) {
         return id;
@@ -166,30 +158,31 @@ static int parseId(const char* str) {
     return -1;
 }
 
-static void processCommand(const char* cmd) {
-    if (cmd[0] == '\0') return;  // Leerzeilen ignorieren
-    
+static void processCommand(const char *cmd) {
+    if (cmd[0] == '\0')
+        return; // Leerzeilen ignorieren
+
     // --- Einfache Befehle ---
     if (strcmp(cmd, "PING") == 0) {
         sendPong();
         return;
     }
-    
+
     if (strcmp(cmd, "VERSION") == 0) {
         sendVersion();
         return;
     }
-    
+
     if (strcmp(cmd, "HELP") == 0) {
         sendHelp();
         return;
     }
-    
+
     if (strcmp(cmd, "STATUS") == 0) {
         sendStatus();
         return;
     }
-    
+
     // --- LED-Befehle ohne ID ---
     if (strcmp(cmd, "LEDCLR") == 0) {
         if (ledCallback_) {
@@ -199,7 +192,7 @@ static void processCommand(const char* cmd) {
         sendOk();
         return;
     }
-    
+
     if (strcmp(cmd, "LEDALL") == 0) {
         if (ledCallback_) {
             ledCallback_(LED_CMD_ALL, 0);
@@ -207,7 +200,7 @@ static void processCommand(const char* cmd) {
         sendOk();
         return;
     }
-    
+
     // --- LED-Befehle mit ID ---
     if (strncmp(cmd, "LEDSET ", 7) == 0) {
         int id = parseId(cmd + 7);
@@ -222,7 +215,7 @@ static void processCommand(const char* cmd) {
         }
         return;
     }
-    
+
     if (strncmp(cmd, "LEDON ", 6) == 0) {
         int id = parseId(cmd + 6);
         if (id > 0) {
@@ -235,7 +228,7 @@ static void processCommand(const char* cmd) {
         }
         return;
     }
-    
+
     if (strncmp(cmd, "LEDOFF ", 7) == 0) {
         int id = parseId(cmd + 7);
         if (id > 0) {
@@ -248,7 +241,7 @@ static void processCommand(const char* cmd) {
         }
         return;
     }
-    
+
     // Unbekannter Befehl
     sendError("UNKNOWN_CMD");
 }
@@ -260,7 +253,7 @@ static void processCommand(const char* cmd) {
 static void readSerialInput() {
     while (Serial.available()) {
         char c = Serial.read();
-        
+
         // Zeilenende erkannt
         if (c == '\n' || c == '\r') {
             if (rxIndex_ > 0) {
@@ -286,12 +279,14 @@ static void readSerialInput() {
 
 static void serialTaskFunction(void *) {
     Serial.begin(SERIAL_BAUD);
-    delay(100);  // USB-CDC stabilisieren
+    delay(100); // USB-CDC stabilisieren
 
     if (SERIAL_PROTOCOL_ONLY) {
         // Protokoll-Modus: Nur READY und FW senden
-        if (SERIAL_SEND_READY) sendLine("READY");
-        if (SERIAL_SEND_FW_LINE) sendLine("FW selection-panel v2.5.1");
+        if (SERIAL_SEND_READY)
+            sendLine("READY");
+        if (SERIAL_SEND_FW_LINE)
+            sendLine("FW selection-panel v2.5.1");
     } else {
         // Debug-Modus: Ausführlicher Header
         Serial.println();
@@ -302,7 +297,8 @@ static void serialTaskFunction(void *) {
         Serial.printf("LED_COUNT:       %u\n", LED_COUNT);
         Serial.printf("IO_PERIOD_MS:    %u\n", IO_PERIOD_MS);
         Serial.printf("DEBOUNCE_MS:     %u\n", DEBOUNCE_MS);
-        Serial.printf("LATCH_SELECTION: %s\n", LATCH_SELECTION ? "true" : "false");
+        Serial.printf("LATCH_SELECTION: %s\n",
+                      LATCH_SELECTION ? "true" : "false");
         Serial.println("========================================");
         sendLine("READY");
     }
@@ -342,7 +338,7 @@ static void serialTaskFunction(void *) {
                     lastActiveId_ = 0;
                 }
             }
-            
+
             Serial.println("---");
             printByteArray("BTN RAW:    ", event.raw, BTN_BYTES);
             printByteArray("BTN DEB:    ", event.deb, BTN_BYTES);
@@ -370,6 +366,4 @@ void start_serial_task(QueueHandle_t logQueue) {
                             PRIO_SERIAL, nullptr, CORE_APP);
 }
 
-void set_led_callback(LedControlCallback callback) {
-    ledCallback_ = callback;
-}
+void set_led_callback(LedControlCallback callback) { ledCallback_ = callback; }
