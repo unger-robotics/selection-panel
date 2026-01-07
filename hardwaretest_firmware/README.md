@@ -1,129 +1,143 @@
-# Selection Panel - Hardware Test Firmware
+# Selection Panel – Hardware Test Firmware (ESP32-S3)
 
-ESP32-S3 Firmware für 10-100 Taster/LED Selection Panel.
+Firmware-Sammlung zum Verifizieren der Hardware-Kette für ein Selection-Panel:
+
+- **CD4021B** (Taster-Eingänge, active-low)
+- **74HC595** (LED-Ausgänge, active-high)
+- gemeinsamer **SPI-SCK**, getrennte **MISO/MOSI**, plus **LOAD/LATCH/OE**
+
+Ziel: stabile, reproduzierbare Tests als Basis für die modulare Firmware + spätere Pi-Integration.
+
+---
 
 ## Projektstruktur
 
-```
-├── phase1_esp32_test/      ESP32 Threading (Arduino vs FreeRTOS)
-├── phase2_led_test/        LED-Ausgabe über 74HC595
-├── phase3_button_test/     Taster-Eingabe über CD4021B
-├── phase4_combined_test/   Kombiniert (Taster → LED)
-├── phase5_debouncing/      Entprellen (Simple vs Advanced)
-├── phase6_esp32_pi5/       [TODO] ESP32 ↔ Pi5 Kommunikation
+```text
+hardwaretest_firmware/
+├── HARDWARE.md
+├── phase1_esp32_test/           ESP32 Grundtests (Arduino vs. FreeRTOS / Timing)
+├── phase2_led_spi_test/         74HC595 LED-Test via HW-SPI (Lauflicht / Mapping)
+├── phase3_button_spi_test/      CD4021B Button-Test via HW-SPI (RAW / Mapping)
+├── phase4_combined_spi_test/    Kombi: Taster → LED (End-to-End)
+├── phase5_FreeRTOS/             FreeRTOS Task-Split (IO vs Serial), Queue/Timing
+├── phase6_modular/              Modulare Architektur (hal/drivers/logic/app)
+├── phase7_pi/                   Pi-Anbindung (Platzhalter/Integration)
 └── README.md
 ```
 
-## Hardware
+---
 
-| Komponente | IC | Anzahl (10) | Anzahl (100) |
-|------------|-----|-------------|--------------|
-| Taster | CD4021B | 2 | 13 |
-| LEDs | 74HC595 | 2 | 13 |
-| MCU | ESP32-S3 | 1 | 1 |
+## Hardware (Kurz)
 
-## Pinbelegung (XIAO ESP32-S3)
+Details siehe **`HARDWARE.md`**.
 
-| Pin | Funktion | IC |
-|-----|----------|-----|
-| D8 | SCK (Clock) | Alle |
-| D1 | P/S (Load) | CD4021B |
-| D9 | MISO (Data In) | CD4021B |
-| D10 | MOSI (Data Out) | 74HC595 |
-| D0 | RCK (Latch) | 74HC595 |
-| D2 | OE (PWM) | 74HC595 |
+### Pinbelegung (XIAO ESP32-S3)
 
-## Phasen
+| Pin | Funktion             | Baustein          |
+| --: | -------------------- | ----------------- |
+|  D8 | SCK (Clock)          | CD4021B + 74HC595 |
+|  D1 | P/S (Load)           | CD4021B           |
+|  D9 | MISO (Data In)       | CD4021B           |
+| D10 | MOSI (Data Out)      | 74HC595           |
+|  D0 | RCK (Latch)          | 74HC595           |
+|  D2 | OE (PWM, active-low) | 74HC595           |
 
-### Phase 1: ESP32 Threading
-Vergleich Arduino (Single-Thread) vs FreeRTOS (Multi-Thread).
+### Breadboard-Stabilität (wichtig)
 
-**Erkenntnis:** USB-CDC läuft auf Core 0 → User-Tasks auf Core 1, Message Queue für Serial.
+Wenn CD4021 und 74HC595 den gleichen **SCK** teilen, taktet ein Button-Read den 74HC595 mit (es werden i. d. R. `0x00` geschoben). Ein **Latch-Glitch** kann dann LEDs „aus“ latchen.
 
-### Phase 2: LED-Test (74HC595)
-Lauflicht zur Hardware-Verifikation.
+Minimal (empfohlen):
 
-```
-LED: LSB-basiert (Bit 0 = LED 1)
-L1=0x01  L2=0x02  L3=0x04  L4=0x08
-L5=0x10  L6=0x20  L7=0x40  L8=0x80
-```
+- **RCK (Pin 12, gemeinsam für beide 74HC595)**: **1× 10 kΩ Pull-Down nach GND**
+- **OE (Pin 13, active-low)**: **1× 10 kΩ Pull-Up nach 3,3 V** (Boot-sicher AUS)
+- **/MR (Pin 10, active-low)**: **fest an 3,3 V** (oder Pull-Up)
+- **100 nF** je IC an VCC/GND (hast du bereits)
 
-### Phase 3: Taster-Test (CD4021B)
-Taster-Eingabe mit Active-Low Logik.
+Optional:
 
-```
-BTN: MSB-basiert (Bit 7 = Taster 1)
-T1=0x7F  T2=0xBF  T3=0xDF  T4=0xEF
-T5=0xF7  T6=0xFB  T7=0xFD  T8=0xFE
-```
+- **33–100 Ω** Serie in **RCK** (Dämpfung)
 
-### Phase 4: Kombiniert
-Taster drücken → entsprechende LED leuchtet.
+---
 
-```
-T 1->L 1 | IC#0 | BTN:Bit7(MSB) LED:Bit0(LSB) | 0x7F->0x01
-```
+## Bit-Mapping (Merksatz)
 
-### Phase 5: Debouncing
-Zwei Varianten zum Entprellen mechanischer Taster.
+- **CD4021B (Buttons): MSB-first**, active-low
+  `Bit7 = T1 … Bit0 = T8` (weitere Bits in Byte 2)
+- **74HC595 (LEDs): LSB-first**, active-high
+  `Bit0 = LED1, Bit1 = LED2, …`
 
-| Variante | Beschreibung | Für |
-|----------|--------------|-----|
-| Simple | Zeitbasiert (30ms stabil) | Prototyp |
-| Advanced | State Machine mit Events | Produktion |
+---
 
-```
-T 1 PRESS   -> LED ON
-T 1 RELEASE
-```
+## Build & Flash (PlatformIO)
 
-### Phase 6: ESP32 ↔ Pi5 (TODO)
-Kommunikation zwischen ESP32 und Raspberry Pi 5.
+Voraussetzungen:
 
-- micro-ROS / ROS 2 Humble
-- USB-Serial oder WiFi
-- Bidirektionale Steuerung
+- VS Code + PlatformIO
+- Board: Seeed XIAO ESP32-S3 (USB-CDC)
 
-## Skalierung auf 100
-
-In `config.h`:
-
-```cpp
-constexpr size_t BTN_COUNT = 100;  // statt 10
-constexpr size_t LED_COUNT = 100;  // statt 10
-```
-
-Der Rest wird automatisch berechnet.
-
-## Build & Flash
+Typischer Ablauf pro Phase:
 
 ```bash
-cd phase5_debouncing/phase5_advanced
+cd hardwaretest_firmware/<phaseX_...>
 pio run -t upload
 pio device monitor
 ```
 
-## Bit-Zuordnung
+Falls mehrere Environments existieren:
 
-| IC | Zuordnung | Shift | Grund |
-|----|-----------|-------|-------|
-| CD4021B | Bit 7 = ID 1 (MSB) | Q8 zuerst | Hardware-Verdrahtung |
-| 74HC595 | Bit 0 = ID 1 (LSB) | QA = Pin 15 | Hardware-Verdrahtung |
+```bash
+pio run -e <env> -t upload
+pio device monitor -e <env>
+```
 
-Die API abstrahiert das:
+---
+
+## Phasen – was du jeweils testest
+
+1. **phase1_esp32_test**
+   Grundsetup, Timing, ggf. Arduino vs FreeRTOS Vergleich.
+
+2. **phase2_led_spi_test**
+   74HC595 Mapping + Latch/OE/PWM (Lauflicht).
+   Ziel: LED-Ausgänge sicher und reproduzierbar.
+
+3. **phase3_button_spi_test**
+   CD4021B RAW-Read via SPI, active-low Interpretation, Mapping.
+   Ziel: Taster 1..10 korrekt erkannt.
+
+4. **phase4_combined_spi_test**
+   End-to-End: Taster n → LED n (inkl. Mapping-Brücke MSB↔LSB).
+
+5. **phase5_FreeRTOS**
+   IO-Task periodisch, Serial-Task event-basiert (Queue), keine Serial-Prints im IO-Pfad.
+
+6. **phase6_modular**
+   Zielarchitektur (hal/drivers/logic/app). Skalierbar 10→100.
+
+7. **phase7_pi**
+   Vorbereitung / Integration ESP32 ↔ Raspberry Pi (Serial-Bridge / Protokoll).
+
+---
+
+## Skalierung auf 100 Taster/LEDs
+
+In der jeweiligen Firmware-Konfiguration (typisch `include/config.h`) die Zähler erhöhen:
 
 ```cpp
-isPressed(5);      // Prüft Taster 5 (intern Bit 3)
-setLED(5, true);   // Schaltet LED 5 (intern Bit 4)
+constexpr uint8_t BTN_COUNT = 100;
+constexpr uint8_t LED_COUNT = 100;
 ```
+
+Die Byte-Längen werden i. d. R. automatisch abgeleitet.
+
+---
 
 ## Status
 
-- [x] Phase 1: ESP32 Threading
-- [x] Phase 2: LED-Ausgabe (74HC595)
-- [x] Phase 3: Taster-Eingabe (CD4021B)
-- [x] Phase 4: Kombiniert (Taster → LED)
-- [x] Phase 5: Debouncing (Simple + Advanced)
-- [ ] Phase 6: ESP32 ↔ Pi5 Kommunikation
-- [ ] Skalierung auf 100 Taster/LEDs
+- [x] Phase 1: ESP32 Grundtests
+- [x] Phase 2: 74HC595 LED-SPI Test
+- [x] Phase 3: CD4021 Button-SPI Test
+- [x] Phase 4: Kombi (Button → LED)
+- [x] Phase 5: FreeRTOS-Variante
+- [x] Phase 6: Modulare Firmware (Basis)
+- [ ] Phase 7: Pi-Integration (Ausbau)

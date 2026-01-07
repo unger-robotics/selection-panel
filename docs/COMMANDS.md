@@ -38,6 +38,7 @@ python server.py
 ```
 
 **Erwartete Ausgabe:**
+
 ```
 ==================================================
 Auswahlpanel Server v2.4.2 (PROTOTYPE)
@@ -426,20 +427,3 @@ RELEASE 001
   "esp32_local_led": true
 }
 ```
-
----
-
-## 12 Troubleshooting
-
-| Problem | Lösung |
-|---------|--------|
-| `ModuleNotFoundError` | `venv/bin/pip install aiohttp` |
-| `Permission denied: /dev/ttyACM0` | `sudo usermod -aG dialout $USER` → Neu einloggen |
-| Port blockiert | `sudo fuser /dev/ttyACM0` → Prozess beenden |
-| Kein Ton | "Sound aktivieren"-Button im Browser klicken |
-| Server startet nicht | `journalctl -u selection-panel -f` |
-| Taster nicht erkannt | Serial testen: `cat /dev/ttyACM0` |
-| Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
-| WebSocket getrennt | Auto-Reconnect nach 5s, Browser neu laden |
-| LED reagiert langsam | Firmware v2.4.1 verwenden |
-| Dashboard-Latenz hoch | Preloading abwarten, Browser-Cache prüfen |
