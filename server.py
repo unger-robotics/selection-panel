@@ -209,6 +209,15 @@ async def handle_serial_line(line: str) -> None:
             await handle_button_press(button_id)
             return
 
+    # Fallback: Fragmentiertes PRESS (nur Zahl ohne "PRESS " Prefix)
+    # USB-CDC kann "PRESS " und "003" als separate Zeilen senden
+    if not line.startswith("RE") and not line.startswith("SE"):
+        button_id = parse_button_id(line)
+        if button_id:
+            logging.debug(f"Fragmentiertes PRESS: '{line}' -> Button {button_id}")
+            await handle_button_press(button_id)
+            return
+
     # RELEASE erkennen
     if line.startswith("RELEASE "):
         logging.debug(f"Button released: {line[8:]}")
