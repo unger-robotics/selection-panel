@@ -50,7 +50,8 @@ PROTOTYPE_MODE = True  # True = 10 Medien, False = 100 Medien
 NUM_MEDIA = 10 if PROTOTYPE_MODE else 100
 
 # Serial-Port zum ESP32
-SERIAL_PORT = "/dev/ttyACM0"
+# Port wechselt zwischen ttyACM0 und ttyACM1
+SERIAL_PORT = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
 SERIAL_BAUD = 115200
 
 # HTTP-Server
@@ -369,7 +370,7 @@ async def serial_reader_task() -> None:
                     try:
                         events = poll.poll(20)  # 20ms Timeout für responsive Fragment-Handling
                         current_time = time.time() * 1000  # ms
-                        
+
                         for fd, event in events:
                             if event & select.POLLIN:
                                 try:
@@ -377,12 +378,12 @@ async def serial_reader_task() -> None:
                                     if data:
                                         buffer += data
                                         last_data_time = current_time
-                                        
+
                                         # Komplette Zeilen verarbeiten
                                         while b'\n' in buffer:
                                             line, buffer = buffer.split(b'\n', 1)
                                             line_str = line.decode('utf-8', errors='replace').strip()
-                                            
+
                                             if line_str:
                                                 # Prüfen ob pending fragment dazugehört
                                                 if pending_fragment:
@@ -390,7 +391,7 @@ async def serial_reader_task() -> None:
                                                     combined = pending_fragment + line_str
                                                     logging.debug(f"Fragment kombiniert: '{pending_fragment}' + '{line_str}' = '{combined}'")
                                                     pending_fragment = ""
-                                                    
+
                                                     # Prüfen ob kombiniert ein PRESS ist
                                                     if combined.startswith("PRESS "):
                                                         asyncio.run_coroutine_threadsafe(
@@ -398,16 +399,16 @@ async def serial_reader_task() -> None:
                                                             loop
                                                         )
                                                         continue
-                                                
+
                                                 # Normale Zeile verarbeiten
                                                 asyncio.run_coroutine_threadsafe(
                                                     handle_serial_line(line_str),
                                                     loop
                                                 )
-                                                
+
                                 except BlockingIOError:
                                     pass
-                        
+
                         # Fragment-Timeout: Wenn Buffer Daten hat aber kein \n kam
                         if buffer and (current_time - last_data_time) > FRAGMENT_TIMEOUT_MS:
                             # Buffer als Fragment speichern (ohne \n empfangen)
@@ -434,7 +435,7 @@ async def serial_reader_task() -> None:
                                             loop
                                         )
                             buffer = b""
-                            
+
                     except OSError as e:
                         logging.error(f"Serial-Lesefehler: {e}")
                         break
