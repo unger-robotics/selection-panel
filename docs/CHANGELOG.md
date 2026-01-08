@@ -1,8 +1,67 @@
-# CHANGELOG — Änderungshistorie
+# CHANGELOG – Änderungshistorie
 
 > Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/)
 
-## [2.4.2] — 2025-01-01
+## [2.5.2] – 2026-01-08
+
+### Hinzugefügt
+
+- **Präsentation:** Credits-Folie mit KI-Unterstützung (Claude 4.5, ChatGPT 5.2)
+- **Dokumentation:** PI-INTEGRATION.md und PROTOCOL.md
+- **Schematic:** v7.5 mit korrekten Pin-Mappings und First-Bit-Rescue Erklärung
+
+### Geändert
+
+- **IC-Bezeichnung:** CD4021BE → CD4021B durchgängig korrigiert
+- **Pin-Mapping:** ESP32-S3 XIAO korrigiert (D10/MOSI, D8/SCK, D0/RCK, D9/MISO, D1/P/S)
+- **Präsentation:** Phase 7 abgeschlossen, Phase 8 (100-Button PCB) als nächste Phase
+- **Versionen:** Alle Komponenten auf v2.5.2 synchronisiert
+- **TikZ-Diagramme:** SCK-Farbe von Gelb auf Orange-Rot für bessere Lesbarkeit
+- **BOM:** LED-Widerstände 330Ω–3kΩ, Pull-up 10kΩ (Active-Low)
+- **Firmware-Ordnerstruktur:** Reorganisiert unter `firmware/`
+
+### Behoben
+
+- **Schematic HTML:** Encoding-Fehler (für → für, Box-Drawing-Zeichen)
+- **CD4021B Pinout:** BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1 (Pin 7)
+- **SPI-Modi:** 74HC595 MODE0/1MHz, CD4021B MODE1/500kHz dokumentiert
+
+### Entfernt
+
+- Redundante Dokumentation (arduino-cpp-glossar.md, arduino-cpp.md)
+- Alte button_panel_firmware/ Struktur (migriert nach firmware/)
+- Veraltete phase7_pi/docs/ (konsolidiert in Haupt-Docs)
+
+---
+
+## [2.5.1] – 2026-01-07
+
+### Hinzugefügt
+
+- **Dashboard v2.5.1:** Medien-Preloading nach Audio-Unlock
+- **Server:** Stabiler by-id USB-Pfad für ESP32-S3
+
+### Behoben
+
+- **Serial:** USB-Port-Wechsel robuster behandelt
+- **Dashboard:** WebSocket ws/wss Auto-Detection, ended Race-Condition
+
+---
+
+## [2.5.0] – 2026-01-06
+
+### Hinzugefügt
+
+- **Firmware v2.5.0:** Phase 7 Pi-Kommunikation implementiert
+- **Server:** Fallback für fragmentierte PRESS-Nachrichten
+
+### Geändert
+
+- Hardware-Test Phasen zu SPI-Varianten migriert
+
+---
+
+## [2.4.2] – 2025-01-01
 
 ### Hinzugefügt
 
@@ -28,7 +87,7 @@
 
 ---
 
-## [2.4.1] — 2025-12-30
+## [2.4.1] – 2025-12-30
 
 ### Hinzugefügt
 
@@ -48,7 +107,7 @@
 
 ---
 
-## [2.4.0] — 2025-12-30
+## [2.4.0] – 2025-12-30
 
 ### Hinzugefügt
 
@@ -66,7 +125,7 @@
 
 ---
 
-## [2.3.2] — 2025-12-30
+## [2.3.2] – 2025-12-30
 
 ### Geändert
 
@@ -79,7 +138,7 @@
 
 ---
 
-## [2.3.1] — 2025-12-30
+## [2.3.1] – 2025-12-30
 
 ### Geändert
 
@@ -91,7 +150,7 @@
 
 ---
 
-## [2.3.0] — 2025-12-30
+## [2.3.0] – 2025-12-30
 
 ### Hinzugefügt
 
@@ -106,7 +165,7 @@
 
 ---
 
-## [2.2.5] — 2025-12-27
+## [2.2.5] – 2025-12-27
 
 ### Geändert
 
@@ -117,7 +176,7 @@
 
 ---
 
-## [2.2.4] — 2025-12-27
+## [2.2.4] – 2025-12-27
 
 ### Hinzugefügt
 
@@ -131,7 +190,7 @@
 
 ---
 
-## [2.2.3] — 2025-12-26
+## [2.2.3] – 2025-12-26
 
 ### Korrigiert
 
@@ -141,7 +200,7 @@
 
 ---
 
-## [2.2.0] — 2025-12-25
+## [2.2.0] – 2025-12-25
 
 ### Hinzugefügt
 
@@ -160,7 +219,7 @@
 
 ---
 
-## [2.1.0] — 2025-12-25
+## [2.1.0] – 2025-12-25
 
 ### Hinzugefügt
 
@@ -175,7 +234,7 @@
 
 ---
 
-## [2.0.0] — 2025-12-25
+## [2.0.0] – 2025-12-25
 
 ### Geändert
 
@@ -189,7 +248,7 @@
 
 ---
 
-## [1.0.0] — 2025-12-22
+## [1.0.0] – 2025-12-22
 
 ### Hinzugefügt
 

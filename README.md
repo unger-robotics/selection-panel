@@ -1,272 +1,189 @@
-# Selection Panel v2.4.2
+# Selection Panel
 
-Interaktives Auswahlpanel mit 100 Tastern und LEDs für Multimedia-Wiedergabe.
+**10-100 Taster mit LEDs, gesteuert über ESP32-S3 und Raspberry Pi**
+
+Version 2.5.2 | Phase 7 (Pi-Integration abgeschlossen)
+
+## Überblick
+
+Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster über CD4021B-Schieberegister ein und steuert LEDs über 74HC595. Ein Raspberry Pi 5 übernimmt die Anwendungslogik: Medien-Wiedergabe über ein Web-Dashboard (aiohttp + WebSocket) und externe Steuerung.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         ARCHITEKTUR                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   ┌─────────┐    Serial     ┌─────────────┐   WebSocket   ┌──────┐ │
-│   │ ESP32-S3│◄─────────────►│   Pi Server │◄─────────────►│Browser│ │
-│   │  XIAO   │   115200 Bd   │  (Python)   │   Port 8080   │      │ │
-│   └────┬────┘               └──────┬──────┘               └──────┘ │
-│        │                           │                               │
-│   ┌────┴────┐                ┌─────┴─────┐                         │
-│   │ 100 LEDs│                │   media/  │                         │
-│   │ 100 BTN │                │ 001.jpg/mp3│                        │
-│   └─────────┘                │ ...       │                         │
-│                              │ 100.jpg/mp3│                        │
-│                              └───────────┘                         │
-└─────────────────────────────────────────────────────────────────────┘
+┌───────────────────┐     USB-CDC      ┌───────────────────┐
+│   Raspberry Pi 5  │◀────────────────▶│   ESP32-S3 XIAO   │
+│                   │   115200 Baud    │                   │
+│  • Media Player   │                  │  • 200 Hz I/O     │
+│  • Web Dashboard  │   PRESS 001      │  • Entprellung    │
+│  • Python API     │   LEDSET 001     │  • LED-PWM        │
+└───────────────────┘                  └─────────┬─────────┘
+                                                 │ SPI
+                              ┌──────────────────┴──────────────────┐
+                              │                                     │
+                        ┌─────┴─────┐                         ┌─────┴─────┐
+                        │  CD4021B  │                         │  74HC595  │
+                        │  Taster   │                         │   LEDs    │
+                        └─────┬─────┘                         └─────┬─────┘
+                              │                                     │
+                        ┌─────┴─────┐                         ┌─────┴─────┐
+                        │ 10 Taster │                         │ 10 LEDs   │
+                        └───────────┘                         └───────────┘
 ```
-
-## Schnellstart
-
-```bash
-# 1. Repository klonen
-git clone <repo-url>
-cd selection-panel
-
-# 2. Server starten
-python3 server.py
-
-# 3. Browser öffnen
-# http://rover.local:8080
-```
-
-Für Details siehe [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
 ## Features
 
-- **Sofortige Reaktion:** LED leuchtet bei Tastendruck in < 1ms (ESP32 lokal)
-- **Preempt-Policy:** Neuer Tastendruck unterbricht laufende Wiedergabe sofort
-- **One-Hot:** Immer nur eine LED aktiv
-- **Parallele Verarbeitung:** Serial- und WebSocket-Kommunikation gleichzeitig
-- **Robuste Verbindung:** Auto-Reconnect bei Serial-Unterbrechung
-- **Medien-Validierung:** Prüfung aller Dateien beim Start
+- **10 Taster** mit zeitbasierter Entprellung (30 ms)
+- **10 LEDs** mit PWM-Helligkeitsregelung
+- **FreeRTOS** auf ESP32-S3 (200 Hz I/O-Zyklus)
+- **Serial-Protokoll** für Pi-Integration
+- **Web-Dashboard** zur Fernsteuerung
+- **Skalierbar** auf 100 Taster/LEDs
 
-## Systemkomponenten
+## Schnellstart
 
-| Komponente | Version | Beschreibung |
-|------------|---------|--------------|
-| ESP32-S3 Firmware | v2.4.1 | Dual-Core FreeRTOS, Taster/LED-Steuerung |
-| Pi Server | v2.4.2 | aiohttp WebSocket + Serial Bridge |
-| Web Dashboard | v1.0.0 | Bild- und Audio-Wiedergabe |
+### Hardware
+
+| Komponente | Typ | Anzahl |
+|------------|-----|--------|
+| XIAO ESP32-S3 | Mikrocontroller | 1 |
+| CD4021B | Schieberegister (Input) | 2 |
+| 74HC595 | Schieberegister (Output) | 2 |
+| Taster | 6×6 mm | 10 |
+| LED | 5 mm rot | 10 |
+| Widerstand | 220 Ω (LED) | 10 |
+| Widerstand | 10 kΩ (Pull-up) | 10 |
+
+### Firmware flashen
+
+```bash
+cd firmware
+pio run -t upload
+pio device monitor
+```
+
+Erwartete Ausgabe:
+
+```
+READY
+FW SelectionPanel v2.5.2
+```
+
+### Pi-Verbindung
+
+```bash
+# Stabilen USB-Pfad ermitteln
+ls /dev/serial/by-id/
+
+# Server starten
+cd selection-panel
+python3 server.py
+
+# Web-Dashboard öffnen
+# http://rover.local:8080/
+# oder http://192.168.1.24:8080/
+```
+
+### Minimales Python-Beispiel
+
+```python
+import serial
+
+ser = serial.Serial("/dev/ttyACM0", 115200)
+
+while True:
+    line = ser.readline().decode().strip()
+    if line.startswith("PRESS"):
+        btn_id = line.split()[1]
+        print(f"Button {btn_id} pressed")
+        ser.write(f"LEDSET {btn_id}\n".encode())
+```
 
 ## Projektstruktur
 
 ```
 selection-panel/
-├── server.py              # Hauptserver (Python)
-├── static/
-│   └── index.html         # Web-Dashboard
-├── media/
-│   ├── 001.jpg            # Bilder (1-100)
-│   ├── 001.mp3            # Audio (1-100)
-│   └── ...
-├── button_panel_firmware/ # ESP32 Firmware
+├── firmware/               # ESP32-S3 Firmware
 │   ├── src/
-│   │   ├── main.cpp
-│   │   └── shift_register.cpp
+│   │   ├── main.cpp        # Entry Point
+│   │   ├── app/            # FreeRTOS Tasks
+│   │   ├── logic/          # Debounce, Selection
+│   │   ├── drivers/        # CD4021, HC595
+│   │   └── hal/            # SPI-Abstraktion
 │   └── include/
-│       ├── config.h
-│       └── shift_register.h
-└── docs/                  # Dokumentation
-    ├── QUICKSTART.md
-    ├── SPEC.md
-    ├── FIRMWARE.md
-    ├── SERVER.md
-    ├── DASHBOARD.md
-    └── ...
+│       ├── config.h        # Konfiguration
+│       ├── types.h         # Datentypen
+│       └── bitops.h        # Bit-Operationen
+├── server.py               # Python-Server
+├── static/                 # Web-Dashboard
+├── media/                  # Sound/Bilder (001.mp3, 001.jpg)
+└── docs/                   # Dokumentation
 ```
-
-## Konfiguration
-
-### Server (server.py)
-
-```python
-# Build-Modus
-PROTOTYPE_MODE = True      # True = 10, False = 100 Medien
-
-# Serial-Verbindung
-SERIAL_PORT = "/dev/ttyACM0"
-SERIAL_BAUD = 115200
-
-# HTTP-Server
-HTTP_HOST = "0.0.0.0"
-HTTP_PORT = 8080
-
-# Optimierung (ESP32 v2.4.1+)
-ESP32_SETS_LED_LOCALLY = True  # ESP32 setzt LED selbst
-```
-
-### Firmware (config.h)
-
-```cpp
-// Build-Modus
-#define PROTOTYPE_MODE     // Auskommentieren für Produktion
-```
-
-## Serial-Protokoll
-
-### ESP32 → Server
-
-| Nachricht | Bedeutung |
-|-----------|-----------|
-| `PRESS 001` | Taster 1 gedrückt (001-100) |
-| `RELEASE 001` | Taster 1 losgelassen |
-| `READY` | Controller bereit |
-| `OK` | Befehl ausgeführt |
-| `ERROR msg` | Fehler aufgetreten |
-
-### Server → ESP32
-
-| Befehl | Funktion |
-|--------|----------|
-| `LEDSET n` | LED n einschalten (one-hot) |
-| `LEDCLR` | Alle LEDs aus |
-| `PING` | Verbindungstest |
-
-## HTTP-Endpoints
-
-| Endpoint | Methode | Beschreibung |
-|----------|---------|--------------|
-| `/` | GET | Web-Dashboard |
-| `/ws` | WS | WebSocket-Verbindung |
-| `/status` | GET | Server-Status (JSON) |
-| `/health` | GET | Health-Check |
-| `/test/play/{id}` | GET | Tastendruck simulieren |
-| `/test/stop` | GET | Wiedergabe stoppen |
-| `/media/{file}` | GET | Mediendateien |
-| `/static/{file}` | GET | Statische Dateien |
-
-### Status-Response
-
-```json
-{
-  "version": "2.4.2",
-  "mode": "prototype",
-  "num_media": 10,
-  "current_button": 3,
-  "ws_clients": 2,
-  "serial_connected": true,
-  "serial_port": "/dev/ttyACM0",
-  "media_missing": 0,
-  "esp32_local_led": true
-}
-```
-
-## WebSocket-Protokoll
-
-### Server → Browser
-
-```json
-{"type": "stop"}              // Wiedergabe stoppen
-{"type": "play", "id": 3}     // Medien-ID 3 abspielen
-```
-
-### Browser → Server
-
-```json
-{"type": "ended", "id": 3}    // Wiedergabe von ID 3 beendet
-{"type": "ping"}              // Heartbeat
-```
-
-## Medien-Anforderungen
-
-Alle Medien im Verzeichnis `media/` mit 3-stelliger ID (001-100):
-
-| Datei | Format | Beschreibung |
-|-------|--------|--------------|
-| `001.jpg` | JPEG | Bild für Taster 1 |
-| `001.mp3` | MP3 | Audio für Taster 1 |
-| ... | ... | ... |
-| `100.jpg` | JPEG | Bild für Taster 100 |
-| `100.mp3` | MP3 | Audio für Taster 100 |
-
-Der Server prüft beim Start, ob alle Dateien vorhanden sind.
 
 ## Dokumentation
 
-| Dokument | Inhalt |
-|----------|--------|
-| [QUICKSTART](docs/QUICKSTART.md) | Schnelleinstieg |
-| [SPEC](docs/SPEC.md) | Technische Spezifikation |
-| [FIRMWARE](docs/FIRMWARE.md) | ESP32 Firmware Details |
-| [SERVER](docs/SERVER.md) | Python Server Details |
-| [DASHBOARD](docs/DASHBOARD.md) | Web-Interface |
-| [HARDWARE](docs/HARDWARE.md) | Schaltplan, Verkabelung |
-| [LOETEN](docs/LOETEN.md) | Löt-Anleitung |
-| [COMMANDS](docs/COMMANDS.md) | Befehlsreferenz |
-| [RUNBOOK](docs/RUNBOOK.md) | Betriebshandbuch |
-| [SSH](docs/SSH.md) | Remote-Zugriff |
-| [GIT](docs/GIT.md) | Versionskontrolle |
-| [CHANGELOG](docs/CHANGELOG.md) | Änderungshistorie |
-| [ROADMAP](docs/ROADMAP.md) | Geplante Features |
-| [VORAUSSETZUNGEN](docs/VORAUSSETZUNGEN.md) | Systemanforderungen |
+| Dokument | Beschreibung |
+|----------|--------------|
+| [selection-panel-architektur.md](docs/selection-panel-architektur.md) | Systemarchitektur, Schichtenmodell |
+| [HARDWARE.md](docs/HARDWARE.md) | Schaltpläne, Pin-Belegung |
+| [firmware-code-guide.md](docs/firmware-code-guide.md) | Firmware-Struktur, Module |
+| [PI-INTEGRATION.md](docs/PI-INTEGRATION.md) | Raspberry Pi Setup, WebSocket-API |
+| [PROTOCOL.md](docs/PROTOCOL.md) | Serial + WebSocket Protokoll |
+| [usb-port-verwaltung.md](docs/usb-port-verwaltung.md) | Port-Sharing mit AMR-Projekt |
 
-## Troubleshooting
+## Protokoll-Übersicht
 
-### Server startet nicht
+### ESP32 → Pi
 
-```bash
-# Port bereits belegt?
-sudo lsof -i :8080
+| Nachricht | Beschreibung |
+|-----------|--------------|
+| `READY` | System bereit |
+| `FW <version>` | Firmware-Version |
+| `PRESS <id>` | Taster gedrückt (001-100) |
+| `RELEASE <id>` | Taster losgelassen |
 
-# Serial-Berechtigung?
-sudo usermod -a -G dialout $USER
-# Neu einloggen erforderlich!
+### Pi → ESP32
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `LEDSET <id>` | One-Hot: nur diese LED an |
+| `LEDON <id>` | LED einschalten (additiv) |
+| `LEDOFF <id>` | LED ausschalten |
+| `LEDCLR` | Alle LEDs aus |
+| `LEDALL` | Alle LEDs an |
+| `PING` | Verbindung prüfen |
+
+## Konfiguration
+
+Wichtige Parameter in `include/config.h`:
+
+```cpp
+constexpr uint8_t BTN_COUNT = 10;       // Anzahl Taster
+constexpr uint8_t LED_COUNT = 10;       // Anzahl LEDs
+constexpr uint32_t IO_PERIOD_MS = 5;    // Abtastrate (200 Hz)
+constexpr uint32_t DEBOUNCE_MS = 30;    // Entprellzeit
+constexpr uint8_t PWM_DUTY_PERCENT = 50; // LED-Helligkeit
 ```
 
-### Keine Serial-Verbindung
+## Entwicklungsphasen
 
-```bash
-# Port vorhanden?
-ls -la /dev/ttyACM*
-
-# ESP32 flashen
-cd button_panel_firmware
-pio run -t upload
-```
-
-### Medien fehlen
-
-```bash
-# Prüfen
-ls media/*.jpg | wc -l  # Sollte 10 oder 100 sein
-ls media/*.mp3 | wc -l
-
-# Status-Endpoint
-curl http://localhost:8080/status | jq .missing_files
-```
-
-## Changelog
-
-### v2.4.2 (2025-01-01)
-
-- Parallele Ausführung von Serial + WebSocket (asyncio.gather)
-- LEDSET wird nur gesendet wenn ESP32 LED nicht selbst gesetzt hat
-- Minimale Latenz durch parallele Broadcasts
-
-### v2.4.1 (2025-01-01)
-
-- ESP32: LED reagiert sofort bei Tastendruck (< 1ms)
-- Redundantes LEDSET wird ignoriert
-
-### v2.3.1 (2025-01-01)
-
-- CD4021 Timing-Fixes
-
-### v2.3.0 (2025-12-30)
-
-- Bit-Mapping für Prototyp
-- 1-basierte Nummerierung
+| Phase | Status | Beschreibung |
+|-------|--------|--------------|
+| 1 | ✅ | ESP32 Grundtest |
+| 2 | ✅ | LED-SPI (74HC595) |
+| 3 | ✅ | Button-SPI (CD4021B) |
+| 4 | ✅ | Combined SPI |
+| 5 | ✅ | FreeRTOS Integration |
+| 6 | ✅ | Modulare Architektur |
+| 7 | ✅ | Raspberry Pi Bridge |
+| 8 | 🔲 | 100x Button + LEDs + Multimedia |
 
 ## Lizenz
 
 MIT License
 
-## Autor
+## Autor & Maintainer
 
-Jan Unger - Selection Panel Projekt
+Jan Unger
+
+## Credits
+
+Unterstützt durch KI-Tools (Claude 4.5, ChatGPT 5.2).

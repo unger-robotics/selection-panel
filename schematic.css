@@ -1,9 +1,9 @@
 /* ==========================================================================
-   Schematic Styles v7.4
-   Stand: 2025-12-29
+   Schematic Styles v7.5
+   Stand: 2026-01-08
    Farbschema: Arduino Teal + Raspberry Pi Red + GitHub Dark
    Konsistent mit KiCad-Schaltplan (selection-panel-prototyp.kicad_sch)
-   Signalnamen: LED_DATA, LED_CLK, LED_LATCH, BTN_DATA, BTN_CLK, BTN_LOAD
+   Signalnamen: MOSI, SCK, RCK, MISO, P/S (shared SCK)
    ========================================================================== */
 
 /* --------------------------------------------------------------------------

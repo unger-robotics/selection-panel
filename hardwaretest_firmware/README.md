@@ -21,7 +21,7 @@ hardwaretest_firmware/
 ├── phase4_combined_spi_test/    Kombi: Taster → LED (End-to-End)
 ├── phase5_FreeRTOS/             FreeRTOS Task-Split (IO vs Serial), Queue/Timing
 ├── phase6_modular/              Modulare Architektur (hal/drivers/logic/app)
-├── phase7_pi/                   Pi-Anbindung (Platzhalter/Integration)
+├── phase7_pi/                   = firmware/ Pi-Anbindung (Platzhalter/Integration)
 └── README.md
 ```
 
@@ -140,4 +140,4 @@ Die Byte-Längen werden i. d. R. automatisch abgeleitet.
 - [x] Phase 4: Kombi (Button → LED)
 - [x] Phase 5: FreeRTOS-Variante
 - [x] Phase 6: Modulare Firmware (Basis)
-- [ ] Phase 7: Pi-Integration (Ausbau)
+- [x] Phase 7: Pi-Integration (Ausbau)

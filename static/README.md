@@ -1,4 +1,4 @@
-# Web Dashboard v2.3.0
+# Web Dashboard v2.5.1
 
 Browser-basiertes Frontend für das Auswahlpanel mit Bild- und Audio-Wiedergabe.
 
@@ -8,28 +8,28 @@ Browser-basiertes Frontend für das Auswahlpanel mit Bild- und Audio-Wiedergabe.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      WEB DASHBOARD                                  │
 ├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Header: 🎯 Auswahlpanel    [●] WebSocket  [●] Audio        │   │
-│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Header: 🎯 Auswahlpanel    [●] WebSocket  [●] Audio         │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 │                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                                                             │   │
-│  │                         [003]                               │   │
-│  │                                                             │   │
-│  │                    ┌───────────┐                            │   │
-│  │                    │           │                            │   │
-│  │                    │   BILD    │                            │   │
-│  │                    │           │                            │   │
-│  │                    └───────────┘                            │   │
-│  │                                                             │   │
-│  │                    ▓▓▓▓▓▓▓▓▓░░░░░                          │   │
-│  │                    1:23 / 3:45                              │   │
-│  │                                                             │   │
-│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                                                             │    │
+│  │                         [003]                               │    │
+│  │                                                             │    │
+│  │                    ┌───────────┐                            │    │
+│  │                    │           │                            │    │
+│  │                    │   BILD    │                            │    │
+│  │                    │           │                            │    │
+│  │                    └───────────┘                            │    │
+│  │                                                             │    │
+│  │                    ▓▓▓▓▓▓▓▓▓░░░░░                           │    │
+│  │                    1:23 / 3:45                              │    │
+│  │                                                             │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 │                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Footer: Interaktives Auswahlpanel v2.3.0                   │   │
-│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Footer: Interaktives Auswahlpanel v2.5.1                    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,14 +42,16 @@ Browser-basiertes Frontend für das Auswahlpanel mit Bild- und Audio-Wiedergabe.
 - **Responsive Design:** Mobile-first, unterstützt Smartphones bis 4K-Displays
 - **Dark/Light Theme:** Automatisch basierend auf System-Präferenz
 - **Accessibility:** Reduced Motion, High Contrast, Focus-Styles
+- **Race-Condition Fix:** onended an ID gebunden für korrektes Verhalten bei schnellem Umschalten
 
 ## Dateien
 
 ```
 static/
 ├── index.html     # Hauptseite
-├── app.js         # WebSocket-Client, Medien-Handling
-└── styles.css     # Responsive Styles, Design-Tokens
+├── app.js         # WebSocket-Client, Medien-Handling, Preloading
+├── styles.css     # Responsive Styles, Design-Tokens
+└── favicon.ico    # Browser-Tab Icon
 ```
 
 ## Konfiguration
@@ -58,7 +60,7 @@ In `app.js`:
 
 ```javascript
 const CONFIG = {
-    wsUrl: `ws://${window.location.host}/ws`,
+    wsUrl: `${wsProto}://${window.location.host}/ws`,  // Automatisch ws/wss
     reconnectInterval: 5000,    // ms zwischen Reconnect-Versuchen
     debug: true,                // Debug-Panel aktivieren
     numMedia: 10,               // PROTOTYPE_MODE (100 für Produktion)
@@ -74,6 +76,7 @@ Arduino Teal + Raspberry Pi Red (konsistent mit LaTeX-Dokumentation):
 |----------|-----|------------|
 | `--arduino-teal` | #00979D | Primärfarbe, Akzente |
 | `--arduino-teal-dark` | #005C5F | Hover-States |
+| `--arduino-teal-light` | #62AEB2 | Links |
 | `--raspi-red` | #C51A4A | Buttons, Highlights |
 | `--raspi-green` | #75A928 | Erfolg/Verbunden |
 | `--bg-primary` | #0D1117 | Hintergrund (Dark) |
@@ -100,7 +103,7 @@ Arduino Teal + Raspberry Pi Red (konsistent mit LaTeX-Dokumentation):
 ### 1. Seite öffnen
 
 ```
-http://rover.local:8080
+http://rover:8080
 ```
 
 ### 2. Sound aktivieren
@@ -118,9 +121,10 @@ Nach erfolgreichem Preload: "Warte auf Tastendruck..."
 ### 5. Wiedergabe
 
 Bei Tastendruck am Panel:
+
 - ID wird angezeigt (z.B. "003")
-- Bild erscheint sofort
-- Audio startet automatisch
+- Bild erscheint sofort (aus Cache)
+- Audio startet automatisch (aus Cache)
 - Fortschrittsbalken zeigt Position
 
 ## Keyboard-Shortcuts
@@ -149,9 +153,11 @@ Bei Tastendruck am Panel:
 ## Debug-Panel
 
 Klick auf "Debug" (unten rechts) zeigt:
+
 - WebSocket-Events
 - Audio-Ladevorgänge
 - Preload-Fortschritt
+- Latenz-Messungen
 - Fehler und Warnungen
 
 Letzte 50 Log-Einträge mit Timestamp.
@@ -228,14 +234,46 @@ ffmpeg -i input.wav -b:a 128k 001.mp3
 - **Production (100 Medien):** Alle vorladen, `preloadConcurrency: 5`
 - **Langsames Netz:** `preloadConcurrency: 1-2`, Timeout anpassen
 
+## Architektur
+
+```
+┌─────────────┐     WebSocket      ┌─────────────┐
+│   Browser   │◀──────────────────▶│  server.py  │
+│   app.js    │   JSON Messages    │   aiohttp   │
+└──────┬──────┘                    └──────┬──────┘
+       │                                  │
+       │  {"type":"play","id":3}          │  PRESS 003
+       │  {"type":"ended","id":3}         │  LEDCLR
+       │                                  │
+       ▼                                  ▼
+┌─────────────┐                    ┌─────────────┐
+│ mediaCache  │                    │   ESP32     │
+│ • images{}  │                    │  Selection  │
+│ • audio{}   │                    │   Panel     │
+└─────────────┘                    └─────────────┘
+```
+
 ## Changelog
+
+### v2.5.1 (2026-01-08)
+
+- NEU: Medien-Preloading nach Audio-Unlock (instant playback)
+- NEU: Preload-Statusanzeige mit Fortschritt
+- NEU: Gecachte Audio/Image-Objekte für sofortige Wiedergabe
+- NEU: Semaphore-Klasse für begrenzte Parallelität
+- Optimiert: handlePlay() nutzt vorgeladene Medien
+- FIX: WebSocket-Protokoll automatisch (ws/wss je nach HTTPS)
+- FIX: onended an ID gebunden (Race-Condition bei schnellem Umschalten)
+- FIX: Latenz-Logging in handlePlay()
+
+### v2.5.0 (2026-01-07)
+
+- Synchronisiert mit Firmware v2.5.0
+- Verbesserte Fehlerbehandlung
 
 ### v2.3.0 (2025-01-01)
 
-- NEU: Medien-Preloading nach Audio-Unlock
-- NEU: Preload-Statusanzeige
-- NEU: Gecachte Audio/Image-Objekte für sofortige Wiedergabe
-- Optimiert: handlePlay() nutzt vorgeladene Medien
+- NEU: Initiales Medien-Preloading Konzept
 
 ### v2.2.5 (2025-12-31)
 
@@ -255,4 +293,12 @@ MIT License
 
 ## Autor
 
-Jan Unger - Selection Panel Projekt
+Jan Unger
+
+## Tools / Credits
+
+Claude 4.5, ChatGPT 5.2 (Unterstützung bei Formulierung und Code-Vorschlägen)
+
+## Verantwortung
+
+Technische Bewertung, Tests und finale Entscheidungen: Jan Unger.

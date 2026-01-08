@@ -1,237 +1,214 @@
-# Selection Panel: Modulare FreeRTOS-Architektur
+# Selection Panel
 
-10 Taster → 10 LEDs mit sauberer Schichtentrennung am XIAO ESP32-S3.
+**10-100 Taster mit LEDs, gesteuert über ESP32-S3 und Raspberry Pi**
 
-## Übersicht
+Version 2.5.2 | Phase 7 (Pi-Integration abgeschlossen)
 
-Diese Firmware demonstriert eine modulare Architektur für Embedded-Systeme. Jede Schicht hat eine klare Verantwortung, Abhängigkeiten fließen nur nach unten.
+## Überblick
+
+Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster über CD4021B-Schieberegister ein und steuert LEDs über 74HC595. Ein Raspberry Pi 5 übernimmt die Anwendungslogik: Medien-Wiedergabe (aiohttp + WebSocket), Web-Dashboard und externe Steuerung.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              main.cpp                                       │
-│                         (Entry Point, Verdrahtung)                          │
-└───────────────────────────────────┬─────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                               app/                                          │
-│                    (FreeRTOS Tasks: io_task, serial_task)                   │
-└───────────────────────────────────┬─────────────────────────────────────────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-┌───────────────────────────────┐   ┌─────────────────────────────────────────┐
-│            logic/             │   │               drivers/                  │
-│  (debounce, selection)        │   │         (cd4021, hc595)                 │
-└───────────────────────────────┘   └───────────────────────┬─────────────────┘
-                                                            │
-                                                            ▼
-                                    ┌─────────────────────────────────────────┐
-                                    │                 hal/                    │
-                                    │              (spi_bus)                  │
-                                    └─────────────────────────────────────────┘
-                                                            │
-                                                            ▼
-                                    ┌─────────────────────────────────────────┐
-                                    │               Hardware                  │
-                                    │    (SPI, GPIO, PWM, CD4021B, 74HC595)   │
-                                    └─────────────────────────────────────────┘
+┌───────────────────┐     USB-CDC      ┌───────────────────┐
+│   Raspberry Pi 5  │◀────────────────▶│   ESP32-S3 XIAO   │
+│                   │   115200 Baud    │                   │
+│  • aiohttp Server │                  │  • 200 Hz I/O     │
+│  • WebSocket      │   PRESS 001      │  • Entprellung    │
+│  • Web Dashboard  │   LEDSET 001     │  • LED-PWM        │
+└───────────────────┘                  └─────────┬─────────┘
+        │                                        │ SPI
+        ▼ http://rover:8080              ┌───────┴───────┐
+   ┌─────────┐                           │               │
+   │ Browser │                     ┌─────┴─────┐   ┌─────┴─────┐
+   │ Dashboard│                    │  CD4021B  │   │  74HC595  │
+   └─────────┘                     │  Taster   │   │   LEDs    │
+                                   └─────┬─────┘   └─────┬─────┘
+                                         │               │
+                                   ┌─────┴─────┐   ┌─────┴─────┐
+                                   │ 10 Taster │   │ 10 LEDs   │
+                                   └───────────┘   └───────────┘
+```
+
+## Features
+
+- **10 Taster** mit zeitbasierter Entprellung (30 ms)
+- **10 LEDs** mit PWM-Helligkeitsregelung (verschiedene Farben)
+- **FreeRTOS** auf ESP32-S3 (200 Hz I/O-Zyklus)
+- **Serial-Protokoll** für Pi-Integration
+- **Web-Dashboard** mit WebSocket-Live-Updates
+- **Skalierbar** auf 100 Taster/LEDs
+
+## Schnellstart
+
+### Hardware
+
+| Komponente | Typ | Anzahl |
+|------------|-----|--------|
+| XIAO ESP32-S3 | Mikrocontroller | 1 |
+| Raspberry Pi 5 | SBC + Netzteil + microSD | 1 |
+| CD4021B | Schieberegister (Input) | 2 |
+| 74HC595 | Schieberegister (Output) | 2 |
+| Taster | 6×6 mm Tactile | 10 |
+| LED | 5 mm, verschiedene Farben | 10 |
+| Widerstand | 330 Ω – 3 kΩ (LED) | 10 |
+| Widerstand | 10 kΩ (Pull-up) | 10 |
+| Kondensator | 100 nF (Stützkondensator) | 4 |
+
+### Firmware flashen
+
+```bash
+cd firmware
+pio run -t upload
+pio device monitor
+```
+
+Erwartete Ausgabe:
+
+```
+READY
+FW SelectionPanel v2.5.2
+```
+
+### Pi-Verbindung
+
+```bash
+# Stabiler USB-Pfad (by-id)
+ls /dev/serial/by-id/usb-Espressif*
+
+# Verbindung testen
+screen /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_*-if00 115200
+# Taster drücken → PRESS 001
+```
+
+### Server starten
+
+```bash
+cd pi-server
+python3 server.py
+# Dashboard: http://rover:8080
+```
+
+### Python-Beispiel
+
+```python
+import serial
+
+# Stabiler Pfad verwenden
+port = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
+ser = serial.Serial(port, 115200)
+
+while True:
+    line = ser.readline().decode().strip()
+    if line.startswith("PRESS"):
+        btn_id = line.split()[1]
+        print(f"Button {btn_id} pressed")
+        ser.write(f"LEDSET {btn_id}\n".encode())
 ```
 
 ## Projektstruktur
 
 ```
-.
-├── include/
-│   ├── bitops.h          # Bit-Adressierung (MSB/LSB, Active-Low)
-│   ├── config.h          # Zentrale Konfiguration
-│   └── types.h           # Gemeinsame Datentypen (LogEvent)
-├── src/
-│   ├── app/
-│   │   ├── io_task.cpp/h     # FreeRTOS Task: Hardware-IO
-│   │   └── serial_task.cpp/h # FreeRTOS Task: Debug-Ausgabe
-│   ├── drivers/
-│   │   ├── cd4021.cpp/h      # Taster-Treiber
-│   │   └── hc595.cpp/h       # LED-Treiber
-│   ├── hal/
-│   │   └── spi_bus.cpp/h     # SPI-Abstraktion mit Mutex
-│   ├── logic/
-│   │   ├── debounce.cpp/h    # Zeitbasiertes Entprellen
-│   │   └── selection.cpp/h   # One-Hot Auswahl
-│   └── main.cpp              # Entry Point
-├── platformio.ini
-└── README.md
+selection-panel/
+├── firmware/                   # ESP32-S3 Firmware (Hauptverzeichnis)
+│   ├── src/
+│   │   ├── main.cpp            # Entry Point
+│   │   ├── app/                # FreeRTOS Tasks
+│   │   │   ├── io_task.cpp/h   # I/O-Zyklus (200 Hz)
+│   │   │   └── serial_task.cpp/h
+│   │   ├── logic/              # Geschäftslogik
+│   │   │   ├── debounce.cpp/h  # Entprellung
+│   │   │   └── selection.cpp/h # Auswahllogik
+│   │   ├── drivers/            # Hardware-Treiber
+│   │   │   ├── cd4021.cpp/h    # Taster-Input
+│   │   │   └── hc595.cpp/h     # LED-Output
+│   │   └── hal/                # Hardware Abstraction
+│   │       └── spi_bus.cpp/h   # SPI-Bus
+│   ├── include/
+│   │   ├── config.h            # Konfiguration
+│   │   ├── types.h             # Datentypen
+│   │   └── bitops.h            # Bit-Operationen
+│   ├── docs/                   # Firmware-Dokumentation
+│   │   ├── 00-overview.md
+│   │   ├── 01-wiring.md
+│   │   ├── 02-firmware-architecture.md
+│   │   ├── 03-debug-playbook.md
+│   │   ├── 04-test-plan.md
+│   │   └── 05-performance-notes.md
+│   ├── platformio.ini
+│   └── README.md
+├── pi-server/                  # Raspberry Pi Server
+│   ├── server.py               # aiohttp + WebSocket
+│   ├── static/                 # Web-Dashboard (HTML/JS/CSS)
+│   └── media/                  # Medien (001.mp3, 001.jpg, ...)
+└── docs/                       # Projekt-Dokumentation
 ```
 
-## Schichten im Detail
+## Protokoll-Übersicht
 
-### HAL (Hardware Abstraction Layer)
+### Serial: ESP32 → Pi
 
-**spi_bus**: Kapselt den SPI-Bus mit FreeRTOS Mutex.
+| Nachricht | Beschreibung |
+|-----------|--------------|
+| `READY` | System bereit |
+| `FW <version>` | Firmware-Version |
+| `PRESS <id>` | Taster gedrückt (001-100) |
+| `RELEASE <id>` | Taster losgelassen |
+| `PONG` | Antwort auf PING |
 
-```cpp
-class SpiBus {
-    void begin(sck, miso, mosi);
-    void lock();    // Mutex nehmen
-    void unlock();  // Mutex freigeben
-};
+### Serial: Pi → ESP32
 
-// RAII Guard für sichere Transaktionen
-class SpiGuard {
-    SpiGuard(bus, settings);   // lock + beginTransaction
-    ~SpiGuard();               // endTransaction + unlock
-};
-```
+| Befehl | Beschreibung |
+|--------|--------------|
+| `LEDSET <id>` | One-Hot: nur diese LED an |
+| `LEDON <id>` | LED einschalten (additiv) |
+| `LEDOFF <id>` | LED ausschalten |
+| `LEDCLR` | Alle LEDs aus |
+| `LEDALL` | Alle LEDs an |
+| `PING` | Verbindung prüfen → PONG |
+| `STATUS` | Status abfragen |
 
-**Warum Mutex?** Falls später mehrere Tasks auf SPI zugreifen (z.B. SD-Karte), ist der Bus geschützt.
+### WebSocket: Server ↔ Browser
 
-### Drivers
-
-**cd4021**: Treiber für CD4021B Schieberegister (Taster-Eingabe).
-
-```cpp
-class Cd4021 {
-    void init();
-    void readRaw(bus, out);  // Mit First-Bit-Korrektur
-};
-```
-
-**hc595**: Treiber für 74HC595 Schieberegister (LED-Ausgabe).
-
-```cpp
-class Hc595 {
-    void init();
-    void setBrightness(percent);
-    void write(bus, state);  // Mit Ghost-Maskierung
-};
-```
-
-### Logic
-
-**debounce**: Zeitbasiertes Entprellen.
-
-```cpp
-class Debouncer {
-    void init();
-    bool update(nowMs, raw, deb);  // true wenn Änderung
-};
-```
-
-**selection**: One-Hot Auswahl ("last press wins").
-
-```cpp
-class Selection {
-    void init();
-    bool update(debNow, activeId);  // true wenn Änderung
-};
-```
-
-### App (FreeRTOS Tasks)
-
-**io_task**: Periodischer Hardware-Zugriff.
-
-```
-Alle 5 ms:
-  1. readButtons()      → btnRaw
-  2. debounce()         → btnDebounced
-  3. selection()        → activeId
-  4. writeLEDs()        → Hardware
-  5. xQueueSend()       → logQueue (nicht-blockierend)
-```
-
-**serial_task**: Debug-Ausgabe aus Queue.
-
-```
-Endlos:
-  1. xQueueReceive()    ← Blockiert bis Event
-  2. Serial.print()     → USB-CDC
-  3. vTaskDelay(1)      → CPU freigeben
-```
-
-## Datenfluss
-
-```
-Hardware                 Firmware                              Hardware
-────────                 ────────                              ────────
-
-Taster ──────────────────► Cd4021::readRaw()
-                               │
-                               ▼
-                           btnRaw[]
-                               │
-                               ▼
-                           Debouncer::update()
-                               │
-                               ▼
-                           btnDebounced[]
-                               │
-                               ▼
-                           Selection::update()
-                               │
-                               ▼
-                           activeId
-                               │
-                               ▼
-                           Hc595::write() ─────────────────────► LEDs
-                               │
-                               ▼
-                           LogEvent ────► Queue ────► Serial
-```
+| Richtung | Message | Beschreibung |
+|----------|---------|--------------|
+| Server → Browser | `{"type":"play","id":3}` | Starte Wiedergabe |
+| Server → Browser | `{"type":"stop"}` | Stoppe Wiedergabe |
+| Browser → Server | `{"type":"ended","id":3}` | Wiedergabe beendet |
 
 ## Konfiguration
 
-Alle Parameter in `include/config.h`:
+Wichtige Parameter in `firmware/include/config.h`:
 
 ```cpp
-// Timing
-constexpr uint32_t IO_PERIOD_MS = 5;    // 200 Hz Abtastrate
-constexpr uint32_t DEBOUNCE_MS = 30;    // Entprellzeit
-
-// Verhalten
-constexpr bool LATCH_SELECTION = true;  // Auswahl bleibt nach Loslassen
-
-// Debug
-constexpr bool LOG_VERBOSE_PER_ID = true;   // Detaillierte Ausgabe
-constexpr bool LOG_ON_RAW_CHANGE = false;   // Auch Prellen zeigen
+constexpr uint8_t BTN_COUNT = 10;        // Anzahl Taster
+constexpr uint8_t LED_COUNT = 10;        // Anzahl LEDs
+constexpr uint32_t IO_PERIOD_MS = 5;     // Abtastrate (200 Hz)
+constexpr uint32_t DEBOUNCE_MS = 30;     // Entprellzeit
+constexpr uint8_t PWM_DUTY_PERCENT = 50; // LED-Helligkeit
+constexpr bool LATCH_SELECTION = true;   // Auswahl persistent
 ```
 
-## Vorteile der Modularität
+## Entwicklungsphasen
 
-| Aspekt | Vorteil |
-|--------|---------|
-| **Testbarkeit** | Logic-Module ohne Hardware testbar |
-| **Wartbarkeit** | Änderungen in einer Schicht betreffen andere nicht |
-| **Wiederverwendung** | Debouncer in anderem Projekt nutzbar |
-| **Lesbarkeit** | Kleine Dateien, klare Verantwortung |
-| **Skalierbarkeit** | Neue Treiber hinzufügen ohne Umbau |
+| Phase | Status | Beschreibung |
+|-------|--------|--------------|
+| 1 | ✅ | ESP32 Grundtest |
+| 2 | ✅ | LED-SPI (74HC595) |
+| 3 | ✅ | Button-SPI (CD4021B) |
+| 4 | ✅ | Combined SPI |
+| 5 | ✅ | FreeRTOS Integration |
+| 6 | ✅ | Modulare Architektur |
+| 7 | ✅ | Raspberry Pi Bridge |
+| 8 | 🔲 | 100-Button |
 
-## Build & Upload
+## Lizenz
 
-```bash
-pio run -t upload
-pio device monitor
-```
+MIT License
 
-## Erwartete Ausgabe
+## Autor & Maintainer
 
-```
-========================================
-Selection Panel: Modular + FreeRTOS
-========================================
-IO_PERIOD_MS:    5
-DEBOUNCE_MS:     30
-LATCH_SELECTION: true
----
-BTN RAW:    IC0: 01111111 (0x7F) | IC1: 11111111 (0xFF)
-BTN DEB:    IC0: 01111111 (0x7F) | IC1: 11111111 (0xFF)
-Active LED (One-Hot): 1
-LED STATE:  IC0: 00000001 (0x01) | IC1: 00000000 (0x00)
-Pressed IDs: 1
-Buttons per ID (RAW/DEB)  [pressed=1 | released=0]
-  T01  IC0 b7   RAW=1  DEB=1
-  ...
-```
+Jan Unger
 
-## Nächste Schritte
+## Credits
 
-- [ ] Skalierung auf 100 Buttons/LEDs
+Unterstützt durch KI-Tools (Claude, ChatGPT).
