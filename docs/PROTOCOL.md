@@ -1,6 +1,6 @@
 # Selection Panel: Protokoll-Referenz
 
-Version 2.5.2 | Serial + WebSocket API
+Version 2.5.2 | Serial + WebSocket API | Stand: 2026-01-08
 
 ## Übersicht
 
@@ -425,7 +425,7 @@ Der Server bietet zusätzliche HTTP-Endpoints:
 ### Status-Endpoint
 
 ```bash
-curl http://rover.local:8080/status | jq
+curl http://rover:8080/status | jq
 ```
 
 ```json
@@ -447,3 +447,7 @@ curl http://rover.local:8080/status | jq
 Mit `ESP32_SETS_LED_LOCALLY = true` (Standard) setzt der ESP32 bei Tastendruck die LED selbst. Der Server muss dann nicht `LEDSET` senden – er sendet nur `LEDCLR` wenn das Audio beendet ist.
 
 Dies reduziert die Latenz zwischen Tastendruck und LED-Reaktion auf unter 5 ms.
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*

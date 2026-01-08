@@ -1,10 +1,10 @@
-# COMMANDS — Entwickler-Referenz
+# COMMANDS – Entwickler-Referenz
 
 > Deployment, Build, Test und Diagnose-Befehle.
 
-| Version | 2.4.2 |
+| Version | 2.5.2 |
 |---------|-------|
-| Stand | 2025-01-01 |
+| Stand | 2026-01-08 |
 
 ---
 
@@ -13,11 +13,11 @@
 | Aktion | Befehl |
 |--------|--------|
 | Server starten | `python server.py` |
-| Dashboard | `http://rover.local:8080/` |
-| Status | `curl http://rover.local:8080/status \| jq` |
-| Health | `curl http://rover.local:8080/health` |
-| Test-Play | `curl http://rover.local:8080/test/play/5` |
-| Serial-Monitor | `cat /dev/ttyACM0` |
+| Dashboard | `http://rover:8080/` |
+| Status | `curl http://rover:8080/status \| jq` |
+| Health | `curl http://rover:8080/health` |
+| Test-Play | `curl http://rover:8080/test/play/5` |
+| Serial-Monitor | `cat /dev/serial/by-id/usb-Espressif*` |
 | Firmware flashen | `pio run -t upload` |
 | Service Status | `sudo systemctl status selection-panel` |
 | Service Logs | `journalctl -u selection-panel -f` |
@@ -26,7 +26,7 @@
 
 ## 2 Server starten
 
-> **URL-Hinweis:** `rover.local` funktioniert auf allen Geräten (Mac, iPhone, iPad).
+> **URL-Hinweis:** `rover` funktioniert auf allen Geräten (Mac, iPhone, iPad).
 > Alternative: IP-Adresse direkt verwenden (`http://192.168.1.24:8080/`)
 
 ```bash
@@ -41,10 +41,10 @@ python server.py
 
 ```
 ==================================================
-Auswahlpanel Server v2.4.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.2 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
-Serial: /dev/ttyACM0
+Serial: /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_...
 HTTP:   http://0.0.0.0:8080/
 ESP32 lokale LED: aktiviert
 ==================================================
@@ -55,57 +55,68 @@ Serial verbunden
 
 ## 3 Serial direkt testen
 
-### 3.1 Empfangen (ohne Server)
+### 3.1 Serial-Port finden (by-id empfohlen)
 
 ```bash
-# Port konfigurieren
-stty -F /dev/ttyACM0 115200 raw -echo
+# Stabiler Pfad (empfohlen)
+ls -la /dev/serial/by-id/usb-Espressif*
 
-# Serial-Monitor (Ctrl+C zum Beenden)
-cat /dev/ttyACM0
+# Fallback
+ls -la /dev/ttyACM*
 ```
 
-### 3.2 Befehle senden
+### 3.2 Empfangen (ohne Server)
+
+```bash
+# Port konfigurieren (by-id Pfad verwenden)
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+stty -F $SERIAL_PORT 115200 raw -echo
+
+# Serial-Monitor (Ctrl+C zum Beenden)
+cat $SERIAL_PORT
+```
+
+### 3.3 Befehle senden
 
 ```bash
 # Verbindungstest
-echo "PING" > /dev/ttyACM0
-echo "STATUS" > /dev/ttyACM0
-echo "HELLO" > /dev/ttyACM0
-echo "VERSION" > /dev/ttyACM0
-echo "HELP" > /dev/ttyACM0
+echo "PING" > $SERIAL_PORT
+echo "STATUS" > $SERIAL_PORT
+echo "HELLO" > $SERIAL_PORT
+echo "VERSION" > $SERIAL_PORT
+echo "HELP" > $SERIAL_PORT
 ```
 
-### 3.3 LED-Befehle (1-basiert!)
+### 3.4 LED-Befehle (1-basiert!)
 
 ```bash
 # Einzelne LED (one-hot)
-echo "LEDSET 001" > /dev/ttyACM0   # LED 1 ein
-echo "LEDSET 005" > /dev/ttyACM0   # LED 5 ein
-echo "LEDSET 010" > /dev/ttyACM0   # LED 10 ein
+echo "LEDSET 001" > $SERIAL_PORT   # LED 1 ein
+echo "LEDSET 005" > $SERIAL_PORT   # LED 5 ein
+echo "LEDSET 010" > $SERIAL_PORT   # LED 10 ein
 
 # Additiv
-echo "LEDON 001" > /dev/ttyACM0    # LED 1 ein (additiv)
-echo "LEDON 002" > /dev/ttyACM0    # LED 2 ein (additiv)
-echo "LEDOFF 001" > /dev/ttyACM0   # LED 1 aus
+echo "LEDON 001" > $SERIAL_PORT    # LED 1 ein (additiv)
+echo "LEDON 002" > $SERIAL_PORT    # LED 2 ein (additiv)
+echo "LEDOFF 001" > $SERIAL_PORT   # LED 1 aus
 
 # Alle LEDs
-echo "LEDALL" > /dev/ttyACM0       # Alle ein
-echo "LEDCLR" > /dev/ttyACM0       # Alle aus
+echo "LEDALL" > $SERIAL_PORT       # Alle ein
+echo "LEDCLR" > $SERIAL_PORT       # Alle aus
 
 # LED-Test (Lauflicht)
-echo "TEST" > /dev/ttyACM0
-echo "STOP" > /dev/ttyACM0         # Test stoppen
+echo "TEST" > $SERIAL_PORT
+echo "STOP" > $SERIAL_PORT         # Test stoppen
 ```
 
-### 3.4 Diagnose-Befehle
+### 3.5 Diagnose-Befehle
 
 ```bash
 # Queue-Statistik zurücksetzen
-echo "QRESET" > /dev/ttyACM0
+echo "QRESET" > $SERIAL_PORT
 
 # Status zeigt CURLED (aktuelle LED)
-echo "STATUS" > /dev/ttyACM0
+echo "STATUS" > $SERIAL_PORT
 # Ausgabe:
 # LEDS 0000100000
 # CURLED 5          ← Aktuelle LED (1-basiert)
@@ -116,10 +127,10 @@ echo "STATUS" > /dev/ttyACM0
 # MAPPING 15,12,13,11,10,9,8,14,7,4
 ```
 
-### 3.5 Screen (interaktiv)
+### 3.6 Screen (interaktiv)
 
 ```bash
-screen /dev/ttyACM0 115200
+screen $SERIAL_PORT 115200
 ```
 
 **Beenden:** `Ctrl+A`, dann `K`, dann `Y`
@@ -130,31 +141,31 @@ screen /dev/ttyACM0 115200
 
 ```bash
 # Status (JSON)
-curl http://rover.local:8080/status | jq
+curl http://rover:8080/status | jq
 
 # Health-Check (200 = healthy, 503 = degraded)
-curl -w "%{http_code}" http://rover.local:8080/health
+curl -w "%{http_code}" http://rover:8080/health
 
 # Tastendruck simulieren (1-basiert!)
-curl http://rover.local:8080/test/play/1
-curl http://rover.local:8080/test/play/5
-curl http://rover.local:8080/test/play/10
+curl http://rover:8080/test/play/1
+curl http://rover:8080/test/play/5
+curl http://rover:8080/test/play/10
 
 # Wiedergabe stoppen
-curl http://rover.local:8080/test/stop
+curl http://rover:8080/test/stop
 ```
 
-### Status-Response (v2.4.2)
+### Status-Response (v2.5.2)
 
 ```json
 {
-  "version": "2.4.2",
+  "version": "2.5.2",
   "mode": "prototype",
   "num_media": 10,
   "current_button": 5,
   "ws_clients": 1,
   "serial_connected": true,
-  "serial_port": "/dev/ttyACM0",
+  "serial_port": "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_...",
   "media_missing": 0,
   "missing_files": [],
   "esp32_local_led": true
@@ -171,7 +182,7 @@ curl http://rover.local:8080/test/stop
 cd ~/selection-panel
 
 rsync -avz --delete \
-    --exclude='button_panel_firmware' \
+    --exclude='firmware' \
     --exclude='hardwaretest_firmware' \
     --exclude='venv' \
     --exclude='.git' \
@@ -241,7 +252,7 @@ journalctl -u selection-panel --since today
 ## 7 Firmware flashen (Mac)
 
 ```bash
-cd ~/selection-panel/button_panel_firmware
+cd ~/selection-panel/firmware
 
 # Kompilieren
 pio run
@@ -301,11 +312,11 @@ ls media/*.mp3 2>/dev/null | wc -l
 
 ```bash
 # USB-Geräte
-ls -la /dev/ttyACM*
+ls -la /dev/serial/by-id/usb-Espressif*
 lsusb | grep -i espressif
 
 # Wer nutzt den Serial-Port?
-sudo fuser /dev/ttyACM0
+sudo fuser /dev/serial/by-id/usb-Espressif*
 
 # Port freigeben (falls blockiert)
 sudo systemctl stop selection-panel
@@ -369,7 +380,7 @@ ssh rover
 cd ~/selection-panel && source venv/bin/activate && python server.py
 
 # 2. Dashboard öffnen (Mac)
-open http://rover.local:8080/
+open http://rover:8080/
 
 # 3. Sound aktivieren (Button im Browser klicken)
 #    → Medien werden vorgeladen ("Lade Medien... 5/10")
@@ -380,7 +391,7 @@ open http://rover.local:8080/
 #    → Wiedergabe startet aus Cache (< 50ms)
 
 # 5. Status prüfen
-curl http://rover.local:8080/status | jq
+curl http://rover:8080/status | jq
 ```
 
 ---
@@ -390,7 +401,7 @@ curl http://rover.local:8080/status | jq
 ### Server-Log (erfolgreich)
 
 ```
-Button 1 gedrueckt
+Button 1 gedrückt
 GET /media/001.mp3 HTTP/1.1 206
 Wiedergabe 1 beendet -> LEDs aus
 ```
@@ -407,7 +418,7 @@ Audio beendet: 1
 TX: {"type":"ended","id":1}
 ```
 
-### Serial (cat /dev/ttyACM0)
+### Serial (cat $SERIAL_PORT)
 
 ```
 PRESS 001
@@ -418,7 +429,7 @@ RELEASE 001
 
 ```json
 {
-  "version": "2.4.2",
+  "version": "2.5.2",
   "mode": "prototype",
   "num_media": 10,
   "current_button": null,

@@ -2,6 +2,10 @@
 
 Hardware und Software für das Selection-Panel-Projekt.
 
+| Version | 2.5.2 |
+|---------|-------|
+| Stand | 2026-01-08 |
+
 ---
 
 ## 1. Hardware
@@ -70,6 +74,9 @@ sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
 | Python | 3.13+ |
 | aiohttp | 3.9+ |
 | PlatformIO | 6.x |
+| Firmware | 2.5.2 |
+| Server | 2.5.2 |
+| Dashboard | 2.5.1 |
 
 ---
 
@@ -103,4 +110,4 @@ sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
 
 ---
 
-*Stand: Januar 2026*
+*Stand: 2026-01-08 | Version 2.5.2*

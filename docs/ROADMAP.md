@@ -2,9 +2,9 @@
 
 > Phasen und Status. Details: siehe [SPEC.md](SPEC.md), Tests: siehe [RUNBOOK.md](RUNBOOK.md)
 
-| Version | 2.4.2 |
+| Version | 2.5.2 |
 |---------|-------|
-| Stand | 2025-01-01 |
+| Stand | 2026-01-08 |
 
 ---
 
@@ -17,8 +17,9 @@ Phase 3: ESP32 Firmware       ✅
 Phase 4: Raspberry Pi Server  ✅
 Phase 5: Web-Dashboard        ✅
 Phase 6: Integration & Test   ✅ Prototyp (10×)
-Phase 7: Skalierung (100×)    ◀ nächste Phase
-Phase 8: Produktivbetrieb     ◯
+Phase 7: Pi-Integration       ✅ Serial + WebSocket
+Phase 8: Skalierung (100×)    ◀ nächste Phase
+Phase 9: Produktivbetrieb     ◯
 ```
 
 ---
@@ -41,7 +42,7 @@ Phase 8: Produktivbetrieb     ◯
 
 | Aufgabe | Status |
 |---------|--------|
-| 2× CD4021BE kaskadiert | ✅ |
+| 2× CD4021B kaskadiert | ✅ |
 | 2× 74HC595 kaskadiert | ✅ |
 | 10 Taster verdrahtet | ✅ |
 | 10 LEDs verdrahtet | ✅ |
@@ -51,9 +52,9 @@ Phase 8: Produktivbetrieb     ◯
 
 | Aufgabe | Status |
 |---------|--------|
-| Firmware v2.4.1 (LED sofort, CURLED) | ✅ |
-| Server v2.4.2 (asyncio.gather) | ✅ |
-| Dashboard v2.3.0 (Preloading) | ✅ |
+| Firmware v2.5.2 (FreeRTOS, Hardware-SPI) | ✅ |
+| Server v2.5.2 (asyncio, by-id Pfad) | ✅ |
+| Dashboard v2.5.1 (Preloading) | ✅ |
 | 1-basierte Nummerierung | ✅ |
 
 ### Medien
@@ -80,13 +81,57 @@ Phase 8: Produktivbetrieb     ◯
 
 ---
 
-## Phase 7: Skalierung (100×) ◀ nächste Phase
+## Phase 7: Pi-Integration ✅
+
+### Architektur
+
+| Aufgabe | Status |
+|---------|--------|
+| ESP32 als reiner I/O-Controller | ✅ |
+| Pi als Anwendungslogik-Host | ✅ |
+| Serial-Protokoll dokumentiert | ✅ |
+| WebSocket-Protokoll dokumentiert | ✅ |
+| by-id Serial-Pfad (stabil) | ✅ |
+
+### Firmware
+
+| Aufgabe | Status |
+|---------|--------|
+| FreeRTOS Dual-Core | ✅ |
+| Hardware-SPI (shared Bus) | ✅ |
+| First-Bit-Rescue (CD4021B) | ✅ |
+| SPI-Modi dokumentiert | ✅ |
+| Zeitbasiertes Debouncing | ✅ |
+
+### Server
+
+| Aufgabe | Status |
+|---------|--------|
+| aiohttp WebSocket | ✅ |
+| Serial-Thread mit asyncio Bridge | ✅ |
+| Medien-Validierung | ✅ |
+| Health-Check Endpoint | ✅ |
+| systemd-Service | ✅ |
+
+### Dokumentation
+
+| Aufgabe | Status |
+|---------|--------|
+| PI-INTEGRATION.md | ✅ |
+| PROTOCOL.md | ✅ |
+| SPEC.md aktualisiert | ✅ |
+
+**Meilenstein M7:** ✅ Pi-Integration mit Serial + WebSocket funktionsfähig.
+
+---
+
+## Phase 8: Skalierung (100×) ◀ nächste Phase
 
 ### Hardware
 
 | Aufgabe | Status |
 |---------|--------|
-| 13× CD4021BE kaskadieren | ◯ |
+| 13× CD4021B kaskadieren | ◯ |
 | 13× 74HC595 kaskadieren | ◯ |
 | 100 Taster verdrahten | ◯ |
 | 100 LEDs verdrahten | ◯ |
@@ -98,7 +143,7 @@ Phase 8: Produktivbetrieb     ◯
 | Aufgabe | Status |
 |---------|--------|
 | `PROTOTYPE_MODE = False` | ◯ |
-| Bit-Mapping entfernen | ◯ |
+| BTN_COUNT = 100, LED_COUNT = 100 | ◯ |
 | 100 Medien-Sets | ◯ |
 
 ### Tests
@@ -106,24 +151,24 @@ Phase 8: Produktivbetrieb     ◯
 | Test | Status |
 |------|--------|
 | Hardware End-to-End | ◯ |
-| Stresstest (200×) | ◯ |
+| Stresstest | ◯ |
 | Alle 100 Taster | ◯ |
 
-**Meilenstein M7:** System mit 100 Tastern funktionsfähig.
+**Meilenstein M8:** System mit 100 Tastern funktionsfähig.
 
 ---
 
-## Phase 8: Produktivbetrieb ◯
+## Phase 9: Produktivbetrieb ◯
 
 | Aufgabe | Status |
 |---------|--------|
 | systemd-Service aktiviert | ◯ |
 | Reboot-Test | ◯ |
-| 24h Dauertest | ◯ |
+| Dauertest | ◯ |
 | Gehäuse | ◯ |
 | Dokumentation finalisiert | ◯ |
 
-**Meilenstein M8:** System läuft 24 h ohne Eingriff.
+**Meilenstein M9:** System läuft.
 
 ---
 
@@ -131,15 +176,15 @@ Phase 8: Produktivbetrieb     ◯
 
 | Problem | Lösung | Version |
 |---------|--------|---------|
-| LED-Latenz durch Roundtrip | ESP32 setzt LED lokal (< 1ms) | FW 2.4.1 |
-| Dashboard-Latenz | Medien-Preloading + Cache | Dashboard 2.3.0 |
-| Sequentielle Server-Aktionen | `asyncio.gather()` für Parallelität | Server 2.4.2 |
-| iOS Audio-Unlock fehlgeschlagen | AudioContext API + Fallback | Dashboard 2.2.5 |
-| ESP32-S3 USB-CDC fragmentiert | `Serial.flush()` nach jedem Event | FW 2.4.0 |
-| pyserial funktioniert nicht | `os.open` + `stty` statt pyserial | Server 2.4.1 |
-| Fragmentierte Serial-Daten | Robuster Parser | Server 2.4.1 |
-| Falsche Taster-Zuordnung | Bit-Mapping in config.h | FW 2.3.0 |
-| CD4021 Timing-Probleme | Längere Load-Pulse (2µs) | FW 2.3.1 |
+| LED-Latenz durch Roundtrip | ESP32 setzt LED lokal (< 1ms) | FW 2.5.2 |
+| Dashboard-Latenz | Medien-Preloading + Cache | Dashboard 2.5.1 |
+| Sequentielle Server-Aktionen | `asyncio.gather()` für Parallelität | Server 2.5.2 |
+| iOS Audio-Unlock fehlgeschlagen | AudioContext API + Fallback | Dashboard 2.5.1 |
+| ESP32-S3 USB-CDC fragmentiert | `Serial.flush()` nach jedem Event | FW 2.5.2 |
+| pyserial funktioniert nicht | `os.open` + `stty` statt pyserial | Server 2.5.2 |
+| CD4021B First-Bit-Problem | digitalRead() vor SPI | FW 2.5.2 |
+| CD4021B Timing-Probleme | Längere Load-Pulse (2µs) | FW 2.5.2 |
+| Serial-Pfad instabil | by-id Pfad verwenden | Server 2.5.2 |
 
 ---
 
@@ -149,29 +194,33 @@ Phase 8: Produktivbetrieb     ◯
 |-------|---------|--------|
 | 1–5 | 6–9 Tage | ✅ |
 | 6 | 3–4 Tage | ✅ |
-| 7 | 2–3 Tage | ◯ |
-| 8 | 0,5 Tage | ◯ |
+| 7 | 2–3 Tage | ✅ |
+| 8 | 2–3 Tage | ◯ |
+| 9 | 0,5 Tage | ◯ |
 
 ---
 
 ## Nächste Schritte
 
-1. [ ] PCB-Design für 100 Buttons (KiCad)
+1. [ ] Schaltplan (KiCad)
 2. [ ] Lineare Verdrahtung (kein Bit-Mapping nötig)
 3. [ ] 100 Medien-Sets erstellen
 4. [ ] End-to-End Tests (100×)
 5. [ ] Gehäuse-Design
-6. [ ] 24h Dauertest
 
 ---
 
 ## Versionen
 
-| Komponente | Prototyp | Produktion |
+| Komponente | Prototyp (aktuell) | Produktion (geplant) |
 |------------|----------|------------|
-| Firmware | 2.4.1 | 2.5.0 (geplant) |
-| Server | 2.4.2 | 2.5.0 (geplant) |
-| Dashboard | 2.3.0 | 2.4.0 (geplant) |
+| Firmware | 2.5.2 | 3.0.0 |
+| Server | 2.5.2 | 3.0.0 |
+| Dashboard | 2.5.1 | 3.0.0 |
 | Hardware | 2× ICs | 26× ICs |
 | Taster | 10 | 100 |
 | Medien | 001–010 | 001–100 |
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*

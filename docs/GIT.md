@@ -36,6 +36,8 @@ git pull                    # Änderungen holen
 git add .                   # Änderungen stagen
 git commit -m "feat: ..."   # Committen
 git push                    # Pushen
+# Alles synchron auf allen drei Ebenen: Mac - Rover (Pi) - GitHub
+git fetch origin && git status
 ```
 
 ---
@@ -83,8 +85,8 @@ git branch -d feature/led-animation
 | `git stash` | Änderungen parken |
 | `git stash pop` | Änderungen zurückholen |
 | `git commit --amend -m "..."` | Letzten Commit korrigieren |
-| `git tag -a v2.4.2 -m "..."` | Release-Tag erstellen |
-| `git push origin v2.4.2` | Tag pushen |
+| `git tag -a v2.5.2 -m "..."` | Release-Tag erstellen |
+| `git push origin v2.5.2` | Tag pushen |
 
 ---
 
@@ -93,6 +95,8 @@ git branch -d feature/led-animation
 ```bash
 # Option 1: rsync
 rsync -avz --delete \
+  --exclude='firmware' \
+  --exclude='hardwaretest_firmware' \
   --exclude='venv' \
   --exclude='.git' \
   --exclude='__pycache__' \
@@ -109,8 +113,8 @@ ssh rover 'cd ~/selection-panel && git pull && sudo systemctl restart selection-
 ## .gitignore
 
 ```gitignore
-button_panel_firmware/.pio/
-button_panel_firmware/.vscode/
+firmware/.pio/
+firmware/.vscode/
 hardwaretest_firmware/*/.pio/
 hardwaretest_firmware/*/.vscode/
 __pycache__/
@@ -153,4 +157,4 @@ Esc → :q!        → Commit abbrechen
 
 ---
 
-*Stand: Januar 2026*
+*Stand: 2026-01-08 | Version 2.5.2*

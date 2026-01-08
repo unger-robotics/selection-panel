@@ -2,6 +2,10 @@
 
 Pi einrichten und passwortloses `ssh rover` konfigurieren.
 
+| Version | 2.5.2 |
+|---------|-------|
+| Stand | 2026-01-08 |
+
 ---
 
 ## 1. Pi OS installieren
@@ -17,11 +21,11 @@ Pi einrichten und passwortloses `ssh rover` konfigurieren.
 | Hostname | `rover` |
 | SSH | ✓ aktivieren |
 | Benutzer | `pi` |
-| Passwort | (Ihr Passwort) |
+| Passwort | (Passwort) |
 | WLAN | SSID + Passwort |
 | Zeitzone | `Europe/Berlin` |
 
-4. **Schreiben** → SD-Karte einlegen → Netzteil einstecken
+1. **Schreiben** → SD-Karte einlegen → Netzteil einstecken
 
 ### Nach erstem Boot
 
@@ -85,7 +89,7 @@ Host rover
 
 ---
 
-## 4. GitHub (optional)
+## 4. GitHub
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
@@ -118,8 +122,8 @@ Für ESP32 USB-Zugriff:
 sudo usermod -aG dialout pi
 # Neu einloggen erforderlich
 
-# Prüfen
-ls -la /dev/ttyACM*
+# Prüfen (stabiler by-id Pfad)
+ls -la /dev/serial/by-id/usb-Espressif*
 ```
 
 ---
@@ -131,8 +135,9 @@ ls -la /dev/ttyACM*
 | `Permission denied (publickey)` | `ssh-copy-id` wiederholen |
 | `Could not resolve hostname` | IP nutzen: `ssh pi@192.168.x.x` |
 | `UNPROTECTED PRIVATE KEY FILE` | `chmod 600 ~/.ssh/id_ed25519` |
-| `/dev/ttyACM0` nicht zugänglich | `sudo usermod -aG dialout pi` |
+| Serial-Port nicht zugänglich | `sudo usermod -aG dialout pi` |
+| mDNS funktioniert nicht | Avahi prüfen: `sudo systemctl status avahi-daemon` |
 
 ---
 
-*Stand: Januar 2026*
+*Stand: 2026-01-08 | Version 2.5.2*

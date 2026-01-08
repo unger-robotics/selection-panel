@@ -1,6 +1,6 @@
 # Selection Panel: Architektur-Übersicht
 
-Version 2.5.0 | Phase 7 (Raspberry Pi Integration)
+Version 2.5.2 | Phase 7 (Raspberry Pi Integration) | Stand: 2026-01-08
 
 ## Systemkontext
 
@@ -10,7 +10,7 @@ Das Selection Panel verbindet 10 Taster und 10 LEDs über einen ESP32-S3 mit ein
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              RASPBERRY PI 5                                 │
 │                    Python-Server + Web-Dashboard                            │
-│                         (Serial: /dev/ttyACM0)                              │
+│              (Serial: /dev/serial/by-id/usb-Espressif*)                     │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │ USB-CDC @ 115200 Baud
               ┌───────────────────┴───────────────────┐
@@ -127,8 +127,8 @@ LogEvent                                  ├──▶ Queue          │
                                           │                   │
 PRESS 001                                 └──────────────────▶│ Serial
 
-R = CD4021 Read (500 kHz SPI, ~20 µs)
-W = HC595 Write (1 MHz SPI, ~16 µs)
+R = CD4021B Read (500 kHz SPI, ~20 µs)
+W = 74HC595 Write (1 MHz SPI, ~16 µs)
 ```
 
 ## Kernkonzepte
@@ -153,16 +153,62 @@ Der `SpiGuard` (RAII-Pattern) stellt sicher, dass Transaktionen korrekt beendet 
 
 ### Bit-Adressierung
 
-Die Chips verwenden unterschiedliche Bit-Reihenfolgen. `bitops.h` abstrahiert diese Eigenheit:
+Die Hardware-Verdrahtung bestimmt das Bit-Mapping:
 
-| Chip | ID 1 | ID 8 | ID 9 | ID 10 |
-|------|------|------|------|-------|
-| CD4021B (Taster) | Byte 0, Bit 7 | Byte 0, Bit 0 | Byte 1, Bit 7 | Byte 1, Bit 6 |
-| 74HC595 (LEDs) | Byte 0, Bit 0 | Byte 0, Bit 7 | Byte 1, Bit 0 | Byte 1, Bit 1 |
+**CD4021B (Taster):** BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1 (Pin 7)
+
+| Taster-ID | CD4021B PI | Byte | Bit | Formel |
+|-----------|------------|------|-----|--------|
+| 1 | PI-8 | 0 | 0 | `(id-1) % 8` |
+| 2 | PI-7 | 0 | 1 | |
+| 8 | PI-1 | 0 | 7 | |
+| 9 | PI-8 | 1 | 0 | |
+| 10 | PI-7 | 1 | 1 | |
+
+**74HC595 (LEDs):** LED 1 → QA, LED 8 → QH
+
+| LED-ID | 74HC595 Q | Byte | Bit | Formel |
+|--------|-----------|------|-----|--------|
+| 1 | QA | 0 | 0 | `(id-1) % 8` |
+| 2 | QB | 0 | 1 | |
+| 8 | QH | 0 | 7 | |
+| 9 | QA | 1 | 0 | |
+| 10 | QB | 1 | 1 | |
+
+**Code in `bitops.h`:**
+
+```cpp
+// Identische Formel für beide Chips dank korrekter Verdrahtung
+static inline uint8_t btn_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t btn_bit(uint8_t id)  { return (id - 1) % 8; }
+
+static inline uint8_t led_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t led_bit(uint8_t id)  { return (id - 1) % 8; }
+```
 
 ### First-Bit-Problem (CD4021B)
 
-Nach dem Parallel-Load liegt Q8 sofort am Ausgang, bevor der erste Clock kommt. SPI samplet aber erst nach der ersten Flanke. Die Lösung: Das erste Bit wird vor dem SPI-Transfer per `digitalRead()` gesichert.
+Nach dem Parallel-Load liegt PI-1 (das MSB, also BTN 8) sofort am Q8-Ausgang, bevor der erste Clock kommt. SPI samplet aber erst nach der ersten Flanke. Die Lösung: Das erste Bit wird vor dem SPI-Transfer per `digitalRead()` gesichert:
+
+```cpp
+void Cd4021::readRaw(SpiBus& bus, uint8_t* out) {
+    // 1. Parallel Load
+    digitalWrite(PIN_BTN_PS, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_BTN_PS, LOW);
+    delayMicroseconds(2);
+
+    // 2. First Bit Rescue: PI-1 liegt bereits an Q8!
+    uint8_t firstBit = digitalRead(PIN_BTN_MISO);
+
+    // 3. SPI Transfer (restliche Bits)
+    SpiGuard g(bus, spi_);
+    SPI.transfer(out, BTN_BYTES);
+
+    // 4. First Bit einsetzen (MSB von Byte 0)
+    out[0] = (out[0] >> 1) | (firstBit << 7);
+}
+```
 
 ### Zeitbasiertes Debouncing
 
@@ -185,6 +231,17 @@ Die wichtigsten Parameter in `config.h`:
 | `LED_REFRESH_EVERY_CYCLE` | true | Kompensiert SPI-Glitches |
 | `SERIAL_PROTOCOL_ONLY` | true | Nur Protokoll, keine Debug-Logs |
 
+## Pin-Zuordnung (ESP32-S3 XIAO)
+
+| Pin | Funktion | Chip | Signal |
+|-----|----------|------|--------|
+| D10 | MOSI | 74HC595 | SER (Data In) |
+| D8 | SCK | Beide | SRCLK / CLK (shared) |
+| D0 | RCK | 74HC595 | RCLK (Latch) |
+| D2 | OE | 74HC595 | Output Enable (PWM) |
+| D9 | MISO | CD4021B | Q8 (Data Out) |
+| D1 | P/S | CD4021B | Parallel/Serial Load |
+
 ## Skalierung auf 100 Buttons
 
 Die Architektur ist für 100 Taster/LEDs vorbereitet:
@@ -194,4 +251,11 @@ Die Architektur ist für 100 Taster/LEDs vorbereitet:
 3. Zusätzliche Schieberegister in Daisy-Chain verkabeln
 4. Die Logik-Schicht skaliert automatisch (Bit-Arrays)
 
-Bei 100 Buttons erhöht sich die SPI-Transferzeit von ~20 µs auf ~260 µs – noch weit unter dem 5 ms Zyklus.
+| Konfiguration | SPI-Transferzeit | Budget (5 ms) |
+|---------------|------------------|---------------|
+| 10 Buttons | ~40 µs | 0.8% |
+| 100 Buttons | ~320 µs | 6.4% |
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*

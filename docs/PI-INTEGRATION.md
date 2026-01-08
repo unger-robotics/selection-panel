@@ -1,6 +1,6 @@
 # Selection Panel: Raspberry Pi Integration (Phase 7)
 
-Version 2.5.2 | Raspberry Pi 5 + ESP32-S3
+Version 2.5.2 | Raspberry Pi 5 + ESP32-S3 | Stand: 2026-01-08
 
 ## Übersicht
 
@@ -65,7 +65,7 @@ sudo usermod -aG dialout $USER
 # Verbindung testen
 screen $SERIAL_PORT 115200
 # → READY
-# → FW SelectionPanel v2.5.0
+# → FW SelectionPanel v2.5.2
 ```
 
 ## Server-Architektur
@@ -148,7 +148,7 @@ Die Kommunikation zwischen Server und Browser erfolgt über WebSocket:
 | Nachricht | Bedeutung | Beispiel |
 |-----------|-----------|----------|
 | `READY` | ESP32 bereit | `READY` |
-| `FW <version>` | Firmware-Version | `FW SelectionPanel v2.5.0` |
+| `FW <version>` | Firmware-Version | `FW SelectionPanel v2.5.2` |
 | `PRESS <id>` | Taster gedrückt | `PRESS 001` |
 | `RELEASE <id>` | Taster losgelassen | `RELEASE 001` |
 | `PONG` | Antwort auf PING | `PONG` |
@@ -238,7 +238,7 @@ python3 server.py
 
 # Browser öffnen
 # Lokal:   http://localhost:8080/
-# LAN:     http://rover.local:8080/
+# LAN:     http://rover:8080/
 # IP:      http://192.168.1.24:8080/
 ```
 
@@ -246,7 +246,7 @@ python3 server.py
 
 ```bash
 # Server-Status abfragen
-curl http://rover.local:8080/status | jq
+curl http://rover:8080/status | jq
 
 {
   "version": "2.5.2",
@@ -362,7 +362,7 @@ media/
 Der Server prüft beim Start ob alle erwarteten Medien vorhanden sind:
 
 ```
-2026-01-08 [INFO] Medien-Validierung: 10/10 vollstaendig
+2026-01-08 [INFO] Medien-Validierung: 10/10 vollständig
 
 # Oder bei fehlenden Dateien:
 2026-01-08 [WARNING] Fehlende Medien: 2 Dateien
@@ -448,3 +448,7 @@ sudo lslocks | grep esp32-serial
 | **Gesamt (Nicht gecached)** | **~200 ms** |
 
 Das Medien-Preloading im Browser reduziert die Latenz erheblich.
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*

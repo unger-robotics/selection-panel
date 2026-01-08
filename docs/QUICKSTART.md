@@ -2,8 +2,9 @@
 
 Server + Dashboard in 5 Minuten.
 
-| Stand | 2025-01-01 |
+| Stand | 2026-01-08 |
 |-------|------------|
+| Version | 2.5.2 |
 | Status | ✅ Prototyp funktionsfähig |
 
 ---
@@ -41,17 +42,17 @@ python server.py
 Erwartete Ausgabe:
 ```
 ==================================================
-Auswahlpanel Server v2.4.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.2 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Taster: 1-10 (1-basiert)
-Serial: /dev/ttyACM0
+Serial: /dev/serial/by-id/usb-Espressif...
 HTTP:   http://0.0.0.0:8080/
 ESP32 lokale LED: aktiviert
 ==================================================
-Medien-Validierung: 10/10 vollstaendig
+Medien-Validierung: 10/10 vollständig
 ==================================================
-Serial verbinde: /dev/ttyACM0
+Serial verbinde: /dev/serial/by-id/usb-Espressif...
 Serial verbunden
 ```
 
@@ -92,17 +93,21 @@ curl http://rover:8080/test/stop
 ## Serial direkt testen
 
 ```bash
+# Stabilen Port ermitteln
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+echo "Port: $SERIAL_PORT"
+
 # Port konfigurieren
-stty -F /dev/ttyACM0 115200 raw -echo
+stty -F $SERIAL_PORT 115200 raw -echo
 
 # Daten empfangen (Ctrl+C zum Beenden)
-cat /dev/ttyACM0
+cat $SERIAL_PORT
 
 # Befehle senden
-echo "PING" > /dev/ttyACM0
-echo "STATUS" > /dev/ttyACM0
-echo "LEDSET 001" > /dev/ttyACM0
-echo "LEDCLR" > /dev/ttyACM0
+echo "PING" > $SERIAL_PORT
+echo "STATUS" > $SERIAL_PORT
+echo "LEDSET 001" > $SERIAL_PORT
+echo "LEDCLR" > $SERIAL_PORT
 ```
 
 ---
@@ -130,7 +135,7 @@ sudo systemctl enable --now selection-panel.service
 | Port blockiert | `sudo fuser /dev/ttyACM0` → Prozess beenden |
 | Kein Ton | "Sound aktivieren"-Button im Browser klicken |
 | Server startet nicht | `journalctl -u selection-panel -f` |
-| Taster nicht erkannt | Serial testen: `cat /dev/ttyACM0` |
+| Taster nicht erkannt | Serial testen: `cat /dev/serial/by-id/usb-Espressif*` |
 | Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
 | Preload dauert lange | Medien komprimieren oder Concurrency erhöhen |
 
@@ -172,9 +177,9 @@ media/
 | Pi OS | Debian 13 (trixie) |
 | Python | 3.13+ |
 | aiohttp | 3.9+ |
-| ESP32 Firmware | 2.4.1 |
-| Server | 2.4.2 |
-| Dashboard | 2.3.0 |
+| ESP32 Firmware | 2.5.2 |
+| Server | 2.5.2 |
+| Dashboard | 2.5.1 |
 
 ---
 
@@ -187,10 +192,10 @@ media/
 | Status | `curl http://rover:8080/status` |
 | Health | `curl http://rover:8080/health` |
 | Test Play | `curl http://rover:8080/test/play/5` |
-| Serial Monitor | `cat /dev/ttyACM0` |
+| Serial Monitor | `cat /dev/serial/by-id/usb-Espressif*` |
 | Service Status | `sudo systemctl status selection-panel` |
 | Service Logs | `journalctl -u selection-panel -f` |
 
 ---
 
-*Stand: Januar 2026*
+*Stand: 2026-01-08 | Version 2.5.2*

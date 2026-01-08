@@ -1,41 +1,42 @@
-# RUNBOOK — Betrieb und Troubleshooting
+# RUNBOOK – Betrieb und Troubleshooting
 
 > Debugging-Checklisten und Testprozeduren. Befehle: siehe [COMMANDS.md](COMMANDS.md)
 
-| Version | 2.4.2 |
+| Version | 2.5.2 |
 |---------|-------|
-| Stand | 2025-01-01 |
+| Stand | 2026-01-08 |
 
 ---
 
 ## 1 Schnellstart
 
 ```bash
-open http://rover.local:8080/              # Dashboard
-curl http://rover.local:8080/status | jq   # Status
-curl http://rover.local:8080/health        # Health (200/503)
-curl http://rover.local:8080/test/play/5   # Test (1-basiert!)
+open http://rover:8080/              # Dashboard
+curl http://rover:8080/status | jq   # Status
+curl http://rover:8080/health        # Health (200/503)
+curl http://rover:8080/test/play/5   # Test (1-basiert!)
 ```
 
 ---
 
 ## 2 Hardware-Debugging
 
-### CD4021BE (Buttons)
+### CD4021B (Buttons)
 
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
 | Keine Events | P/S-Logik invertiert | HIGH = Load, LOW = Shift |
-| Falsche Bits | Kaskadierung falsch | Q8 → SER prüfen |
+| Falsche Bits | Kaskadierung falsch | Q8 → DS prüfen |
 | Instabil | Fehlende Kondensatoren | 100 nF an VDD/VSS |
-| Zufällige Trigger | SER floatet (letzter IC) | Pin 11 → VCC |
-| Falsche Taster-Zuordnung | Bit-Mapping | `BUTTON_BIT_MAP` in config.h prüfen |
+| Zufällige Trigger | DS floatet (letzter IC) | Pin 11 → VCC |
+| Falsche Taster-Zuordnung | Verdrahtung | BTN 1 → PI-8 (Pin 1) |
+| First-Bit fehlt | SPI-Timing | First-Bit-Rescue in Firmware |
 
 ### 74HC595 (LEDs)
 
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
-| Keine LEDs | OE nicht auf GND | Pin 13 → GND |
+| Keine LEDs | OE nicht auf GND/PWM | Pin 13 → D2 oder GND |
 | Alle LEDs an | SRCLR auf LOW | Pin 10 → VCC |
 | Falsche LED | Kaskadierung | QH' → SER prüfen |
 
@@ -44,22 +45,26 @@ curl http://rover.local:8080/test/play/5   # Test (1-basiert!)
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
 | Keine Antwort | USB-Port belegt | Server stoppen: `sudo systemctl stop selection-panel` |
-| Kein Upload | Falscher Port | `ls /dev/ttyACM*` |
+| Kein Upload | Falscher Port | `ls /dev/serial/by-id/usb-Espressif*` |
 | Reboot-Schleife | Watchdog | Firmware prüfen |
-| Fragmentierte Serial-Daten | USB-CDC Timing | Firmware v2.4.1 mit `Serial.flush()` |
+| Fragmentierte Serial-Daten | USB-CDC Timing | Firmware v2.5.2 mit `Serial.flush()` |
 
 ---
 
 ## 3 Serial-Debugging
 
-### Port testen
+### Port ermitteln (stabil)
 
 ```bash
+# Stabilen by-id Pfad verwenden (empfohlen)
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+echo "Port: $SERIAL_PORT"
+
 # Port konfigurieren
-stty -F /dev/ttyACM0 115200 raw -echo
+stty -F $SERIAL_PORT 115200 raw -echo
 
 # Daten empfangen (Ctrl+C zum Beenden)
-cat /dev/ttyACM0
+cat $SERIAL_PORT
 
 # Erwartete Ausgabe bei Tastendruck:
 # PRESS 001
@@ -69,24 +74,19 @@ cat /dev/ttyACM0
 ### Befehle senden
 
 ```bash
-echo "PING" > /dev/ttyACM0      # → PONG
-echo "STATUS" > /dev/ttyACM0    # → LEDS, CURLED, BTNS, HEAP
-echo "QRESET" > /dev/ttyACM0    # Queue-Statistik zurücksetzen
-echo "LEDSET 001" > /dev/ttyACM0  # LED 1 ein
-echo "LEDCLR" > /dev/ttyACM0    # Alle LEDs aus
+echo "PING" > $SERIAL_PORT      # → PONG
+echo "STATUS" > $SERIAL_PORT    # → active=N leds=0xNN
+echo "VERSION" > $SERIAL_PORT   # → FW SelectionPanel v2.5.2
+echo "LEDSET 001" > $SERIAL_PORT  # LED 1 ein
+echo "LEDCLR" > $SERIAL_PORT    # Alle LEDs aus
 ```
 
-### STATUS-Ausgabe (v2.4.1)
+### STATUS-Ausgabe (v2.5.2)
 
 ```
-LEDS 0000100000
-CURLED 5          ← Aktuelle LED (1-basiert, 0 = keine)
-BTNS 0000000000
-HEAP 372756
-QOVFL 0
-MODE PROTOTYPE
-MAPPING 15,12,13,11,10,9,8,14,7,4
-FW 2.4.1
+STATUS active=5 leds=0x10
+LEDS 0000100000      ← Bit-Vektor (MSB links)
+BTNS 1111111111      ← Active-Low: 1 = losgelassen
 ```
 
 ### Häufige Serial-Probleme
@@ -95,8 +95,9 @@ FW 2.4.1
 |---------|---------|--------|
 | "Permission denied" | Fehlende Rechte | `sudo usermod -aG dialout $USER` → Neu einloggen |
 | "Device busy" | Port belegt | `sudo fuser /dev/ttyACM0` → Prozess beenden |
-| Fragmentierte Daten | USB-CDC | Firmware v2.4.1 verwenden |
-| Keine Daten | Falscher Port | `ls /dev/ttyACM*` prüfen |
+| Fragmentierte Daten | USB-CDC | Firmware v2.5.2 verwenden |
+| Keine Daten | Falscher Port | `ls /dev/serial/by-id/usb-Espressif*` prüfen |
+| Port ändert sich | Instabiler Pfad | by-id Pfad verwenden |
 
 ---
 
@@ -104,13 +105,13 @@ FW 2.4.1
 
 ### Kein Ton
 
-1. „Sound aktivieren"-Button klicken (Autoplay-Sperre)
+1. "Sound aktivieren"-Button klicken (Autoplay-Sperre)
 2. Warten: "Lade Medien... 5/10" → "Warte auf Tastendruck..."
 3. Audio-Status muss **grün** werden
 4. DevTools → Console auf Fehler prüfen
 
 > **iOS/Safari:** Falls Unlock fehlschlägt, Safari komplett schließen und neu öffnen.
-> Dashboard v2.3.0 verwendet AudioContext API mit Preloading.
+> Dashboard v2.5.1 verwendet AudioContext API mit Preloading.
 
 ### WebSocket-Verbindung
 
@@ -167,7 +168,7 @@ python server.py
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
 | "Serial verbinde..." hängt | Port belegt | `sudo fuser /dev/ttyACM0` |
-| Taster nicht erkannt | Serial-Fragment | Parser prüfen, Firmware v2.4.1 |
+| Taster nicht erkannt | Serial-Fragment | Parser prüfen, Firmware v2.5.2 |
 | Medien fehlen | Falscher Pfad | `ls media/` (001.jpg - 010.jpg) |
 | WebSocket-Fehler | Client-Absturz | Browser neu laden |
 | Health 503 | Serial getrennt | ESP32 Verbindung prüfen |
@@ -176,7 +177,7 @@ python server.py
 
 ## 6 End-to-End Tests
 
-### Latenz-Test (NEU v2.4.2)
+### Latenz-Test
 
 1. Button drücken
 2. **LED-Reaktion:** < 1ms (lokal auf ESP32)
@@ -191,8 +192,8 @@ python server.py
 
 ### One-hot Test
 
-1. `curl http://rover.local:8080/test/play/5`
-2. `curl http://rover.local:8080/test/play/3`
+1. `curl http://rover:8080/test/play/5`
+2. `curl http://rover:8080/test/play/3`
 3. **Erwartet:** Nur LED 3 leuchtet
 
 ### Ende-Test
@@ -208,7 +209,7 @@ python server.py
 3. Audio 3 endet
 4. **Erwartet:** LED 5 bleibt an (nicht aus!)
 
-### Cache-Test (NEU v2.3.0)
+### Cache-Test
 
 1. Sound aktivieren → Preload abwarten
 2. Button drücken
@@ -230,7 +231,7 @@ python server.py
 
 ```bash
 for i in {1..200}; do
-    curl -s "http://rover.local:8080/test/play/$((RANDOM % 10 + 1))"
+    curl -s "http://rover:8080/test/play/$((RANDOM % 10 + 1))"
     sleep 0.2
 done
 ```
@@ -240,7 +241,7 @@ done
 ## 7 Deployment-Checkliste
 
 ### Hardware
-- [ ] ESP32 mit Firmware v2.4.1 geflasht
+- [ ] ESP32 mit Firmware v2.5.2 geflasht
 - [ ] 10 Taster verdrahtet und funktionsfähig
 - [ ] 10 LEDs verdrahtet und funktionsfähig
 - [ ] USB-Kabel ESP32 ↔ Pi verbunden (Daten, nicht nur Laden!)
@@ -249,14 +250,14 @@ done
 - [ ] Repository auf Pi geklont
 - [ ] venv erstellt: `python3 -m venv venv`
 - [ ] Pakete installiert: `pip install aiohttp`
-- [ ] server.py vorhanden (v2.4.2)
+- [ ] server.py vorhanden (v2.5.2)
 
 ### Medien
 - [ ] 10 Bilder: `media/001.jpg` - `media/010.jpg`
 - [ ] 10 Audio: `media/001.mp3` - `media/010.mp3`
 
 ### Tests
-- [ ] Serial-Test: `cat /dev/ttyACM0` zeigt PRESS/RELEASE
+- [ ] Serial-Test: `cat /dev/serial/by-id/usb-Espressif*` zeigt PRESS/RELEASE
 - [ ] Server startet ohne Fehler
 - [ ] Dashboard öffnet sich
 - [ ] "Sound aktivieren" funktioniert
@@ -285,13 +286,16 @@ ls ~/selection-panel/media/*.mp3 2>/dev/null | wc -l
 systemctl is-active selection-panel
 
 # Health-Check
-curl -s http://rover.local:8080/health | jq -r '.status'
+curl -s http://rover:8080/health | jq -r '.status'
 
 # Port-Nutzung prüfen
 sudo fuser /dev/ttyACM0
 
 # USB-Geräte
 lsusb | grep -i espressif
+
+# Serial-Port finden (stabil)
+ls /dev/serial/by-id/usb-Espressif*
 
 # Firewall öffnen (falls nötig)
 sudo ufw allow 8080/tcp
@@ -300,7 +304,8 @@ sudo ufw allow 8080/tcp
 grep -m1 "VERSION" ~/selection-panel/server.py
 
 # Firmware-Version (über Serial)
-echo "VERSION" > /dev/ttyACM0 && sleep 0.5 && cat /dev/ttyACM0
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* | head -1)
+echo "VERSION" > $SERIAL_PORT && sleep 0.5 && cat $SERIAL_PORT
 ```
 
 ---
@@ -309,12 +314,16 @@ echo "VERSION" > /dev/ttyACM0 && sleep 0.5 && cat /dev/ttyACM0
 
 | Problem | Status | Lösung |
 |---------|--------|--------|
-| iOS Audio-Unlock fehlgeschlagen | ✅ Behoben | Dashboard v2.3.0 mit AudioContext API |
-| ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.4.1 mit `Serial.flush()` |
-| pyserial funktioniert nicht | ✅ Behoben | Server v2.4.2 mit `os.open` |
-| Falsche Taster-Zuordnung | ✅ Behoben | Bit-Mapping in config.h |
-| CD4021 Timing | ✅ Behoben | 2µs Load-Pulse |
+| iOS Audio-Unlock fehlgeschlagen | ✅ Behoben | Dashboard v2.5.1 mit AudioContext API |
+| ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.5.2 mit `Serial.flush()` |
+| pyserial funktioniert nicht | ✅ Behoben | Server v2.5.2 mit `os.open` |
+| CD4021B First-Bit-Problem | ✅ Behoben | First-Bit-Rescue in Firmware |
+| CD4021B Timing | ✅ Behoben | 2µs Load-Pulse |
 | 0-basiert vs 1-basiert | ✅ Behoben | Durchgängig 1-basiert |
-| LED-Latenz durch Roundtrip | ✅ Behoben | Firmware v2.4.1 (lokal < 1ms) |
-| Dashboard-Latenz | ✅ Behoben | Dashboard v2.3.0 (Preload < 50ms) |
-| Sequentielle Server-Aktionen | ✅ Behoben | Server v2.4.2 (asyncio.gather) |
+| LED-Latenz durch Roundtrip | ✅ Behoben | Firmware v2.5.2 (lokal < 1ms) |
+| Dashboard-Latenz | ✅ Behoben | Dashboard v2.5.1 (Preload < 50ms) |
+| Serial-Pfad instabil | ✅ Behoben | by-id Pfad verwenden |
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*

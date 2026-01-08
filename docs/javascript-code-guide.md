@@ -1,5 +1,7 @@
 # JavaScript-Code-Guide (Dashboard-Client `app.js` + `index.html`)
 
+Version 2.5.2 | Dashboard v2.5.1 | Stand: 2026-01-08
+
 ## 1) Architektur: Datenfluss in 4 Schritten
 
 **Regel:** UI-Code wird wartbar, wenn der Datenfluss eindeutig ist: **Input → Parse → State → Render**.
@@ -13,7 +15,7 @@
 
 **Anwendung (Leitplanke):**
 
-Jede neue Funktion (z. B. „pause", „volume", „shuffle") sollte entweder **State ändern** oder **rendern** – nicht beides quer verteilt.
+Jede neue Funktion (z. B. "pause", "volume", "shuffle") sollte entweder **State ändern** oder **rendern** – nicht beides quer verteilt.
 
 ## 2) Konfiguration & globaler Zustand
 
@@ -27,11 +29,11 @@ Jede neue Funktion (z. B. „pause", „volume", „shuffle") sollte entweder **
 
 **Anwendung:**
 
-Für „100 Medien": nur `CONFIG.numMedia = 100` ändern (und ggf. `preloadConcurrency` an Netzwerk/Server anpassen).
+Für "100 Medien": nur `CONFIG.numMedia = 100` ändern (und ggf. `preloadConcurrency` an Netzwerk/Server anpassen).
 
 ## 3) WebSocket: robust verbinden, sauber senden
 
-**Regel:** Reconnect ist Teil des Normalbetriebs. Fehler sollen sichtbar sein, aber nicht „crashen".
+**Regel:** Reconnect ist Teil des Normalbetriebs. Fehler sollen sichtbar sein, aber nicht "crashen".
 
 **Beispiel:**
 
@@ -40,7 +42,7 @@ Für „100 Medien": nur `CONFIG.numMedia = 100` ändern (und ggf. `preloadConcu
 
 **Anwendung:**
 
-Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (z. B. `type` Pflicht, Payload validieren), sonst werden UI-Bugs zu „Netzwerkproblemen".
+Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (z. B. `type` Pflicht, Payload validieren), sonst werden UI-Bugs zu "Netzwerkproblemen".
 
 ## 4) Medien-Preloading: schnelle Wiedergabe ohne UI-Blocker
 
@@ -48,7 +50,7 @@ Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (z. B.
 
 **Beispiel (induktiv):**
 
-- Beobachtung: Viele gleichzeitige Requests können „stottern".
+- Beobachtung: Viele gleichzeitige Requests können "stottern".
 - Daten: `preloadConcurrency = 3` + eigene `Semaphore`.
 - Regel: `preloadAllMedia()` lädt IDs 1…`numMedia` in Batches und aktualisiert Progress.
 
@@ -64,7 +66,7 @@ Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (z. B.
 
 ## 5) Playback-State-Machine: Preempt + Race-Fix
 
-**Regel:** Bei „schnellem Umschalten" brauchst du eine eindeutige Zuordnung von Events zur aktuellen ID.
+**Regel:** Bei "schnellem Umschalten" brauchst du eine eindeutige Zuordnung von Events zur aktuellen ID.
 
 **Beispiel:**
 
@@ -73,11 +75,11 @@ Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (z. B.
 
 **Anwendung (wenn du es noch härter machen willst):**
 
-Ergänze optional `seq` (laufende Nummer) in `play`/`ended`, dann ist auch Multi-Tab/Latency eindeutig (Server kann „alte ended" sicher ignorieren).
+Ergänze optional `seq` (laufende Nummer) in `play`/`ended`, dann ist auch Multi-Tab/Latency eindeutig (Server kann "alte ended" sicher ignorieren).
 
 ## 6) Audio-Unlock: iOS/Autoplay-Policies korrekt handhaben
 
-**Regel:** Audio darf erst nach User-Geste zuverlässig starten (besonders iOS/Safari). Daher: Unlock-Button + „silent play".
+**Regel:** Audio darf erst nach User-Geste zuverlässig starten (besonders iOS/Safari). Daher: Unlock-Button + "silent play".
 
 **Beispiel:**
 
@@ -99,7 +101,33 @@ Alle Audio-Starts müssen hinter `state.audioUnlocked === true` liegen (ist im `
 
 **Anwendung (Sicherheits/Robustheits-Note):**
 
-`innerHTML` ist ok, solange du nur kontrollierte Inhalte einsetzt. Bei künftig „freiem Text" aus dem Server: auf `textContent` wechseln (XSS-Risiko vermeiden).
+`innerHTML` ist ok, solange du nur kontrollierte Inhalte einsetzt. Bei künftig "freiem Text" aus dem Server: auf `textContent` wechseln (XSS-Risiko vermeiden).
+
+## 8) Protokoll-Übersicht (Dashboard ↔ Server)
+
+### Server → Dashboard (WebSocket)
+
+| Message | Beschreibung |
+|---------|--------------|
+| `{"type":"play","id":n}` | Starte Wiedergabe für Taste n |
+| `{"type":"stop"}` | Stoppe aktuelle Wiedergabe |
+
+### Dashboard → Server (WebSocket)
+
+| Message | Beschreibung |
+|---------|--------------|
+| `{"type":"ended","id":n}` | Audio für Taste n beendet |
+
+### HTTP-Endpoints
+
+| Endpoint | Beschreibung |
+|----------|--------------|
+| `GET /` | Dashboard HTML |
+| `GET /media/{id}.jpg` | Bild für Taste id |
+| `GET /media/{id}.mp3` | Audio für Taste id |
+| `GET /status` | Server-Status (JSON) |
+| `GET /health` | Health-Check (200/503) |
+| `GET /test/play/{id}` | Tastendruck simulieren |
 
 ## Kurz-Checkliste für Erweiterungen
 
@@ -109,7 +137,7 @@ Alle Audio-Starts müssen hinter `state.audioUnlocked === true` liegen (ist im `
 
 ## Glossar (alphabetisch)
 
-- **AudioContext** – WebAudio-API-Kontext; wird oft genutzt, um Audio auf iOS nach User-Geste „freizuschalten".
+- **AudioContext** – WebAudio-API-Kontext; wird oft genutzt, um Audio auf iOS nach User-Geste "freizuschalten".
 - **Autoplay Policy** – Browser-Regeln, die automatisches Abspielen ohne Nutzerinteraktion blockieren (v. a. Mobilgeräte).
 - **Base64** – Kodierung von Binärdaten als Text (hier: Silent-WAV als Data-URL).
 - **Cache** – Zwischenspeicher, um Ressourcen (Bild/Audio) erneut ohne Netz-Latenz zu verwenden.
@@ -118,9 +146,13 @@ Alle Audio-Starts müssen hinter `state.audioUnlocked === true` liegen (ist im `
 - **DOMContentLoaded** – Event, wenn das HTML geparst ist und DOM-Elemente verfügbar sind.
 - **Event Listener** – Registrierte Callback-Funktion für Events (Click, Keydown, Audio-Events, WS-Events).
 - **JSON** – Textformat zur strukturierten Datenübertragung (Server↔Client Messages).
-- **Preempt** – „Neues Ereignis gewinnt": laufende Wiedergabe wird sofort durch neue ID ersetzt.
+- **Preempt** – "Neues Ereignis gewinnt": laufende Wiedergabe wird sofort durch neue ID ersetzt.
 - **Progress Bar** – UI-Element, das den Fortschritt zeigt (hier: Audio `currentTime/duration`).
-- **Race-Condition** – Timing-Problem: ein „altes" Event (ended) trifft nach einem neuen Play ein; wird per ID-Check abgefangen.
+- **Race-Condition** – Timing-Problem: ein "altes" Event (ended) trifft nach einem neuen Play ein; wird per ID-Check abgefangen.
 - **Reconnect** – Automatisches Wiederverbinden nach Verbindungsabbruch (hier: nach 5000 ms).
 - **Semaphore** – Synchronisationsmechanismus zur Begrenzung gleichzeitiger Tasks/Promises.
 - **WebSocket (ws/wss)** – Persistente bidirektionale Verbindung; `wss` ist TLS-verschlüsselt (HTTPS).
+
+---
+
+*Stand: 2026-01-08 | Version 2.5.2*
