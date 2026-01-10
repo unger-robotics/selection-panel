@@ -38,10 +38,10 @@ void setup() {
     // Größe: LOG_QUEUE_LEN Events, jedes sizeof(LogEvent) Bytes
     logQueue_ = xQueueCreate(LOG_QUEUE_LEN, sizeof(LogEvent));
 
-    // Tasks starten (beide auf Core 1)
-    // Serial-Task zuerst, damit READY gesendet wird bevor IO startet
-    start_serial_task(logQueue_);
-    start_io_task(logQueue_);
+    // IO hoch: harter 200 Hz Zyklus, soll jitterarm bleiben
+    // Serial niedriger: darf drosseln, darf IO nicht stören
+    constexpr UBaseType_t PRIO_IO = 5;
+    constexpr UBaseType_t PRIO_SERIAL = 2;
 }
 
 void loop() {

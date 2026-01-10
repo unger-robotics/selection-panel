@@ -1,54 +1,75 @@
 # Systemübersicht
 
-## Ziel
+## Ziel / Invarianten
 
-- **Taster n → LED n (1:1)**
-- **One-Hot**: maximal eine LED aktiv
-- Nicht-blockierende Firmware (IO stabil, Logging entkoppelt)
+- **Taster n → LED n (1:1)**, IDs: `1..BTN_COUNT`
+- **One-Hot**: maximal **eine** LED aktiv (oder `0 = alle aus`)
+- **Preempt**: neuer Tastendruck überschreibt sofort die vorherige Auswahl
+- **Nicht-blockierend**: IO-Zyklus bleibt stabil (200 Hz), Serial/Logging ist entkoppelt
 
-## Hardware
+## Hardware (Prototyp)
 
-| Komponente | Funktion | Logik |
-|------------|----------|-------|
-| CD4021B | Taster-Schieberegister | Active-Low (gedrückt = 0) |
-| 74HC595 | LED-Schieberegister | Active-High (an = 1) |
+| Bauteil | Rolle | Logik |
+|---|---|---|
+| CD4021B | Button-Input (Shift-Register) | Active-Low (`0 = gedrückt`) |
+| 74HC595 | LED-Output (Shift-Register) | Active-High (`1 = an`) |
 
-**SPI-Bus:**
-- Shared SCK (D8)
-- Separate Datenleitungen: MISO (D9) für Buttons, MOSI (D10) für LEDs
-- Separate Steuerung: P/S (D1) für CD4021B, RCK (D0) für 74HC595
-- Optional: OE-PWM (D2) für LED-Helligkeit (active-low)
+**SPI (shared, ohne CS):**
 
-## Firmware-Pipeline
+- Gemeinsamer SCK (`PIN_SCK`)
+- CD4021 nutzt **MISO** (`PIN_BTN_MISO`) + **P/S** (`PIN_BTN_PS`)
+- 74HC595 nutzt **MOSI** (`PIN_LED_MOSI`) + **Latch** (`PIN_LED_RCK`) + optional **OE/PWM** (`PIN_LED_OE`)
+- Wichtig: **CPOL muss 0 bleiben** (SPI Mode 0/1 ok), weil keine CS-Leitungen existieren.
 
-```
-1) Read RAW      → HW-SPI, CD4021B (first-bit rescue)
-2) Debounce      → Zeitbasiert (30 ms)
-3) Selection     → Pressed-Edge Detection → activeId
-4) Build One-Hot → LED-Bytes aus activeId
-5) Write LEDs    → HW-SPI, 74HC595 + Latch
-6) LogEvent      → Queue → Serial-Task (non-blocking)
-```
+## Firmware: Tasks & Datenfluss
 
-## Architektur-Schichten
+### IO-Task (Priorität `PRIO_IO`, 200 Hz)
 
-```
-┌─────────────────────────────────────┐
-│  main.cpp (Entry Point)            │
-├─────────────────────────────────────┤
-│  app/ (FreeRTOS Tasks)             │
-│  • io_task: 200 Hz Zyklus          │
-│  • serial_task: Event-driven       │
-├─────────────────────────────────────┤
-│  logic/ (Geschäftslogik)           │
-│  • debounce: Entprellung           │
-│  • selection: One-Hot Policy       │
-├─────────────────────────────────────┤
-│  drivers/ (Hardware-Treiber)       │
-│  • cd4021: Button-Input            │
-│  • hc595: LED-Output               │
-├─────────────────────────────────────┤
-│  hal/ (Hardware Abstraction)       │
-│  • spi_bus: Mutex + Guard          │
-└─────────────────────────────────────┘
-```
+Zyklus (`IO_PERIOD_MS = 5 ms`):
+
+1) Button-Rohdaten lesen (CD4021)
+2) Entprellen (`DEBOUNCE_MS`)
+3) Auswahl/One-Hot aktualisieren (Selection)
+4) LED-Bytes schreiben (74HC595)
+5) Log-Event non-blocking in `logQueue` senden
+
+Eigenschaft: darf **niemals** blockieren (Timing ist die Referenz).
+
+### Serial-Task (Priorität `PRIO_SERIAL`)
+
+- Liest `logQueue` (Events) und sendet **PRESS/RELEASE** an den Pi
+- Nimmt Kommandos vom Pi an (z. B. `LEDSET n`) und gibt sie an die IO-Task weiter
+- Einzige Stelle mit `Serial.*`
+
+## Boot / Handshake
+
+- Die Firmware sendet `READY`, sobald sie **Kommandos sicher annehmen** kann.
+- Host-Regel: **erst nach `READY`** Kommandos senden.
+
+## Serial-Protokoll (kompakt)
+
+**ESP32 → Pi**
+
+- `READY`
+- `PRESS %03u`
+- `RELEASE %03u`
+- `OK`
+- `ERROR <reason>`
+
+**Pi → ESP32 (minimal, One-Hot-konform)**
+
+- `PING`
+- `STATUS`
+- `VERSION`
+- `HELP`
+- `LEDSET n`  (setzt One-Hot: genau LED `n` an)
+
+Hinweis: Debug-Kommandos wie `LEDON/LEDOFF/LEDALL` sind **nicht One-Hot-konform** und sollten in produktivem Protokollbetrieb deaktiviert sein.
+
+## SPI-Sicherheit
+
+SPI-Zugriffe laufen über `SpiBus` (Mutex + Guard):
+
+- `beginTransaction()` beim Eintritt
+- `endTransaction()` + Unlock beim Verlassen (RAII)
+- Keine “freilaufenden” SCK-Flanken außerhalb von SPI-Transaktionen

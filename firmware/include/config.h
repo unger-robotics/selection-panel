@@ -107,8 +107,8 @@ constexpr uint8_t LOG_QUEUE_LEN =
 // Core 1: Anwendung (IO + Serial)
 constexpr BaseType_t CORE_APP = 1;
 
-// IO niedrig: Läuft periodisch mit vTaskDelayUntil
-// Serial hoch: Soll Queue schnell leeren wenn CPU frei
+// IO hoch: harter 200 Hz Zyklus, soll jitterarm bleiben
+// Serial niedriger: darf drosseln, darf IO nicht stören
 constexpr UBaseType_t PRIO_IO = 5;
 constexpr UBaseType_t PRIO_SERIAL = 2;
 

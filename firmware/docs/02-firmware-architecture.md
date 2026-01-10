@@ -3,63 +3,64 @@
 ## Schichten (Abhängigkeit nur nach unten)
 
 ```
+
 ┌─────────────┐
-│  main.cpp   │  Entry Point, Queue-Erstellung
+│  main.cpp   │  Entry Point, Queue-Erstellung, Task-Start
 ├─────────────┤
-│    app/     │  FreeRTOS Tasks (io_task, serial_task)
+│    app/     │  FreeRTOS Tasks: io_task, serial_task
 ├─────────────┤
-│   logic/    │  Debounce, Selection (One-Hot Policy)
+│   logic/    │  debounce (Entprellung), selection (One-Hot/Preempt)
 ├─────────────┤
-│  drivers/   │  CD4021 readRaw(), HC595 write()/latch()/PWM
+│  drivers/   │  cd4021 (readRaw), hc595 (write/latch/OE-PWM)
 ├─────────────┤
-│    hal/     │  SPI-Bus + Mutex + Guard (thread-safe)
+│    hal/     │  spi_bus (Mutex + Transactions)
 └─────────────┘
+
 ```
 
-## Warum diese Aufteilung?
+## Task-Modell
 
-| Vorteil | Erklärung |
-|---------|-----------|
-| Isolierte Komplexität | Hardware-Spezialfälle (CD4021 first-bit) an genau einer Stelle |
-| Testbarkeit | Logik ist testbar ohne Hardware |
-| Determinismus | IO bleibt vorhersagbar (kein Serial im IO-Pfad) |
-| Wartbarkeit | Klare Verantwortlichkeiten pro Schicht |
+### IO-Task (`PRIO_IO`, `CORE_APP`, 200 Hz)
 
-## FreeRTOS Taskmodell
+- harte Periode via `vTaskDelayUntil()`
+- Verantwortlich für:
+  - Rohdaten lesen → entprellen → Auswahl berechnen → LEDs schreiben
+  - Host-LED-Kommandos aus Queue verarbeiten (non-blocking)
+  - LogEvent-Snapshots in `logQueue` senden
 
-### IO-Task (Priorität 5)
+### Serial-Task (`PRIO_SERIAL`, `CORE_APP`)
 
-- Periodisch via `vTaskDelayUntil` (5 ms = 200 Hz)
-- Pipeline: read → debounce → select → write
-- Darf **niemals** blockieren
+- Verantwortlich für:
+  - Protokollausgabe (PRESS/RELEASE/STATUS)
+  - Kommandos annehmen und an IO-Task weiterreichen
+- Darf langsamer sein, darf IO **nicht** stören.
 
-### Serial-Task (Priorität 2)
+## Queues / Entkopplung
 
-- Event-driven via `xQueueReceive`
-- Format → `Serial.print`
-- Kann längere Operationen durchführen ohne IO zu stören
+- `logQueue`: IO → Serial (Snapshots/Events)
+- `ledCmdQueue`: Serial → IO (Host-Kommandos)
 
-## SPI-Sicherheit
+Ziel: kein direkter Hardwarezugriff aus der Serial-Task.
 
-```cpp
-// Guard Pattern für automatisches Unlock
-{
-    SpiGuard guard(spi_bus);  // beginTransaction + Lock
-    // ... SPI-Operationen ...
-}  // Destruktor: endTransaction + Unlock
-```
+## One-Hot: wo wird es garantiert?
 
-SPI-Zugriffe werden über Mutex serialisiert. Der Guard garantiert:
-- `beginTransaction()` bei Konstruktion
-- `endTransaction()` + Unlock bei Destruktion (auch bei Exceptions)
+- lokal: `selection` + `buildOneHotLED(activeId)` → LED-Bytes werden One-Hot erzeugt
+- remote: **nur `LEDSET n`** ist One-Hot-konform
+  (`LEDON/LEDOFF/LEDALL` sind Debug und nicht One-Hot-konform)
 
-## Konfiguration (config.h)
+## SPI (shared bus ohne CS)
 
-| Parameter | Wert | Beschreibung |
-|-----------|------|--------------|
-| `IO_PERIOD_MS` | 5 | Abtastrate (200 Hz) |
-| `DEBOUNCE_MS` | 30 | Entprellzeit |
-| `SPI_HZ_BTN` | 500000 | CD4021B Taktrate |
-| `SPI_HZ_LED` | 1000000 | 74HC595 Taktrate |
-| `SPI_MODE_BTN` | MODE1 | CD4021B SPI-Mode |
-| `SPI_MODE_LED` | MODE0 | 74HC595 SPI-Mode |
+- SPI-Zugriffe sind über `SpiBus` serialisiert (Mutex + `beginTransaction/endTransaction`)
+- Erlaubte Modi: **Mode 0/1** (CPOL=0). Kein Mode 2/3.
+- Keine SCK-Flanken außerhalb von SPI-Transaktionen.
+
+## Konfiguration (Auszug)
+
+| Parameter | Wert | Bedeutung |
+|---|---:|---|
+| `IO_PERIOD_MS` | 5 | `200 Hz` IO-Zyklus |
+| `DEBOUNCE_MS` | 30 | Entprellen (zeitbasiert) |
+| `SPI_HZ_BTN` | 500000 | CD4021 Takt |
+| `SPI_HZ_LED` | 1000000 | 74HC595 Takt |
+| `SPI_MODE_BTN` | MODE1 | CD4021 Mode |
+| `SPI_MODE_LED` | MODE0 | 74HC595 Mode |

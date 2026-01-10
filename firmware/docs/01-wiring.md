@@ -2,65 +2,45 @@
 
 ## Pins (XIAO ESP32-S3)
 
-| Signal | Pin | Funktion |
-|--------|-----|----------|
-| SCK (shared) | D8 | SPI-Takt für beide Chip-Typen |
-| BTN P/S | D1 | CD4021B Parallel/Serial Control |
-| BTN MISO | D9 | CD4021B Q8 (Daten vom ersten Chip) |
-| LED MOSI | D10 | 74HC595 SER (Daten zum ersten Chip) |
-| LED RCK | D0 | 74HC595 Latch (STCP) |
-| LED OE | D2 | 74HC595 Output Enable (PWM, active-low) |
+| Signal | XIAO Pin | Rolle |
+|---|---:|---|
+| SCK (shared) | D8 | SPI-Takt für CD4021 + 74HC595 |
+| BTN P/S | D1 | CD4021: Parallel/Shift (P/S) |
+| BTN MISO | D9 | CD4021: Q8 (Serial-Out zum ESP32) |
+| LED MOSI | D10 | 74HC595: SER (Serial-In vom ESP32) |
+| LED RCK | D0 | 74HC595: Latch (RCLK/STCP) |
+| LED OE | D2 | 74HC595: Output Enable (active-low, optional PWM) |
 
-## CD4021B (Buttons) – Bit-Zuordnung
+Versorgung:
 
-- Active-Low: gedrückt = `0`, losgelassen = `1`
-- CD4021B gibt MSB-first aus: PI-1 erscheint zuerst (Bit 7), PI-8 zuletzt (Bit 0)
-- **Hardware-Verdrahtung:** BTN 1 → PI-8, BTN 8 → PI-1
+- Alle ICs an **3V3** und **GND**
+- Pro IC **100 nF** (VCC↔GND, nah am Pin), zusätzlich **10 µF** nahe am 3V3-Rail empfohlen.
 
-| Taster | Pin-Name | Pin-Nr | Byte | Bit |
-|--------|----------|--------|------|-----|
-| BTN 1 | PI-8 | 1 | 0 | 0 |
-| BTN 2 | PI-7 | 15 | 0 | 1 |
-| BTN 3 | PI-6 | 14 | 0 | 2 |
-| BTN 4 | PI-5 | 13 | 0 | 3 |
-| BTN 5 | PI-4 | 4 | 0 | 4 |
-| BTN 6 | PI-3 | 5 | 0 | 5 |
-| BTN 7 | PI-2 | 6 | 0 | 6 |
-| BTN 8 | PI-1 | 7 | 0 | 7 |
-| BTN 9 | PI-8 | 1 | 1 | 0 |
-| BTN 10 | PI-7 | 15 | 1 | 1 |
+## 74HC595 (LEDs) – Grundverdrahtung
 
-**Firmware-Abstraktion:** `bitops.h` verwendet `btn_bit(id) = 7 - ((id - 1) % 8)` um die ID auf das korrekte Bit zu mappen.
+- `SER`  ← `LED MOSI (D10)`
+- `SRCLK` ← `SCK (D8)`
+- `RCLK` ← `LED RCK (D0)`
+- `OE`   ← `LED OE (D2)` (oder fest auf GND, wenn immer aktiv)
+- `MR`   → 3V3 (Reset inaktiv halten)
 
-**Wichtig:** Nach Parallel-Load liegt das **erste Bit sofort** an Q8 an („first bit problem"). Die Firmware löst dies durch `digitalRead(MISO)` vor dem SPI-Transfer.
+Daisy-Chain (mehrere 595):
 
-## 74HC595 (LEDs) – Bit-Zuordnung
+- `QH'` von Chip 0 → `SER` von Chip 1 → …
+- In der Firmware werden Bytes so gesendet, dass Daisy-Chain korrekt gefüllt wird.
 
-- Active-High: an = `1`, aus = `0`
-- **Bit0 = LED1, Bit1 = LED2, …** (LSB-first)
+## CD4021B (Buttons) – Grundverdrahtung
 
-| LED | Byte | Bit |
-|-----|------|-----|
-| LED 1 | 0 | 0 |
-| LED 2 | 0 | 1 |
-| LED 3 | 0 | 2 |
-| LED 4 | 0 | 3 |
-| LED 5 | 0 | 4 |
-| LED 6 | 0 | 5 |
-| LED 7 | 0 | 6 |
-| LED 8 | 0 | 7 |
-| LED 9 | 1 | 0 |
-| LED 10 | 1 | 1 |
+- `CP/CLK` ← `SCK (D8)`
+- `P/S`    ← `BTN P/S (D1)`
+- `Q8`     → `BTN MISO (D9)`
+- `INH/CE` → GND (Clock Enable aktiv)
+- `DS`     → für Daisy-Chain (siehe unten)
 
-**Firmware-Abstraktion:** `bitops.h` verwendet `led_bit(id) = (id - 1) % 8`.
+Daisy-Chain (2× CD4021, 16 Eingänge, davon 10 genutzt):
 
-## Daisy-Chain Verbindungen
+- `DS` des **ersten** Chips an **GND** (definierter Serien-Input)
+- `Q8` Chip 0 → `DS` Chip 1
+- `Q8` Chip 1 → `BTN MISO (D9)`
 
-```
-74HC595: ESP32 D10 → SER #0 → QH' #0 → SER #1
-CD4021B: 3V3 → DS #1 → Q8 #1 → DS #0 → Q8 #0 → ESP32 D9
-```
-
-## Stützkondensatoren
-
-Jeder IC benötigt 100 nF zwischen VCC und GND, möglichst nah am Chip.
+Hinweis: Die **Bit-Reihenfolge** ist hardwarebedingt. Die Firmware abstrahiert das über `bitops.h` (IDs `1..N` bleiben stabil, auch wenn intern Bits gedreht/verschoben werden).
