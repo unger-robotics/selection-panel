@@ -1,20 +1,20 @@
-# Selection Panel: Hardware-Dokumentation
+# Selection Panel: Hardware
 
 Version 2.5.2 | 10-Button Prototyp
 
 ## Komponentenübersicht
 
-| Komponente | Typ | Anzahl | Funktion |
-|------------|-----|--------|----------|
-| XIAO ESP32-S3 | Mikrocontroller | 1 | Steuerlogik, USB-CDC |
-| Raspberry Pi 5 | SBC + Netzteil + microSD | 1 | Server, Dashboard, Medien |
-| CD4021B | 8-Bit PISO Schieberegister | 2 | Taster einlesen |
-| 74HC595 | 8-Bit SIPO Schieberegister | 2 | LEDs ansteuern |
-| Taster | 6×6 mm Tactile Switch | 10 | Benutzereingabe |
-| LED | 5 mm, verschiedene Farben | 10 | Statusanzeige |
-| Widerstand | 330 Ω – 3 kΩ | 10 | LED-Strombegrenzung |
-| Widerstand | 10 kΩ | 10 | Pull-up für Taster |
-| Kondensator | 100 nF (Keramik) | 4 | Stützkondensatoren (VCC) |
+| Komponente     | Typ                        | Anzahl | Funktion                  |
+|----------------|----------------------------|--------|---------------------------|
+| XIAO ESP32-S3  | Mikrocontroller            | 1      | Steuerlogik, USB-CDC      |
+| Raspberry Pi 5 | SBC + Netzteil + microSD   | 1      | Server, Dashboard, Medien |
+| CD4021B        | 8-Bit PISO Schieberegister | 2      | Taster einlesen           |
+| 74HC595        | 8-Bit SIPO Schieberegister | 2      | LEDs ansteuern            |
+| Taster         | 6×6 mm Tactile Switch      | 10     | Benutzereingabe           |
+| LED            | 5 mm, verschiedene Farben  | 10     | Statusanzeige             |
+| Widerstand     | 330 Ω – 3 kΩ               | 10     | LED-Strombegrenzung       |
+| Widerstand     | 10 kΩ                      | 10     | Pull-up für Taster        |
+| Kondensator    | 100 nF (Keramik)           | 4      | Stützkondensatoren (VCC)  |
 
 ## Prototyp-Aufbau
 
@@ -27,9 +27,9 @@ Version 2.5.2 | 10-Button Prototyp
 │   └─────────┘      └────────┘ └────────┘ └────────┘ └────────┘              │
 │                        OUTPUT                 INPUT                         │
 │                                                                             │
-│   ○  ○  ●  ●  ●  ●  ○  ○  ●  ●    ← Widerstände (330Ω–3kΩ für LEDs)         │
+│   ○  ○  ○  ○  ○  ○  ○  ○  ○  ○    ← Widerstände (330Ω–3kΩ für LEDs)         │
 │                                                                             │
-│   ◐  ◐  ●  ●  ●  ●  ●  ●  ●  ●    ← 10 LEDs (weiß, blau, rot, gelb, grün)   │
+│   ○  ○  ○  ○  ○  ○  ○  ○  ○  ●    ← 10 LEDs (weiß, blau, rot, gelb, grün)   │
 │   1  2  3  4  5  6  7  8  9  10                                             │
 │                                                                             │
 │   ○  ○  ○  ○  ○  ○  ○  ○  ○  ○    ← Widerstände (10kΩ Pull-up)              │
@@ -57,14 +57,23 @@ Version 2.5.2 | 10-Button Prototyp
                   └─────────────┘
 ```
 
-| Pin | Signal | Funktion | Ziel |
-|-----|--------|----------|------|
-| D0  | LED_RCK | Latch (STCP) | 74HC595 Pin 12 |
-| D1  | BTN_PS | Parallel/Serial Control | CD4021B Pin 9 |
-| D2  | LED_OE | Output Enable (PWM, active-low) | 74HC595 Pin 13 |
-| D8  | SCK | SPI Clock | Beide Chip-Typen |
-| D9  | BTN_MISO | Daten von CD4021B | CD4021B #0 Pin 3 (Q8) |
-| D10 | LED_MOSI | Daten zu 74HC595 | 74HC595 #0 Pin 14 (SER) |
+| Pin | Signal   | Funktion                        | Ziel                    |
+|-----|----------|---------------------------------|-------------------------|
+| D0  | LED_RCK  | Latch (STCP)                    | 74HC595 Pin 12          |
+| D1  | BTN_PS   | Parallel/Serial Control         | CD4021B Pin 9           |
+| D2  | LED_OE   | Output Enable (PWM, active-low) | 74HC595 Pin 13          |
+| D8  | SCK      | SPI Clock                       | Beide Chip-Typen        |
+| D9  | BTN_MISO | Daten von CD4021B               | CD4021B #0 Pin 3 (Q8)   |
+| D10 | LED_MOSI | Daten zu 74HC595                | 74HC595 #0 Pin 14 (SER) |
+
+## Byte-Mapping (Firmware ↔ Hardware)
+
+Die Asymmetrie zwischen Ein- und Ausgabe ergibt sich aus der Hardware: Der CD4021B schiebt sein erstes Sample (PI-8) als erstes Bit heraus, während der 74HC595 das zuletzt empfangene Bit auf QA (Ausgang 0) legt.
+
+| IC              | Byte 0            | Byte 1             |
+|-----------------|-------------------|--------------------|
+| 74HC595 (LEDs)  | LED 1-8 = Bit 0-7 | LED 9-10 = Bit 0-1 |
+| CD4021 (Taster) | BTN 1-8 = Bit 7-0 | BTN 9-10 = Bit 7-6 |
 
 ## Schaltplan-Übersicht
 
@@ -96,7 +105,7 @@ Version 2.5.2 | 10-Button Prototyp
                             │   │  CD4021B   │◀── DS ───│  CD4021B   │◀── DS ── 3V3│
                             │   │    #0      │    Q8    │    #1      │             │
                             │   │            │◀─────────│            │             │
-                            │   │ PI 1-8     │          │ PI 1-2     │             │
+                            │   │ PI 8-1     │          │ PI 8-7     │             │
                             │   │  ↑         │          │  ↑         │             │
                             │   │ BTN 1-8    │          │ BTN 9-10   │             │
                             │   └────────────┘          └────────────┘             │
@@ -112,7 +121,7 @@ Der 74HC595 ist ein Serial-In/Parallel-Out Schieberegister mit Latch.
 
 ```
                          74HC595 (#0)                    74HC595 (#1)
-                      ┌─────────────┐                 ┌─────────────┐
+                     ┌───────  ──────┐                ┌───────  ──────┐
     LED 2  ◀─────────┤ 1  QB   VCC 16├─── 3V3 LED 10 ◀┤ 1  QB   VCC 16├─── 3V3
     LED 3  ◀─────────┤ 2  QC   QA  15├──▶ LED 1       ┤ 2  QC   QA  15├──▶ LED 9
     LED 4  ◀─────────┤ 3  QD   SER 14├◀── D10 (MOSI)  ┤ 3  QD   SER 14├◀── #0.QH'
@@ -123,7 +132,7 @@ Der 74HC595 ist ein Serial-In/Parallel-Out Schieberegister mit Latch.
           GND ───────┤ 8  GND  QH'  9├────▶ #1.SER    ┤ 8  GND  QH'  9├    (n.c.)
                      └───────┬───────┘                └───────┬───────┘
                              │                                │
-                            ┴ C1                             ┴ C2
+                             ┴ C1                             ┴ C2
                            100nF                            100nF
                              │                                │
                             GND                              GND
@@ -173,7 +182,7 @@ Der CD4021B ist ein Parallel-In/Serial-Out Schieberegister.
 
 ```
                          CD4021B (#0)                        CD4021B (#1)
-                      ┌──────────────┐                    ┌──────────────┐
+                     ┌────────_ ──────┐                  ┌─────────_ ─────┐
     BTN 1  ──────────┤ 1  PI-8  VDD 16├─── 3V3   BTN 9 ──┤ 1  PI-8  VDD 16├─── 3V3
                      ┤ 2  Q6   PI-7 15├◀── BTN 2         ┤ 2  Q6   PI-7 15├◀── BTN 10
    D9 (MISO) ◀───────┤ 3  Q8   PI-6 14├◀── BTN 3         ┤ 3  Q8   PI-6 14├    +3V3
@@ -184,7 +193,7 @@ Der CD4021B ist ein Parallel-In/Serial-Out Schieberegister.
           GND ───────┤ 8  VSS  P/S  9├◀── D1 (PS)        ┤ 8  VSS  P/S  9├◀── D1 (PS)
                      └───────┬───────┘                   └───────┬───────┘
                              │         ◀────── Q8 (Pin 3) ───────┘
-                            ┴ C3                                ┴ C4
+                             ┴ C3                                ┴ C4
                            100nF                               100nF
                              │                                   │
                             GND                                 GND
@@ -192,20 +201,20 @@ Der CD4021B ist ein Parallel-In/Serial-Out Schieberegister.
 
 ### Pin-Zuordnung Taster → CD4021B
 
-Der CD4021B gibt Daten MSB-first aus: PI-1 erscheint zuerst (Bit 7), PI-8 zuletzt (Bit 0).
+Der CD4021B gibt Daten MSB-first aus: PI-8 erscheint zuerst (Bit 7), PI-1 zuletzt (Bit 0).
 
-| Taster | Chip | Pin-Name | Pin-Nr | Bit im Byte |
-|--------|------|----------|--------|-------------|
-| BTN 1 | #0 | PI-8 | 1 | Bit 0 |
-| BTN 2 | #0 | PI-7 | 15 | Bit 1 |
-| BTN 3 | #0 | PI-6 | 14 | Bit 2 |
-| BTN 4 | #0 | PI-5 | 13 | Bit 3 |
-| BTN 5 | #0 | PI-4 | 4 | Bit 4 |
-| BTN 6 | #0 | PI-3 | 5 | Bit 5 |
-| BTN 7 | #0 | PI-2 | 6 | Bit 6 |
-| BTN 8 | #0 | PI-1 | 7 | Bit 7 |
-| BTN 9 | #1 | PI-8 | 1 | Bit 0 (Byte 1) |
-| BTN 10 | #1 | PI-7 | 15 | Bit 1 (Byte 1) |
+| Taster | Chip | Pin-Name | Pin-Nr | Bit im Byte    |
+|--------|------|----------|--------|----------------|
+| BTN 1  | #0   | PI-8     | 1      | Bit 7          |
+| BTN 2  | #0   | PI-7     | 15     | Bit 6          |
+| BTN 3  | #0   | PI-6     | 14     | Bit 5          |
+| BTN 4  | #0   | PI-5     | 13     | Bit 4          |
+| BTN 5  | #0   | PI-4     | 4      | Bit 3          |
+| BTN 6  | #0   | PI-3     | 5      | Bit 2          |
+| BTN 7  | #0   | PI-2     | 6      | Bit 1          |
+| BTN 8  | #0   | PI-1     | 7      | Bit 0          |
+| BTN 9  | #1   | PI-8     | 1      | Bit 7 (Byte 1) |
+| BTN 10 | #1   | PI-7     | 15     | Bit 6 (Byte 1) |
 
 **Hinweis:** Die Firmware verwendet `bitops.h` mit der Formel `btn_bit(id) = 7 - ((id - 1) % 8)`, die diese Zuordnung abstrahiert.
 
@@ -236,8 +245,7 @@ Der CD4021B gibt Daten MSB-first aus: PI-1 erscheint zuerst (Bit 7), PI-8 zuletz
     └┬┘
      ├───────── PIx (CD4021B)
      │
-    ┌┴┐
-    │ │ Taster
+    ┌┴┐ Taster
     └┬┘
      │
     GND
@@ -292,7 +300,7 @@ D2 (OE) ───────────────▶ OE (Pin 13, beide 74HC5
                     ║ Bit7 ║ Bit6 ║ Bit5 ║ ...
                     ╚══════╩══════╩══════╩════
                     ↑
-                    First-Bit (PI-1) liegt VOR erstem Clock an!
+                    First-Bit (PI-8) liegt VOR erstem Clock an!
 ```
 
 ### 74HC595 Schreibvorgang
@@ -319,50 +327,50 @@ D2 (OE) ───────────────▶ OE (Pin 13, beide 74HC5
 
 ### Übersicht
 
-| Komponente | Parameter | Wert | Bemerkung |
-|------------|-----------|------|-----------|
-| **ESP32-S3** | GPIO Output (max) | 40 mA | Drive Strength 3 |
-| | GPIO Output (default) | 20 mA | Drive Strength 2 |
-| | Gesamt alle GPIOs | 1200 mA | Summe |
-| **74HC595** | Output pro Pin (max) | ±35 mA | Absolutes Maximum |
-| | Output pro Pin (empfohlen) | ±6 mA | Dauerbetrieb |
-| | VCC/GND gesamt | 70–75 mA | **Package-Limit!** |
-| **CD4021B** | Input (pro Pin) | < 1 µA | CMOS-Eingang |
-| | Output Q8 | ~1–3 mA | Für SPI ausreichend |
+| Komponente   | Parameter                  | Wert     | Bemerkung           |
+|--------------|----------------------------|----------|---------------------|
+| **ESP32-S3** | GPIO Output (max)          | 40 mA    | Drive Strength 3    |
+|              | GPIO Output (default)      | 20 mA    | Drive Strength 2    |
+|              | Gesamt alle GPIOs          | 1200 mA  | Summe               |
+| **74HC595**  | Output pro Pin (max)       | ±35 mA   | Absolutes Maximum   |
+|              | Output pro Pin (empfohlen) | ±6 mA    | Dauerbetrieb        |
+|              | VCC/GND gesamt             | 70–75 mA | **Package-Limit!**  |
+| **CD4021B**  | Input (pro Pin)            | < 1 µA   | CMOS-Eingang        |
+|              | Output Q8                  | ~1–3 mA  | Für SPI ausreichend |
 
 ### Stromversorgung
 
-| Komponente | Typischer Strom | Maximaler Strom |
-|------------|-----------------|-----------------|
-| ESP32-S3 | 80 mA | 500 mA (WiFi aktiv) |
-| CD4021B (×2) | < 1 mA | 1 mA |
-| 74HC595 (×2) | < 1 mA | 70 mA (alle Ausgänge) |
-| LEDs (×10 @ 4 mA) | 40 mA | 40 mA |
-| **Gesamt** | **~130 mA** | **~620 mA** |
+| Komponente        | Typischer Strom | Maximaler Strom       |
+|-------------------|-----------------|-----------------------|
+| ESP32-S3          | 80 mA           | 500 mA (WiFi aktiv)   |
+| CD4021B (×2)      | < 1 mA          | 1 mA                  |
+| 74HC595 (×2)      | < 1 mA          | 70 mA (alle Ausgänge) |
+| LEDs (×10 @ 4 mA) | 40 mA           | 40 mA                 |
+| **Gesamt**        | **~130 mA**     | **~620 mA**           |
 
 Die USB-CDC Versorgung vom Pi liefert bis zu 500 mA. Bei mehr als 8 LEDs gleichzeitig an oder höheren Strömen: Helligkeit per PWM reduzieren oder externe 5V-Versorgung verwenden.
 
 ## Stückliste (BOM)
 
-| Pos | Komponente | Wert/Typ | Anzahl | Bemerkung |
-|-----|------------|----------|--------|-----------|
-| 1 | XIAO ESP32-S3 | Seeed Studio | 1 | Mikrocontroller |
-| 2 | Raspberry Pi 5 | 4GB/8GB | 1 | Mit Netzteil + microSD |
-| 3 | CD4021B | DIP-16 | 2 | PISO Schieberegister |
-| 4 | 74HC595 | DIP-16 | 2 | SIPO Schieberegister |
-| 5 | Taster | 6×6 mm | 10 | Tactile Switch |
-| 6 | LED 5mm | Verschiedene Farben | 10 | 2× weiß, 2× blau, 2× rot, 2× gelb, 2× grün |
-| 7 | Widerstand | 330 Ω – 3 kΩ | 10 | LED-Vorwiderstand |
-| 8 | Widerstand | 10 kΩ | 10 | Pull-up für Taster |
-| 9 | Kondensator | 100 nF | 4 | Keramik, Stützkondensatoren |
-| 10 | Lochrasterplatine | 100×160 mm | 1 | Oder Breadboard |
-| 11 | USB-C Kabel | Daten-fähig | 1 | ESP32 ↔ Pi |
+| Pos | Komponente        | Wert/Typ            | Anzahl | Bemerkung                                  |
+|-----|-------------------|---------------------|--------|--------------------------------------------|
+| 1   | XIAO ESP32-S3     | Seeed Studio        | 1      | Mikrocontroller                            |
+| 2   | Raspberry Pi 5    | 4GB/8GB             | 1      | Mit Netzteil + microSD                     |
+| 3   | CD4021B           | DIP-16              | 2      | PISO Schieberegister                       |
+| 4   | 74HC595           | DIP-16              | 2      | SIPO Schieberegister                       |
+| 5   | Taster            | 6×6 mm              | 10     | Tactile Switch                             |
+| 6   | LED 5mm           | Verschiedene Farben | 10     | 2× weiß, 2× blau, 2× rot, 2× gelb, 2× grün |
+| 7   | Widerstand        | 330 Ω – 3 kΩ        | 10     | LED-Vorwiderstand                          |
+| 8   | Widerstand        | 10 kΩ               | 10     | Pull-up für Taster                         |
+| 9   | Kondensator       | 100 nF              | 4      | Keramik, Stützkondensatoren                |
+| 10  | Lochrasterplatine | 100×160 mm          | 1      | Oder Breadboard                            |
+| 11  | USB-C Kabel       | Daten-fähig         | 1      | ESP32 ↔ Pi                                 |
 
 ## Hardware-Eigenheiten
 
 ### First-Bit-Problem (CD4021B)
 
-Nach dem Parallel-Load liegt das erste Bit (PI-1 → Q8) sofort am Ausgang, **bevor** der erste Clock kommt. Der ESP32 samplet aber erst **nach** der ersten Clock-Flanke. Die Firmware löst dies durch einen `digitalRead()` vor dem SPI-Transfer.
+Nach dem Parallel-Load liegt das erste Bit (PI-8 → Q8) sofort am Ausgang, **bevor** der erste Clock kommt. Der ESP32 samplet aber erst **nach** der ersten Clock-Flanke. Die Firmware löst dies durch einen `digitalRead()` vor dem SPI-Transfer.
 
 ### DS-Pin des letzten CD4021B
 
@@ -384,14 +392,14 @@ Jeder IC benötigt einen 100 nF Keramikkondensator zwischen VCC und GND, möglic
 
 Für das 100-Button-System werden jeweils 13 Schieberegister in Daisy-Chain benötigt:
 
-| Komponente | 10-Button | 100-Button |
-|------------|-----------|------------|
-| CD4021B | 2 | 13 |
-| 74HC595 | 2 | 13 |
-| Taster | 10 | 100 |
-| LEDs | 10 | 100 |
-| R (LED) | 10 | 100 |
-| R (Pull-up) | 10 | 100 |
-| C (100nF) | 4 | 26 |
+| Komponente  | 10-Button | 100-Button |
+|-------------|-----------|------------|
+| CD4021B     | 2         | 13         |
+| 74HC595     | 2         | 13         |
+| Taster      | 10        | 100        |
+| LEDs        | 10        | 100        |
+| R (LED)     | 10        | 100        |
+| R (Pull-up) | 10        | 100        |
+| C (100nF)   | 4         | 26         |
 
 Die SPI-Transferzeit steigt von ~20 µs auf ~260 µs – weit unter dem 5 ms Zyklus.
