@@ -2,9 +2,9 @@
 
 Server + Dashboard in 5 Minuten.
 
-| Stand | 2026-01-08 |
+| Stand | 2026-01-31 |
 |-------|------------|
-| Version | 2.5.2 |
+| Version | 2.5.3 |
 | Status | ✅ Prototyp funktionsfähig |
 
 ---
@@ -24,7 +24,7 @@ ssh rover
 cd ~/selection-panel
 
 python3 -m venv venv
-venv/bin/pip install -r requirements.txt
+venv/bin/pip install -r server/requirements.txt
 ```
 
 **Hinweis:** Nur `aiohttp` wird benötigt (kein pyserial mehr).
@@ -34,15 +34,15 @@ venv/bin/pip install -r requirements.txt
 ## Server starten
 
 ```bash
-cd ~/selection-panel
-source venv/bin/activate
+cd ~/selection-panel/server
+source ../venv/bin/activate
 python server.py
 ```
 
 Erwartete Ausgabe:
 ```
 ==================================================
-Auswahlpanel Server v2.5.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.3 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Taster: 1-10 (1-basiert)
@@ -136,7 +136,7 @@ sudo systemctl enable --now selection-panel.service
 | Kein Ton | "Sound aktivieren"-Button im Browser klicken |
 | Server startet nicht | `journalctl -u selection-panel -f` |
 | Taster nicht erkannt | Serial testen: `cat /dev/serial/by-id/usb-Espressif*` |
-| Falsche Medien | Prüfen: `ls media/` (001.jpg bis 010.jpg) |
+| Falsche Medien | Prüfen: `ls server/media/` (001.jpg bis 010.jpg) |
 | Preload dauert lange | Medien komprimieren oder Concurrency erhöhen |
 
 ---
@@ -144,7 +144,7 @@ sudo systemctl enable --now selection-panel.service
 ## Medien-Struktur (1-basiert!)
 
 ```
-media/
+server/media/
 ├── 001.jpg  001.mp3
 ├── 002.jpg  002.mp3
 ├── ...
@@ -177,9 +177,9 @@ media/
 | Pi OS | Debian 13 (trixie) |
 | Python | 3.13+ |
 | aiohttp | 3.9+ |
-| ESP32 Firmware | 2.5.2 |
-| Server | 2.5.2 |
-| Dashboard | 2.5.1 |
+| ESP32 Firmware | 2.5.3 |
+| Server | 2.5.3 |
+| Dashboard | 2.5.3 |
 
 ---
 
@@ -187,7 +187,7 @@ media/
 
 | Aktion | Befehl |
 |--------|--------|
-| Server starten | `python server.py` |
+| Server starten | `cd server && python server.py` |
 | Dashboard | `http://rover:8080/` |
 | Status | `curl http://rover:8080/status` |
 | Health | `curl http://rover:8080/health` |
@@ -198,4 +198,4 @@ media/
 
 ---
 
-*Stand: 2026-01-08 | Version 2.5.2*
+*Stand: 2026-01-31 | Version 2.5.3*

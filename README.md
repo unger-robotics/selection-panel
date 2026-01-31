@@ -41,15 +41,15 @@ Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und L
 
 ### Hardware
 
-| Komponente | Typ | Anzahl |
-|------------|-----|--------|
-| XIAO ESP32-S3 | Mikrocontroller | 1 |
-| CD4021B | Schieberegister (Input) | 2 |
-| 74HC595 | Schieberegister (Output) | 2 |
-| Taster | 6×6 mm | 10 |
-| LED | 5 mm rot | 10 |
-| Widerstand | 220 Ω (LED) | 10 |
-| Widerstand | 10 kΩ (Pull-up) | 10 |
+| Komponente    | Typ                      | Anzahl |
+|---------------|--------------------------|--------|
+| XIAO ESP32-S3 | Mikrocontroller          | 1      |
+| CD4021B       | Schieberegister (Input)  | 2      |
+| 74HC595       | Schieberegister (Output) | 2      |
+| Taster        | 6×6 mm                   | 10     |
+| LED           | 5 mm rot                 | 10     |
+| Widerstand    | 220 Ω (LED)              | 10     |
+| Widerstand    | 10 kΩ (Pull-up)          | 10     |
 
 ### Firmware flashen
 
@@ -72,7 +72,7 @@ cd ~/selection-panel/server
 source ../venv/bin/activate
 python server.py
 
-# Web-Dashboard: http://rover:8080/
+# Web-Dashboard: http://rover:8080/ oder http://rover.local:8080/
 ```
 
 ### Minimales Python-Beispiel
@@ -96,23 +96,23 @@ while True:
 
 ### ESP32 → Pi
 
-| Nachricht | Beschreibung |
-|-----------|--------------|
-| `READY` | System bereit |
-| `FW <version>` | Firmware-Version |
-| `PRESS <id>` | Taster gedrückt (001-100) |
-| `RELEASE <id>` | Taster losgelassen |
+| Nachricht      | Beschreibung              |
+|----------------|---------------------------|
+| `READY`        | System bereit             |
+| `FW <version>` | Firmware-Version          |
+| `PRESS <id>`   | Taster gedrückt (001-100) |
+| `RELEASE <id>` | Taster losgelassen        |
 
 ### Pi → ESP32
 
-| Befehl | Beschreibung |
-|--------|--------------|
-| `LEDSET <id>` | One-Hot: nur diese LED an |
-| `LEDON <id>` | LED einschalten (additiv) |
-| `LEDOFF <id>` | LED ausschalten |
-| `LEDCLR` | Alle LEDs aus |
-| `LEDALL` | Alle LEDs an |
-| `PING` | Verbindung prüfen → `PONG` |
+| Befehl        | Beschreibung               |
+|---------------|----------------------------|
+| `LEDSET <id>` | One-Hot: nur diese LED an  |
+| `LEDON <id>`  | LED einschalten (additiv)  |
+| `LEDOFF <id>` | LED ausschalten            |
+| `LEDCLR`      | Alle LEDs aus              |
+| `LEDALL`      | Alle LEDs an               |
+| `PING`        | Verbindung prüfen → `PONG` |
 
 ## Konfiguration
 
@@ -135,22 +135,22 @@ ESP32_SETS_LED_LOCALLY = True
 
 ## Dokumentation
 
-| Dokument | Beschreibung |
-|----------|--------------|
-| [QUICKSTART.md](doc/md/QUICKSTART.md) | Schnelleinstieg |
-| [SELECTION-PANEL-ARCHITEKTUR.md](doc/md/SELECTION-PANEL-ARCHITEKTUR.md) | Systemarchitektur |
-| [PROTOCOL.md](doc/md/PROTOCOL.md) | Serial + WebSocket Protokoll |
-| [PI-INTEGRATION.md](doc/md/PI-INTEGRATION.md) | Raspberry Pi Setup |
-| [firmware/docs/HARDWARE.md](firmware/docs/HARDWARE.md) | Schaltpläne, Pin-Belegung |
-| [firmware/docs/DEVELOPER.md](firmware/docs/DEVELOPER.md) | Firmware-Entwicklung |
+| Dokument                                                                | Beschreibung                 |
+|-------------------------------------------------------------------------|------------------------------|
+| [QUICKSTART.md](doc/md/QUICKSTART.md)                                   | Schnelleinstieg              |
+| [SELECTION-PANEL-ARCHITEKTUR.md](doc/md/SELECTION-PANEL-ARCHITEKTUR.md) | Systemarchitektur            |
+| [PROTOCOL.md](doc/md/PROTOCOL.md)                                       | Serial + WebSocket Protokoll |
+| [PI-INTEGRATION.md](doc/md/PI-INTEGRATION.md)                           | Raspberry Pi Setup           |
+| [firmware/docs/HARDWARE.md](firmware/docs/HARDWARE.md)                  | Schaltpläne, Pin-Belegung    |
+| [firmware/docs/DEVELOPER.md](firmware/docs/DEVELOPER.md)                | Firmware-Entwicklung         |
 
 ## Entwicklungsphasen
 
-| Phase | Status | Beschreibung |
-|-------|--------|--------------|
-| 1-6 | ✅ | ESP32 → LEDs → Taster → FreeRTOS → Modular |
-| 7 | ✅ | Raspberry Pi Bridge |
-| 8 | 🔲 | 100x Taster + LEDs + Multimedia |
+| Phase | Status | Beschreibung                               |
+|-------|--------|--------------------------------------------|
+| 1-6   | ✅      | ESP32 → LEDs → Taster → FreeRTOS → Modular |
+| 7     | ✅      | Raspberry Pi Bridge                        |
+| 8     | 🔲     | 100x Taster + LEDs + Multimedia            |
 
 ## Lizenz
 

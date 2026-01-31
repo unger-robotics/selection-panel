@@ -2,9 +2,9 @@
 
 > Deployment, Build, Test und Diagnose-Befehle.
 
-| Version | 2.5.2 |
+| Version | 2.5.3 |
 |---------|-------|
-| Stand | 2026-01-08 |
+| Stand | 2026-01-31 |
 
 ---
 
@@ -12,7 +12,7 @@
 
 | Aktion | Befehl |
 |--------|--------|
-| Server starten | `python server.py` |
+| Server starten | `cd server && python server.py` |
 | Dashboard | `http://rover:8080/` |
 | Status | `curl http://rover:8080/status \| jq` |
 | Health | `curl http://rover:8080/health` |
@@ -32,8 +32,8 @@
 ```bash
 # Auf dem Pi
 ssh rover
-cd ~/selection-panel
-source venv/bin/activate
+cd ~/selection-panel/server
+source ../venv/bin/activate
 python server.py
 ```
 
@@ -41,7 +41,7 @@ python server.py
 
 ```
 ==================================================
-Auswahlpanel Server v2.5.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.3 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Serial: /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_...
@@ -155,11 +155,11 @@ curl http://rover:8080/test/play/10
 curl http://rover:8080/test/stop
 ```
 
-### Status-Response (v2.5.2)
+### Status-Response (v2.5.3)
 
 ```json
 {
-  "version": "2.5.2",
+  "version": "2.5.3",
   "mode": "prototype",
   "num_media": 10,
   "current_button": 5,
@@ -183,7 +183,7 @@ cd ~/selection-panel
 
 rsync -avz --delete \
     --exclude='firmware' \
-    --exclude='hardwaretest_firmware' \
+    --exclude='hardwaretest' \
     --exclude='venv' \
     --exclude='.git' \
     --exclude='__pycache__' \
@@ -281,19 +281,19 @@ pio run -t clean
 cd ~/selection-panel
 
 # Medien auflisten
-ls -la media/
+ls -la server/media/
 
 # Medien-Check
 for i in $(seq -w 1 10); do
     echo -n "0$i: "
-    [ -f "media/0$i.jpg" ] && echo -n "JPG✓ " || echo -n "JPG✗ "
-    [ -f "media/0$i.mp3" ] && echo -n "MP3✓" || echo -n "MP3✗"
+    [ -f "server/media/0$i.jpg" ] && echo -n "JPG✓ " || echo -n "JPG✗ "
+    [ -f "server/media/0$i.mp3" ] && echo -n "MP3✓" || echo -n "MP3✗"
     echo
 done
 
 # Anzahl prüfen
-ls media/*.jpg 2>/dev/null | wc -l
-ls media/*.mp3 2>/dev/null | wc -l
+ls server/media/*.jpg 2>/dev/null | wc -l
+ls server/media/*.mp3 2>/dev/null | wc -l
 ```
 
 ### 8.2 Generieren
@@ -377,7 +377,7 @@ echo -e "\n=== OS ===" && cat /etc/rpi-issue
 ```bash
 # 1. Server starten (Terminal 1)
 ssh rover
-cd ~/selection-panel && source venv/bin/activate && python server.py
+cd ~/selection-panel/server && source ../venv/bin/activate && python server.py
 
 # 2. Dashboard öffnen (Mac)
 open http://rover:8080/
@@ -429,7 +429,7 @@ RELEASE 001
 
 ```json
 {
-  "version": "2.5.2",
+  "version": "2.5.3",
   "mode": "prototype",
   "num_media": 10,
   "current_button": null,

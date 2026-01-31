@@ -1,6 +1,6 @@
 # Selection Panel: Raspberry Pi Integration (Phase 7)
 
-Version 2.5.2 | Raspberry Pi 5 + ESP32-S3 | Stand: 2026-01-08
+Version 2.5.3 | Raspberry Pi 5 + ESP32-S3 | Stand: 2026-01-31
 
 ## Übersicht
 
@@ -72,7 +72,7 @@ screen $SERIAL_PORT 115200
 
 ### Komponenten
 
-Der Python-Server (`server.py`) verwendet **aiohttp** für asynchrone HTTP/WebSocket-Verarbeitung:
+Der Python-Server (`server/server.py`) verwendet **aiohttp** für asynchrone HTTP/WebSocket-Verarbeitung:
 
 | Komponente | Technologie | Funktion |
 |------------|-------------|----------|
@@ -97,9 +97,9 @@ Der Python-Server (`server.py`) verwendet **aiohttp** für asynchrone HTTP/WebSo
 ### Konfiguration
 
 ```python
-# server.py - Wichtige Einstellungen
+# server/server.py - Wichtige Einstellungen
 
-VERSION = "2.5.2"
+VERSION = "2.5.3"
 
 # Build-Modus
 PROTOTYPE_MODE = True   # True = 10 Medien, False = 100 Medien
@@ -233,7 +233,7 @@ Das Dashboard (`index.html` + `app.js`) bietet:
 
 ```bash
 # Server starten
-cd /home/pi/selection-panel
+cd /home/pi/selection-panel/server
 python3 server.py
 
 # Browser öffnen
@@ -315,9 +315,9 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/selection-panel
+WorkingDirectory=/home/pi/selection-panel/server
 # flock -n: Startet nur wenn Lock frei
-ExecStart=/usr/bin/flock -n /var/lock/esp32-serial.lock /usr/bin/python3 server.py
+ExecStart=/usr/bin/flock -n /var/lock/esp32-serial.lock /home/pi/selection-panel/venv/bin/python /home/pi/selection-panel/server/server.py
 Restart=on-failure
 RestartSec=5
 
@@ -347,7 +347,7 @@ journalctl -u selection-panel.service -f
 ## Medien-Struktur
 
 ```
-media/
+server/media/
 ├── 001.jpg    # Bild für Taster 1
 ├── 001.mp3    # Audio für Taster 1
 ├── 002.jpg
@@ -451,4 +451,4 @@ Das Medien-Preloading im Browser reduziert die Latenz erheblich.
 
 ---
 
-*Stand: 2026-01-08 | Version 2.5.2*
+*Stand: 2026-01-31 | Version 2.5.3*

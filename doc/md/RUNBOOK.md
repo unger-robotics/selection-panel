@@ -2,9 +2,9 @@
 
 > Debugging-Checklisten und Testprozeduren. Befehle: siehe [COMMANDS.md](COMMANDS.md)
 
-| Version | 2.5.2 |
+| Version | 2.5.3 |
 |---------|-------|
-| Stand | 2026-01-08 |
+| Stand | 2026-01-31 |
 
 ---
 
@@ -47,7 +47,7 @@ curl http://rover:8080/test/play/5   # Test (1-basiert!)
 | Keine Antwort | USB-Port belegt | Server stoppen: `sudo systemctl stop selection-panel` |
 | Kein Upload | Falscher Port | `ls /dev/serial/by-id/usb-Espressif*` |
 | Reboot-Schleife | Watchdog | Firmware prüfen |
-| Fragmentierte Serial-Daten | USB-CDC Timing | Firmware v2.5.2 mit `Serial.flush()` |
+| Fragmentierte Serial-Daten | USB-CDC Timing | Firmware v2.5.3 mit `Serial.flush()` |
 
 ---
 
@@ -76,12 +76,12 @@ cat $SERIAL_PORT
 ```bash
 echo "PING" > $SERIAL_PORT      # → PONG
 echo "STATUS" > $SERIAL_PORT    # → active=N leds=0xNN
-echo "VERSION" > $SERIAL_PORT   # → FW SelectionPanel v2.5.2
+echo "VERSION" > $SERIAL_PORT   # → FW SelectionPanel v2.5.3
 echo "LEDSET 001" > $SERIAL_PORT  # LED 1 ein
 echo "LEDCLR" > $SERIAL_PORT    # Alle LEDs aus
 ```
 
-### STATUS-Ausgabe (v2.5.2)
+### STATUS-Ausgabe (v2.5.3)
 
 ```
 STATUS active=5 leds=0x10
@@ -95,7 +95,7 @@ BTNS 1111111111      ← Active-Low: 1 = losgelassen
 |---------|---------|--------|
 | "Permission denied" | Fehlende Rechte | `sudo usermod -aG dialout $USER` → Neu einloggen |
 | "Device busy" | Port belegt | `sudo fuser /dev/ttyACM0` → Prozess beenden |
-| Fragmentierte Daten | USB-CDC | Firmware v2.5.2 verwenden |
+| Fragmentierte Daten | USB-CDC | Firmware v2.5.3 verwenden |
 | Keine Daten | Falscher Port | `ls /dev/serial/by-id/usb-Espressif*` prüfen |
 | Port ändert sich | Instabiler Pfad | by-id Pfad verwenden |
 
@@ -168,7 +168,7 @@ python server.py
 | Symptom | Ursache | Lösung |
 |---------|---------|--------|
 | "Serial verbinde..." hängt | Port belegt | `sudo fuser /dev/ttyACM0` |
-| Taster nicht erkannt | Serial-Fragment | Parser prüfen, Firmware v2.5.2 |
+| Taster nicht erkannt | Serial-Fragment | Parser prüfen, Firmware v2.5.3 |
 | Medien fehlen | Falscher Pfad | `ls media/` (001.jpg - 010.jpg) |
 | WebSocket-Fehler | Client-Absturz | Browser neu laden |
 | Health 503 | Serial getrennt | ESP32 Verbindung prüfen |
@@ -241,7 +241,7 @@ done
 ## 7 Deployment-Checkliste
 
 ### Hardware
-- [ ] ESP32 mit Firmware v2.5.2 geflasht
+- [ ] ESP32 mit Firmware v2.5.3 geflasht
 - [ ] 10 Taster verdrahtet und funktionsfähig
 - [ ] 10 LEDs verdrahtet und funktionsfähig
 - [ ] USB-Kabel ESP32 ↔ Pi verbunden (Daten, nicht nur Laden!)
@@ -250,7 +250,7 @@ done
 - [ ] Repository auf Pi geklont
 - [ ] venv erstellt: `python3 -m venv venv`
 - [ ] Pakete installiert: `pip install aiohttp`
-- [ ] server.py vorhanden (v2.5.2)
+- [ ] server.py vorhanden (v2.5.3)
 
 ### Medien
 - [ ] 10 Bilder: `media/001.jpg` - `media/010.jpg`
@@ -315,15 +315,15 @@ echo "VERSION" > $SERIAL_PORT && sleep 0.5 && cat $SERIAL_PORT
 | Problem | Status | Lösung |
 |---------|--------|--------|
 | iOS Audio-Unlock fehlgeschlagen | ✅ Behoben | Dashboard v2.5.1 mit AudioContext API |
-| ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.5.2 mit `Serial.flush()` |
-| pyserial funktioniert nicht | ✅ Behoben | Server v2.5.2 mit `os.open` |
+| ESP32-S3 USB-CDC fragmentiert | ✅ Behoben | Firmware v2.5.3 mit `Serial.flush()` |
+| pyserial funktioniert nicht | ✅ Behoben | Server v2.5.3 mit `os.open` |
 | CD4021B First-Bit-Problem | ✅ Behoben | First-Bit-Rescue in Firmware |
 | CD4021B Timing | ✅ Behoben | 2µs Load-Pulse |
 | 0-basiert vs 1-basiert | ✅ Behoben | Durchgängig 1-basiert |
-| LED-Latenz durch Roundtrip | ✅ Behoben | Firmware v2.5.2 (lokal < 1ms) |
+| LED-Latenz durch Roundtrip | ✅ Behoben | Firmware v2.5.3 (lokal < 1ms) |
 | Dashboard-Latenz | ✅ Behoben | Dashboard v2.5.1 (Preload < 50ms) |
 | Serial-Pfad instabil | ✅ Behoben | by-id Pfad verwenden |
 
 ---
 
-*Stand: 2026-01-08 | Version 2.5.2*
+*Stand: 2026-01-08 | Version 2.5.3*
