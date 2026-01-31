@@ -20,7 +20,7 @@ Browser Dashboard                           CD4021B (Taster)
 
 ```
 selection-panel/
-├── firmware/           # ESP32-S3 Firmware (PlatformIO)
+├── firmware/           # ESP32-S3 Firmware (PlatformIO) → siehe firmware/CLAUDE.md
 ├── server/             # Python Backend
 │   ├── server.py
 │   └── media/          # Medien-Dateien (001.jpg, 001.mp3, ...)
@@ -31,6 +31,8 @@ selection-panel/
 ├── scripts/            # Hilfsskripte
 └── hardwaretest/       # Hardware-Testphasen
 ```
+
+Für detaillierte Firmware-Entwicklung siehe `firmware/CLAUDE.md` (Timing-Budget, Coding-Standards, Doxygen).
 
 ## Build-Befehle
 
@@ -56,13 +58,22 @@ pio run -t clean              # Clean Build
 cd ~/selection-panel/server
 source ../venv/bin/activate
 python server.py           # Server starten auf Port 8080
-# Dashboard: http://rover:8080/
+# Dashboard: http://rover:8080/ (rover = Pi Hostname)
+
+# Erstmaliges Setup (auf Pi)
+python3 -m venv ~/selection-panel/venv
+source ../venv/bin/activate
+pip install aiohttp pyserial
 ```
 
-### Test-Medien generieren
+### Hilfsskripte
 
 ```bash
-./scripts/generate_test_media.sh   # Erzeugt server/media/001-010.jpg und .mp3
+./scripts/generate_test_media.sh      # Erzeugt server/media/001-010.jpg und .mp3
+./scripts/optimize-project-images.sh  # Bilder für Web optimieren
+./scripts/rename_images.sh            # Bilder umbenennen (001.jpg, ...)
+./scripts/rename_sounds.sh            # Audio umbenennen (001.mp3, ...)
+./scripts/convert_mov_to_mp4.sh       # MOV → MP4 konvertieren
 ```
 
 ### HTTP-Endpoints testen
@@ -74,7 +85,7 @@ curl http://rover:8080/test/play/5   # Tastendruck simulieren (1-basiert!)
 curl http://rover:8080/test/stop     # Wiedergabe stoppen
 ```
 
-### Serial-Tests
+### Serial-Tests (auf Pi ausführen)
 
 ```bash
 # ESP32-Gerät finden (stabiler by-id Pfad)
@@ -94,8 +105,15 @@ screen $SERIAL_PORT 115200   # Beenden: Ctrl+A, K, Y
 ### Deployment (Mac → Pi)
 
 ```bash
+# Mit Git (empfohlen)
 git add -A && git commit -m "..." && git push
 ssh rover "cd ~/selection-panel && git pull && sudo systemctl restart selection-panel"
+
+# Alternativ mit rsync (ohne Commit)
+rsync -avz --delete \
+    --exclude='firmware' --exclude='hardwaretest' --exclude='venv' \
+    --exclude='.git' --exclude='__pycache__' \
+    . pi@rover:/home/pi/selection-panel/
 ```
 
 ### systemd-Service
@@ -163,17 +181,24 @@ constexpr bool SERIAL_PROTOCOL_ONLY = true; // Debug-Logs für Pi deaktivieren
 
 **Wichtig:** Alle IDs sind 1-basiert und 3-stellig formatiert (001-100).
 
+**Boot-Sequenz:** Host darf erst nach Empfang von `READY` Befehle senden. Timeout: 5 Sekunden.
+
 ### Serial (ESP32 → Pi)
 - `READY` - Boot abgeschlossen
+- `FW <version>` - Firmware-Version
 - `PRESS 001` - Taster gedrückt
 - `RELEASE 001` - Taster losgelassen
 - `PONG` - Antwort auf PING
+- `OK` - Befehl ausgeführt
+- `ERROR <msg>` - Fehler
 
 ### Serial (Pi → ESP32)
 - `LEDSET 001` - One-Hot: nur diese LED an
 - `LEDON/LEDOFF 001` - Additiv ein/aus
 - `LEDCLR` / `LEDALL` - Alle aus/an
 - `PING` / `STATUS` / `VERSION` / `HELP`
+- `TEST` / `STOP` - LED-Lauflicht Test starten/stoppen
+- `QRESET` - Queue-Statistik zurücksetzen
 
 ### WebSocket (Server ↔ Browser)
 - Server → Browser: `{"type":"play","id":3}`, `{"type":"stop"}`
@@ -211,6 +236,10 @@ STATUS-Ausgabe verstehen:
 LEDS 0000100000      ← Bit-Vektor (MSB links), LED 5 an
 BTNS 1111111111      ← Active-Low: 1 = losgelassen
 CURLED 5             ← Aktuelle LED (1-basiert)
+HEAP 372756          ← Freier Heap-Speicher
+QOVFL 0              ← Queue-Überläufe
+MODE PROTOTYPE       ← Betriebsmodus
+MAPPING 15,12,...    ← Pin-Mapping (falls konfiguriert)
 ```
 
 ## Skalierung auf 100 Taster
