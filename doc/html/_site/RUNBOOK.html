@@ -129,13 +129,13 @@ href="COMMANDS.md">COMMANDS.md</a></p>
 <thead>
 <tr>
 <th>Version</th>
-<th>2.5.2</th>
+<th>2.5.3</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Stand</td>
-<td>2026-01-08</td>
+<td>2026-01-31</td>
 </tr>
 </tbody>
 </table>
@@ -251,7 +251,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="
 <tr>
 <td>Fragmentierte Serial-Daten</td>
 <td>USB-CDC Timing</td>
-<td>Firmware v2.5.2 mit <code>Serial.flush()</code></td>
+<td>Firmware v2.5.3 mit <code>Serial.flush()</code></td>
 </tr>
 </tbody>
 </table>
@@ -276,10 +276,10 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="
 <div class="sourceCode" id="cb3"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;PING&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>      <span class="co"># → PONG</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;STATUS&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>    <span class="co"># → active=N leds=0xNN</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;VERSION&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>   <span class="co"># → FW SelectionPanel v2.5.2</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;VERSION&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>   <span class="co"># → FW SelectionPanel v2.5.3</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;LEDSET 001&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>  <span class="co"># LED 1 ein</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;LEDCLR&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>    <span class="co"># Alle LEDs aus</span></span></code></pre></div>
-<h3 id="status-ausgabe-v2.5.2">STATUS-Ausgabe (v2.5.2)</h3>
+<h3 id="status-ausgabe-v2.5.3">STATUS-Ausgabe (v2.5.3)</h3>
 <pre><code>STATUS active=5 leds=0x10
 LEDS 0000100000      ← Bit-Vektor (MSB links)
 BTNS 1111111111      ← Active-Low: 1 = losgelassen</code></pre>
@@ -311,7 +311,7 @@ BTNS 1111111111      ← Active-Low: 1 = losgelassen</code></pre>
 <tr>
 <td>Fragmentierte Daten</td>
 <td>USB-CDC</td>
-<td>Firmware v2.5.2 verwenden</td>
+<td>Firmware v2.5.3 verwenden</td>
 </tr>
 <tr>
 <td>Keine Daten</td>
@@ -429,7 +429,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="
 <tr>
 <td>Taster nicht erkannt</td>
 <td>Serial-Fragment</td>
-<td>Parser prüfen, Firmware v2.5.2</td>
+<td>Parser prüfen, Firmware v2.5.3</td>
 </tr>
 <tr>
 <td>Medien fehlen</td>
@@ -508,7 +508,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="
 <h2 id="deployment-checkliste">7 Deployment-Checkliste</h2>
 <h3 id="hardware">Hardware</h3>
 <ul class="task-list">
-<li><label><input type="checkbox" />ESP32 mit Firmware v2.5.2
+<li><label><input type="checkbox" />ESP32 mit Firmware v2.5.3
 geflasht</label></li>
 <li><label><input type="checkbox" />10 Taster verdrahtet und
 funktionsfähig</label></li>
@@ -526,7 +526,7 @@ geklont</label></li>
 <li><label><input type="checkbox" />Pakete installiert:
 <code>pip install aiohttp</code></label></li>
 <li><label><input type="checkbox" />server.py vorhanden
-(v2.5.2)</label></li>
+(v2.5.3)</label></li>
 </ul>
 <h3 id="medien">Medien</h3>
 <ul class="task-list">
@@ -618,12 +618,12 @@ Lösungen</h2>
 <tr>
 <td>ESP32-S3 USB-CDC fragmentiert</td>
 <td>✅ Behoben</td>
-<td>Firmware v2.5.2 mit <code>Serial.flush()</code></td>
+<td>Firmware v2.5.3 mit <code>Serial.flush()</code></td>
 </tr>
 <tr>
 <td>pyserial funktioniert nicht</td>
 <td>✅ Behoben</td>
-<td>Server v2.5.2 mit <code>os.open</code></td>
+<td>Server v2.5.3 mit <code>os.open</code></td>
 </tr>
 <tr>
 <td>CD4021B First-Bit-Problem</td>
@@ -643,7 +643,7 @@ Lösungen</h2>
 <tr>
 <td>LED-Latenz durch Roundtrip</td>
 <td>✅ Behoben</td>
-<td>Firmware v2.5.2 (lokal &lt; 1ms)</td>
+<td>Firmware v2.5.3 (lokal &lt; 1ms)</td>
 </tr>
 <tr>
 <td>Dashboard-Latenz</td>
@@ -658,7 +658,7 @@ Lösungen</h2>
 </tbody>
 </table>
 <hr />
-<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+<p><em>Stand: 2026-01-08 | Version 2.5.3</em></p>
 </div>
 </body>
 </html>

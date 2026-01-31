@@ -1,0 +1,282 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+\usepackage[ngerman]{babel}         % ngerman statt german für XeLaTeX
+\usepackage{fontspec}               % XeLaTeX: fontspec statt inputenc/fontenc
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{eurosym}
+\usepackage{booktabs}               % Professionelle Tabellen
+\usepackage{colortbl}               % Farbige Tabellenzellen
+\usepackage{amssymb}                % Für \square Symbol
+% Video: Hyperlink-Methode (XeLaTeX-kompatibel)
+
+% ============================================================================
+% INTERAKTIVES AUSWAHLPANEL: 100 Taster × 100 LEDs × 100 Medien
+% ============================================================================
+% Professionelles Farbschema: Arduino Teal + Raspberry Pi Red
+% Erstellt von: Claude (Opus 4.5) | Bearbeitet von: Jan Unger
+% Überarbeitet nach Bloch-Standard: 2026-01-08
+% XeLaTeX-kompatibel für Makefile-Nutzung | macOS optimiert
+% Version: 2.5.3
+% ============================================================================
+
+% ============================================================================
+% PDF-ANSICHT: CLEAN MODE (KEINE TOOLS)
+% ============================================================================
+\hypersetup{
+    pdfpagemode=FullScreen,
+    pdfstartview={Fit},
+    pdftoolbar=false,
+    pdfmenubar=false,
+    pdfwindowui=false,
+    pdftitle={Interaktives Auswahlpanel},
+    pdfauthor={Jan Unger}
+}
+
+% XeLaTeX: System-Schriftarten mit Fallback
+\defaultfontfeatures{Ligatures=TeX}
+% Helvetica (macOS) mit Fallback auf TeX Gyre Heros (plattformunabhängig)
+\IfFontExistsTF{Helvetica}{%
+    \setmainfont{Helvetica}
+    \setsansfont{Helvetica}
+}{%
+    \setmainfont{TeX Gyre Heros}
+    \setsansfont{TeX Gyre Heros}
+}
+
+% Navigation entfernen
+\beamertemplatenavigationsymbolsempty
+
+% Font
+\usefonttheme{professionalfonts}
+
+% ============================================================================
+% FARBSCHEMA: Arduino + Raspberry Pi (Konsistent mit Shell-Skript)
+% ============================================================================
+%
+% PRIMÄR (Akzente):
+%   Arduino Teal:      #00979D  - Hauptfarbe, Titel, positive Elemente
+%   Arduino Dark:      #005C5F  - Dunklere Variante für Kontrast
+%   Raspberry Red:     #C51A4A  - Sekundärakzent, Warnungen, aktuelle Phase
+%   Raspberry Purple:  #75264A  - Dunklere Variante für Zitate
+%
+% HINTERGRÜNDE:
+%   GitHub Dark:       #0D1117  - Haupthintergrund (Folien mit Bild)
+%   Slate Dark:        #1E2933  - Alternativer Hintergrund
+%   Slate Medium:      #2D3A45  - Panels, Karten
+%
+% STATUS:
+%   Success Green:     #75A928  - Raspberry Pi Green, abgeschlossen
+%   Warning Orange:    #D97706  - Warnung, Hinweise
+%
+% TEXT:
+%   Light Text:        #E6EDF3  - Heller Text auf dunklem Grund
+%   Dark Text:         #0D1117  - Dunkler Text auf hellem Grund
+%   Muted Text:        #4A5568  - Gedämpfter Text, Fußzeilen
+%
+% ============================================================================
+
+% PRIMÄR
+\definecolor{ArduinoTeal}{RGB}{0,151,157}         % #00979D
+\definecolor{ArduinoDark}{RGB}{0,92,95}           % #005C5F
+\definecolor{RaspberryRed}{RGB}{197,26,74}        % #C51A4A
+\definecolor{RaspberryPurple}{RGB}{117,38,74}     % #75264A
+
+% HINTERGRÜNDE
+\definecolor{GitHubDark}{RGB}{13,17,23}           % #0D1117
+\definecolor{SlateDark}{RGB}{30,41,51}            % #1E2933
+\definecolor{SlateMedium}{RGB}{45,58,69}          % #2D3A45
+
+% STATUS
+\definecolor{SuccessGreen}{RGB}{117,169,40}       % #75A928
+\definecolor{WarningOrange}{RGB}{217,119,6}       % #D97706
+
+% SIGNALFARBEN (Schaltplan-Leitungen)
+\definecolor{SignalData}{RGB}{81,207,102}         % #51CF66 - Data (SER/Q8)
+\definecolor{SignalClock}{RGB}{255,212,59}        % #FFD43B - Clock (SRCLK/CLK)
+\definecolor{SignalLatch}{RGB}{77,171,247}        % #4DABF7 - Latch (RCLK/P/S)
+\definecolor{SignalVCC}{RGB}{255,107,107}         % #FF6B6B - VCC (rot)
+\definecolor{SignalGND}{RGB}{107,114,128}         % #6B7280 - GND (grau)
+
+% TEXT
+\definecolor{LightText}{RGB}{230,237,243}         % #E6EDF3
+\definecolor{DarkText}{RGB}{13,17,23}             % #0D1117
+\definecolor{MutedText}{RGB}{74,85,104}           % #4A5568
+
+% ALIASE für Abwärtskompatibilität
+\colorlet{MainColor}{ArduinoTeal}
+\colorlet{MainColorDark}{ArduinoDark}
+\colorlet{AccentColor}{RaspberryRed}
+\colorlet{DarkGray}{GitHubDark}
+
+% Beamer-Farbschema
+\setbeamercolor{normal text}{fg=DarkText,bg=white}
+\setbeamercolor{structure}{fg=ArduinoTeal}
+\setbeamercolor{frametitle}{fg=ArduinoTeal}
+\setbeamercolor{itemize item}{fg=ArduinoTeal}
+\setbeamercolor{itemize subitem}{fg=ArduinoDark}
+\setbeamercolor{enumerate item}{fg=ArduinoTeal}
+
+% Fußzeile: Minimalistisch mit lesbarer Farbe
+\setbeamertemplate{footline}{
+    \hspace{0.3cm}
+    {\tiny\color{MutedText}Jan Unger}
+    \hfill
+    {\tiny\color{MutedText}Interaktives Auswahlpanel v2.5.3}
+    \hfill
+    {\tiny\color{MutedText}\insertframenumber}
+    \hspace{0.3cm}
+    \vspace{0.15cm}
+}
+
+% Frametitle für normale Text-Folien
+\setbeamertemplate{frametitle}{
+    \vspace{0.3cm}
+    {\usebeamerfont{frametitle}\color{ArduinoTeal}\insertframetitle}
+    \vspace{0.2cm}
+    \par
+}
+
+% ============================================================================
+% CUSTOM COMMANDS
+% ============================================================================
+
+% Highlight für wichtige Zahlen (Bloch-Standard)
+\newcommand{\highlight}[1]{\textcolor{ArduinoTeal}{\textbf{#1}}}
+\newcommand{\improvement}[1]{\textcolor{SuccessGreen}{\textbf{#1}}}
+\newcommand{\warning}[1]{\textcolor{WarningOrange}{\textbf{#1}}}
+\newcommand{\critical}[1]{\textcolor{RaspberryRed}{\textbf{#1}}}
+
+\newcommand{\titleslide}[4]{
+    \begin{frame}[plain,noframenumbering]
+    \begin{tikzpicture}[remember picture,overlay]
+        % 1. Hintergrundbild
+        \node[at=(current page.center)] {
+            \includegraphics[width=\paperwidth,height=\paperheight]{#1}
+        };
+
+        % 2. Dunkles Overlay (reduziert für cover.pdf Sichtbarkeit)
+        \fill[black,opacity=0.25] (current page.south west) rectangle (current page.north east);
+
+        % 3. Text-Block
+        \node[anchor=south west, text width=0.8\paperwidth] at ([xshift=1cm, yshift=1cm]current page.south west) {
+            \begin{minipage}{0.8\paperwidth}
+            \raggedright
+
+            % Titel
+            \color{LightText}\fontsize{32}{36}\selectfont\textbf{#2}\\[0.2cm]
+
+            % Subtitel
+            \color{LightText}\fontsize{20}{24}\selectfont #3\\[0.3cm]
+
+            % Name
+            \color{LightText}\fontsize{12}{22}\selectfont #4
+
+            \end{minipage}
+        };
+    \end{tikzpicture}
+    \end{frame}
+}
+
+\newcommand{\fullslide}[5]{
+    \begin{frame}[plain]
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[at=(current page.center)] {
+            \includegraphics[width=\paperwidth,height=\paperheight]{#1}
+        };
+        \fill[black,opacity=#4] (current page.south west) rectangle (current page.north east);
+        \node[anchor=north west,text width=0.6\paperwidth] at ([xshift=0.5cm,yshift=-1cm]current page.north west) {
+            \begin{minipage}{0.6\paperwidth}
+            \color{ArduinoTeal}\fontsize{28}{32}\selectfont\textbf{#2}\\[0.5cm]
+            \color{LightText}\fontsize{18}{22}\selectfont #3
+            \end{minipage}
+        };
+        \ifx&#5&%
+        \else
+            \node[anchor=south,text width=\paperwidth] at ([yshift=0.3cm]current page.south) {
+                \begin{beamercolorbox}[wd=\paperwidth,ht=0.5cm,center]{footline}
+                {\tiny\color{LightText} Quelle: #5}
+                \end{beamercolorbox}
+            };
+        \fi
+    \end{tikzpicture}
+    \end{frame}
+}
+
+\newcommand{\conclusionslide}[4]{
+    \begin{frame}[plain]
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[at=(current page.center)] {
+            \includegraphics[width=\paperwidth,height=\paperheight]{#1}
+        };
+        \fill[black,opacity=0.5] (current page.south west) rectangle (current page.north east);
+        \node[anchor=south west,text width=0.6\paperwidth] at ([xshift=0.5cm,yshift=2cm]current page.south west) {
+            \begin{minipage}{0.6\paperwidth}
+            \color{ArduinoTeal}\fontsize{28}{32}\selectfont\textbf{#2}\\[1cm]
+            \color{LightText}\fontsize{20}{24}\selectfont\textbf{#3}
+            \end{minipage}
+        };
+        \node[anchor=south,text width=\paperwidth] at ([yshift=0.3cm]current page.south) {
+            \begin{beamercolorbox}[wd=\paperwidth,ht=0.5cm,center]{footline}
+            {\tiny\color{LightText} Quelle: #4}
+            \end{beamercolorbox}
+        };
+    \end{tikzpicture}
+    \end{frame}
+}
+
+% ============================================================================
+% VIDEO COMMAND (XeLaTeX-kompatibel via Hyperlink)
+% ============================================================================
+% Verwendung: \videoslide{video.mp4}{thumbnail.png}{Titel}{Untertitel}
+% Klick auf Thumbnail öffnet Video im Standard-Player
+\newcommand{\videoslide}[4]{
+    \begin{frame}{#3}
+    \framesubtitle{#4}
+    \begin{center}
+        % Klickbares Thumbnail - öffnet Video im externen Player
+        \href{run:#1}{%
+            \includegraphics[width=12cm,height=6.75cm,keepaspectratio]{#2}%
+        }
+
+        \vspace{0.3cm}
+        \href{run:#1}{\textcolor{ArduinoTeal}{\textbf{Klick zum Abspielen}}}
+    \end{center}
+    \end{frame}
+}
+
+% ============================================================================
+% TITEL-INFORMATIONEN
+% ============================================================================
+
+\title{Interaktives Auswahlpanel}
+\subtitle{100 Taster · 100 LEDs · 100 Medien}
+\author{Jan Unger}
+\date{}
+
+\begin{document}
+
+% ----------------------------------------------------------------------------
+% FOLIE 1: Titelseite (cover.pdf + Status-Overlay unten)
+% ----------------------------------------------------------------------------
+\begin{frame}[plain,noframenumbering]
+\begin{tikzpicture}[remember picture,overlay]
+    % 1. Cover-Diagramm als Hintergrund (ohne keepaspectratio für Fullscreen)
+    \node[at=(current page.center)] {
+        \includegraphics[width=\paperwidth,height=\paperheight]{covers/cover-selection-panel.pdf}
+    };
+
+    % 2. Status-Text unten links
+    \node[anchor=south west, text width=0.9\paperwidth] at ([xshift=0.8cm, yshift=0.5cm]current page.south west) {
+        \footnotesize\color{MutedText}
+        Stand: 31.01.2026 \;\textbar\;
+        Phase 7 \textcolor{SuccessGreen}{\textbf{abgeschlossen}} \;\textbar\;
+        Phase 8 \textcolor{RaspberryRed}{\textbf{100-Button + LEDs + Multimedia}} \;\textbar\;
+        Jan Unger
+    };
+\end{tikzpicture}
+\end{frame}
+
+
+\input{content/folien.tex}
+
+\end{document}

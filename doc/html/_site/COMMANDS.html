@@ -128,13 +128,13 @@ Entwickler-Referenz</h1>
 <thead>
 <tr>
 <th>Version</th>
-<th>2.5.2</th>
+<th>2.5.3</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Stand</td>
-<td>2026-01-08</td>
+<td>2026-01-31</td>
 </tr>
 </tbody>
 </table>
@@ -150,7 +150,7 @@ Entwickler-Referenz</h1>
 <tbody>
 <tr>
 <td>Server starten</td>
-<td><code>python server.py</code></td>
+<td><code>cd server &amp;&amp; python server.py</code></td>
 </tr>
 <tr>
 <td>Dashboard</td>
@@ -196,12 +196,12 @@ verwenden (<code>http://192.168.1.24:8080/</code>)</p>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Auf dem Pi</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> rover</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> venv/bin/activate</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel/server</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> ../venv/bin/activate</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> server.py</span></code></pre></div>
 <p><strong>Erwartete Ausgabe:</strong></p>
 <pre><code>==================================================
-Auswahlpanel Server v2.5.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.3 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Serial: /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_...
@@ -290,10 +290,10 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="
 <span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Wiedergabe stoppen</span></span>
 <span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> http://rover:8080/test/stop</span></code></pre></div>
-<h3 id="status-response-v2.5.2">Status-Response (v2.5.2)</h3>
+<h3 id="status-response-v2.5.3">Status-Response (v2.5.3)</h3>
 <div class="sourceCode" id="cb10"><pre
 class="sourceCode json"><code class="sourceCode json"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.2&quot;</span><span class="fu">,</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.3&quot;</span><span class="fu">,</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mode&quot;</span><span class="fu">:</span> <span class="st">&quot;prototype&quot;</span><span class="fu">,</span></span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;num_media&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;current_button&quot;</span><span class="fu">:</span> <span class="dv">5</span><span class="fu">,</span></span>
@@ -312,7 +312,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href=
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">rsync</span> <span class="at">-avz</span> <span class="at">--delete</span> <span class="dt">\</span></span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;firmware&#39;</span> <span class="dt">\</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;hardwaretest_firmware&#39;</span> <span class="dt">\</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;hardwaretest&#39;</span> <span class="dt">\</span></span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;venv&#39;</span> <span class="dt">\</span></span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;.git&#39;</span> <span class="dt">\</span></span>
 <span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;__pycache__&#39;</span> <span class="dt">\</span></span>
@@ -410,19 +410,19 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href=
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Medien auflisten</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-la</span> media/</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-la</span> server/media/</span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Medien-Check</span></span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="va">$(</span><span class="fu">seq</span> <span class="at">-w</span> 1 10<span class="va">)</span><span class="kw">;</span> <span class="cf">do</span></span>
 <span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;0</span><span class="va">$i</span><span class="st">: &quot;</span></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">[</span> <span class="ot">-f</span> <span class="st">&quot;media/0</span><span class="va">$i</span><span class="st">.jpg&quot;</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;JPG✓ &quot;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;JPG✗ &quot;</span></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">[</span> <span class="ot">-f</span> <span class="st">&quot;media/0</span><span class="va">$i</span><span class="st">.mp3&quot;</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;MP3✓&quot;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;MP3✗&quot;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">[</span> <span class="ot">-f</span> <span class="st">&quot;server/media/0</span><span class="va">$i</span><span class="st">.jpg&quot;</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;JPG✓ &quot;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;JPG✗ &quot;</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">[</span> <span class="ot">-f</span> <span class="st">&quot;server/media/0</span><span class="va">$i</span><span class="st">.mp3&quot;</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;MP3✓&quot;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;MP3✗&quot;</span></span>
 <span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span></span>
 <span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
 <span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Anzahl prüfen</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> media/<span class="pp">*</span>.jpg <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> media/<span class="pp">*</span>.mp3 <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code></pre></div>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> server/media/<span class="pp">*</span>.jpg <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> server/media/<span class="pp">*</span>.mp3 <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code></pre></div>
 <h3 id="generieren">8.2 Generieren</h3>
 <div class="sourceCode" id="cb17"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Test-Medien generieren (auf Mac)</span></span>
@@ -485,7 +485,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href=
 <div class="sourceCode" id="cb22"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Server starten (Terminal 1)</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> rover</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel <span class="kw">&amp;&amp;</span> <span class="bu">source</span> venv/bin/activate <span class="kw">&amp;&amp;</span> <span class="ex">python</span> server.py</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel/server <span class="kw">&amp;&amp;</span> <span class="bu">source</span> ../venv/bin/activate <span class="kw">&amp;&amp;</span> <span class="ex">python</span> server.py</span>
 <span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Dashboard öffnen (Mac)</span></span>
 <span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> http://rover:8080/</span>
@@ -520,7 +520,7 @@ RELEASE 001</code></pre>
 <h3 id="status-endpoint">Status-Endpoint</h3>
 <div class="sourceCode" id="cb26"><pre
 class="sourceCode json"><code class="sourceCode json"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.2&quot;</span><span class="fu">,</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.3&quot;</span><span class="fu">,</span></span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mode&quot;</span><span class="fu">:</span> <span class="st">&quot;prototype&quot;</span><span class="fu">,</span></span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;num_media&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
 <span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;current_button&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>

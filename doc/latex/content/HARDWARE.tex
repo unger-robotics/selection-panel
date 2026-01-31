@@ -1,0 +1,555 @@
+% =============================================================================
+% HARDWARE.tex – Selection Panel Hardware
+% =============================================================================
+% Einbindung: \input{content/HARDWARE.tex}
+% Version: 2.5.2 | Stand: 2026-01-11
+% =============================================================================
+
+\section{Hardware}
+\label{sec:hardware}
+
+Dieses Kapitel dokumentiert den 10-Button-Prototyp des Selection Panels. Die Schaltung
+lässt sich auf 100 Taster skalieren, indem wir die Daisy-Chain der Schieberegister
+verlängern.
+
+% -----------------------------------------------------------------------------
+\subsection{Komponentenübersicht}
+\label{subsec:hw-komponenten}
+
+\begin{table}[H]
+\centering
+\caption{Stückliste des 10-Button-Prototyps}
+\label{tab:hw-komponenten}
+\begin{tabularx}{\textwidth}{@{}l l r X@{}}
+\toprule
+\textbf{Komponente} & \textbf{Typ} & \textbf{Anzahl} & \textbf{Funktion} \\
+\midrule
+XIAO ESP32-S3       & Mikrocontroller         & 1  & Steuerlogik, USB-CDC \\
+Raspberry Pi 5      & SBC + Netzteil + microSD & 1 & Server, Dashboard, Medien \\
+CD4021B             & 8-Bit PISO Schieberegister & 2 & Taster einlesen \\
+74HC595             & 8-Bit SIPO Schieberegister & 2 & LEDs ansteuern \\
+Taster              & $6 \times 6$\,\si{\milli\meter} Tactile Switch & 10 & Benutzereingabe \\
+LED                 & \SI{5}{\milli\meter}, versch.\ Farben & 10 & Statusanzeige \\
+Widerstand          & \SIrange{330}{3000}{\ohm} & 10 & LED-Strombegrenzung \\
+Widerstand          & \SI{10}{\kilo\ohm}       & 10 & Pull-up für Taster \\
+Kondensator         & \SI{100}{\nano\farad} (Keramik) & 4 & Stützkondensatoren \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Pin-Belegung XIAO ESP32-S3}
+\label{subsec:hw-pinout}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single, numbers=none]
+                  +-------------+
+                  |    USB-C    |
+                  |             |
+ LED_RCK    D0 ---|  1       14 |--- 5V
+ BTN_PS     D1 ---|  2       13 |--- GND
+ LED_OE     D2 ---|  3       12 |--- 3V3
+            D3 ---|  4       11 |--- D10  LED_MOSI
+            D4 ---|  5       10 |--- D9   BTN_MISO
+            D5 ---|  6        9 |--- D8   SCK
+            D6 ---|  7        8 |--- D7
+                  |             |
+                  +-------------+
+\end{lstlisting}
+\caption{Pin-Belegung des XIAO ESP32-S3}
+\label{fig:xiao-pinout}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{GPIO-Zuordnung für SPI und Steuerung}
+\label{tab:gpio-zuordnung}
+\begin{tabularx}{\textwidth}{@{}l l l X@{}}
+\toprule
+\textbf{Pin} & \textbf{Signal} & \textbf{Funktion} & \textbf{Ziel} \\
+\midrule
+\pin{D0}  & \texttt{LED\_RCK}  & Latch (STCP)              & 74HC595 Pin 12 \\
+\pin{D1}  & \texttt{BTN\_PS}   & Parallel/Serial Control   & CD4021B Pin 9 \\
+\pin{D2}  & \texttt{LED\_OE}   & Output Enable (PWM, active-low) & 74HC595 Pin 13 \\
+\pin{D8}  & \texttt{SCK}       & SPI Clock                 & Beide Chip-Typen \\
+\pin{D9}  & \texttt{BTN\_MISO} & Daten von CD4021B         & CD4021B \#0 Pin 3 (Q8) \\
+\pin{D10} & \texttt{LED\_MOSI} & Daten zu 74HC595          & 74HC595 \#0 Pin 14 (SER) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Byte-Mapping (Firmware \texorpdfstring{$\leftrightarrow$}{<->} Hardware)}
+\label{subsec:hw-byte-mapping}
+
+Die Asymmetrie zwischen Ein- und Ausgabe ergibt sich aus der Hardware: Der CD4021B
+schiebt sein erstes Sample (PI-8) als erstes Bit heraus, während der 74HC595 das
+zuletzt empfangene Bit auf QA (Ausgang 0) legt.
+
+\begin{table}[H]
+\centering
+\caption{Bit-Zuordnung der Schieberegister}
+\label{tab:byte-mapping}
+\begin{tabular}{@{}l l l@{}}
+\toprule
+\textbf{IC} & \textbf{Byte 0} & \textbf{Byte 1} \\
+\midrule
+74HC595 (LEDs)    & LED 1--8 = Bit 0--7 & LED 9--10 = Bit 0--1 \\
+CD4021 (Taster)   & BTN 1--8 = Bit 7--0 & BTN 9--10 = Bit 7--6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{infobox}[Firmware-Abstraktion]
+Die Firmware verwendet in \filep{bitops.h} die Formel \lstinline[style=arduino]|btn_bit(id) = 7 - ((id - 1) % 8)|,
+um diese Zuordnung zu abstrahieren. Damit arbeitet die Logik-Schicht einheitlich mit
+Button-IDs von 1--100.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Schaltplan-Übersicht}
+\label{subsec:hw-schaltplan}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, frame=single, numbers=none]
+                        +--------------------------------------------------+
+                        |                  OUTPUT (LEDs)                   |
+    +---------+         |                                                  |
+    | Pi 5    |         |   +----------+  QH'     +----------+             |
+    |         |  USB-C  |   | 74HC595  |--------->| 74HC595  |             |
+    |         |<------->|   |   #0     |   SER    |   #1     |             |
+    +---------+         |   |          |          |          |             |
+                        |   | QA-QH    |          | QA-QB    |             |
+        +---------+     |   |   |      |          |   |      |             |
+        |  XIAO   |     |   | LED 1-8  |          | LED 9-10 |             |
+        | ESP32S3 |     |   +----------+          +----------+             |
+        |         |     +--------------------------------------------------+
+        | D10 ----+----------> SER #0 (MOSI)
+        | D8  ----+----------> SCK (beide)
+        | D0  ----+----------> RCK (beide)
+        | D2  ----+----------> OE (beide)
+        |         |
+        | D9  <---+---------- Q8 #0 (MISO)
+        | D8  ----+----------> CLK (beide)
+        | D1  ----+----------> P/S (beide)
+        |         |     +--------------------------------------------------+
+        +---------+     |                  INPUT (Taster)                  |
+                        |                                                  |
+                        |   +----------+          +----------+             |
+                        |   | CD4021B  |<-- DS ---| CD4021B  |<-- DS -- 3V3|
+                        |   |   #0     |    Q8    |   #1     |             |
+                        |   |          |<---------|          |             |
+                        |   | PI 8-1   |          | PI 8-7   |             |
+                        |   |   |      |          |   |      |             |
+                        |   | BTN 1-8  |          | BTN 9-10 |             |
+                        |   +----------+          +----------+             |
+                        |        |                                         |
+                        |        v                                         |
+                        |      Q8 --> D9 (MISO)                            |
+                        +--------------------------------------------------+
+\end{lstlisting}
+\caption{Gesamtübersicht der Schaltung}
+\label{fig:schaltplan-uebersicht}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{74HC595 Detailschaltplan (LED-Ausgang)}
+\label{subsec:hw-74hc595}
+
+Der 74HC595 ist ein Serial-In/Parallel-Out Schieberegister mit Latch. Die Daten
+werden seriell eingetaktet und erst beim Latch-Impuls (RCK) an die Ausgänge
+übernommen.
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, frame=single, numbers=none]
+                     74HC595 (#0)                    74HC595 (#1)
+                  +-------------+                 +-------------+
+    LED 2  <------|  1 QB  VCC 16|--- 3V3 LED 10 <|  1 QB  VCC 16|--- 3V3
+    LED 3  <------|  2 QC  QA  15|--> LED 1       |  2 QC  QA  15|--> LED 9
+    LED 4  <------|  3 QD  SER 14|<-- D10 (MOSI)  |  3 QD  SER 14|<-- #0.QH'
+    LED 5  <------|  4 QE  OE  13|<-- D2 (PWM)    |  4 QE  OE  13|<-- D2 (PWM)
+    LED 6  <------|  5 QF  RCK 12|<-- D0 (RCK)    |  5 QF  RCK 12|<-- D0 (RCK)
+    LED 7  <------|  6 QG  SCK 11|<-- D8 (SCK)    |  6 QG  SCK 11|<-- D8 (SCK)
+    LED 8  <------|  7 QH  CLR 10|--- 3V3         |  7 QH  CLR 10|--- 3V3
+          GND ----|  8 GND QH'  9|---> #1.SER     |  8 GND QH'  9|    (n.c.)
+                  +------+------+                 +------+------+
+                         |                               |
+                        === C1                          === C2
+                        100nF                           100nF
+                         |                               |
+                        GND                             GND
+\end{lstlisting}
+\caption{74HC595 Pinout und Daisy-Chain}
+\label{fig:74hc595-detail}
+\end{figure}
+
+\begin{warnbox}[CLR-Pin nicht floaten!]
+Der \pin{CLR}-Pin (Pin 10) muss auf \SI{3.3}{\volt} gelegt werden. Ein floatender
+CLR-Pin führt zu sporadischem Löschen des Schieberegisters.
+\end{warnbox}
+
+\subsubsection{LED-Beschaltung (Active-High)}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+    Qx (74HC595)
+     |
+    +-+
+    | | 330 - 3k Ohm
+    +-+
+     |
+     v LED
+     |
+    GND
+\end{lstlisting}
+\caption{LED-Vorwiderstand-Beschaltung}
+\label{fig:led-beschaltung}
+\end{figure}
+
+Die Stromberechnung für verschiedene Widerstandswerte bei einer LED-Flussspannung
+von ca.\ \SI{2.0}{\volt}:
+
+\begin{table}[H]
+\centering
+\caption{LED-Strom in Abhängigkeit vom Vorwiderstand}
+\label{tab:led-strom}
+\begin{tabular}{@{}r r l@{}}
+\toprule
+\textbf{Widerstand} & \textbf{Strom} & \textbf{Helligkeit} \\
+\midrule
+\SI{330}{\ohm}  & $\approx$\,\SI{4}{\milli\ampere}   & hell \\
+\SI{1}{\kilo\ohm}   & $\approx$\,\SI{1.3}{\milli\ampere} & gedimmt \\
+\SI{3}{\kilo\ohm}   & $\approx$\,\SI{0.4}{\milli\ampere} & schwach \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{CD4021B Detailschaltplan (Taster-Eingang)}
+\label{subsec:hw-cd4021b}
+
+Der CD4021B ist ein Parallel-In/Serial-Out Schieberegister. Er liest acht
+parallele Eingänge ein und gibt sie seriell aus.
+
+\subsubsection{Pinout}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+              +------------+
+    PI-8  ----|  1  *  16  |---- VDD
+      Q6  ----|  2     15  |---- PI-7
+      Q8  ----|  3     14  |---- PI-6
+    PI-4  ----|  4     13  |---- PI-5
+    PI-3  ----|  5     12  |---- Q7
+    PI-2  ----|  6     11  |---- SERIAL IN (DS)
+    PI-1  ----|  7     10  |---- CLOCK
+     VSS  ----|  8      9  |---- P/S CONTROL
+              +------------+
+\end{lstlisting}
+\caption{CD4021B Pinout (DIP-16)}
+\label{fig:cd4021b-pinout}
+\end{figure}
+
+\subsubsection{Beschaltung für 10 Taster}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, frame=single, numbers=none]
+                     CD4021B (#0)                        CD4021B (#1)
+                  +--------------+                    +--------------+
+    BTN 1  ------|  1 PI-8 VDD 16|--- 3V3   BTN 9 ---|  1 PI-8 VDD 16|--- 3V3
+                 |  2 Q6  PI-7 15|<-- BTN 2          |  2 Q6  PI-7 15|<-- BTN 10
+   D9 (MISO) <---|  3 Q8  PI-6 14|<-- BTN 3          |  3 Q8  PI-6 14|    +3V3
+    BTN 5  ------|  4 PI-4 PI-5 13|<-- BTN 4          |  4 PI-4 PI-5 13|    +3V3
+    BTN 6  ------|  5 PI-3  Q7  12|    (n.c.)         |  5 PI-3  Q7  12|    (n.c.)
+    BTN 7  ------|  6 PI-2  DS  11|<-- Q8 von #1      |  6 PI-2  DS  11|--- 3V3
+    BTN 8  ------|  7 PI-1 CLK  10|<-- D8 (SCK)       |  7 PI-1 CLK  10|<-- D8 (SCK)
+          GND ---|  8 VSS  P/S   9|<-- D1 (PS)        |  8 VSS  P/S   9|<-- D1 (PS)
+                 +-------+-------+                   +-------+-------+
+                         |       <----- Q8 (Pin 3) ------+
+                        === C3                          === C4
+                        100nF                           100nF
+                         |                               |
+                        GND                             GND
+\end{lstlisting}
+\caption{CD4021B Beschaltung mit Daisy-Chain}
+\label{fig:cd4021b-beschaltung}
+\end{figure}
+
+\subsubsection{Pin-Zuordnung Taster → CD4021B}
+
+Der CD4021B gibt Daten \highlight{MSB-first} aus: PI-8 erscheint zuerst (Bit 7),
+PI-1 zuletzt (Bit 0).
+
+\begin{table}[H]
+\centering
+\caption{Taster-zu-Bit-Zuordnung}
+\label{tab:btn-mapping}
+\begin{tabular}{@{}c c c c c@{}}
+\toprule
+\textbf{Taster} & \textbf{Chip} & \textbf{Pin-Name} & \textbf{Pin-Nr} & \textbf{Bit im Byte} \\
+\midrule
+BTN 1  & \#0 & PI-8 &  1 & Bit 7 \\
+BTN 2  & \#0 & PI-7 & 15 & Bit 6 \\
+BTN 3  & \#0 & PI-6 & 14 & Bit 5 \\
+BTN 4  & \#0 & PI-5 & 13 & Bit 4 \\
+BTN 5  & \#0 & PI-4 &  4 & Bit 3 \\
+BTN 6  & \#0 & PI-3 &  5 & Bit 2 \\
+BTN 7  & \#0 & PI-2 &  6 & Bit 1 \\
+BTN 8  & \#0 & PI-1 &  7 & Bit 0 \\
+\midrule
+BTN 9  & \#1 & PI-8 &  1 & Bit 7 (Byte 1) \\
+BTN 10 & \#1 & PI-7 & 15 & Bit 6 (Byte 1) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Daisy-Chain Datenfluss}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+3V3 --> DS [CD4021B #1] --> Q8 --> DS [CD4021B #0] --> Q8 --> D9 (MISO) --> ESP32
+              |                          |
+              |  BTN 9-10                |  BTN 1-8
+              |  (Byte 1)                |  (Byte 0)
+              |                          |
+              +-- Spaeter gelesen -------+-- Zuerst gelesen -->
+\end{lstlisting}
+\caption{Datenfluss in der CD4021B Daisy-Chain}
+\label{fig:daisy-chain-flow}
+\end{figure}
+
+\begin{warnbox}[DS-Pin des letzten Chips]
+Der \pin{DS}-Pin (Pin 11) des \textbf{letzten} CD4021B muss auf \SI{+3.3}{\volt}
+gelegt werden. Bei GND würden Nullen nachgeschoben, die als \enquote{gedrückt}
+fehlinterpretiert werden. Ungenutzte PI-x Pins ebenfalls auf \SI{+3.3}{\volt}
+legen -- interne Pull-ups reichen nicht zuverlässig.
+\end{warnbox}
+
+\subsubsection{Taster-Beschaltung (Active-Low)}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+    3V3
+     |
+    +-+
+    | | 10 kOhm (Pull-up)
+    +-+
+     +--------- PIx (CD4021B)
+     |
+    +-+
+    | | Taster
+    +-+
+     |
+    GND
+
+Zustand:
+  - Losgelassen: PIx = HIGH (1) -> in Firmware: nicht gedrueckt
+  - Gedrueckt:   PIx = LOW  (0) -> in Firmware: gedrueckt
+\end{lstlisting}
+\caption{Taster mit Pull-up-Widerstand}
+\label{fig:taster-beschaltung}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{SPI-Bus Verkabelung}
+\label{subsec:hw-spi}
+
+\begin{table}[H]
+\centering
+\caption{SPI-Signalführung}
+\label{tab:spi-verkabelung}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{ESP32-S3} & \textbf{74HC595} & \textbf{CD4021B} \\
+\midrule
+\pin{D10} (MOSI) & SER (Pin 14, \#0) $\rightarrow$ QH' $\rightarrow$ SER (\#1) & -- \\
+\pin{D8} (SCK)   & SCK (Pin 11, beide) & CLK (Pin 10, beide) \\
+\pin{D9} (MISO)  & -- & Q8 (Pin 3, \#0) $\leftarrow$ DS $\leftarrow$ Q8 (\#1) \\
+\pin{D0} (RCK)   & RCK (Pin 12, beide) & -- \\
+\pin{D1} (PS)    & -- & P/S (Pin 9, beide) \\
+\pin{D2} (OE)    & OE (Pin 13, beide) & -- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Timing-Diagramme}
+\label{subsec:hw-timing}
+
+\subsubsection{CD4021B Lesevorgang}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+    P/S -----+     +-------------------------
+             |     |
+             +-----+
+                   ^
+                   Parallel Load (HIGH->LOW->HIGH)
+
+    CLK -------------+  +--+  +--+  +--+  +--
+                     |  |  |  |  |  |  |  |
+                     +--+  +--+  +--+  +--+
+                        ^     ^     ^     ^
+                       Bit6  Bit5  Bit4  Bit3 ...
+
+    Q8  ============##=====##=====##=====##====
+                    || Bit7|| Bit6|| Bit5|| ...
+                    ##=====##=====##=====##====
+                    ^
+                    First-Bit (PI-8) liegt VOR erstem Clock an!
+\end{lstlisting}
+\caption{Timing des CD4021B Lesevorgangs}
+\label{fig:timing-cd4021b}
+\end{figure}
+
+\subsubsection{74HC595 Schreibvorgang}
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[basicstyle=\ttfamily\small, frame=single, numbers=none]
+    SER ----##=====##=====##=====##=====------
+            || Bit7|| Bit6|| Bit5|| ...
+            ##=====##=====##=====##=====------
+
+    SCK ---------+  +--+  +--+  +--+  +-----
+                 |  |  |  |  |  |  |  |
+                 +--+  +--+  +--+  +--+
+                    ^     ^     ^     ^
+                   Daten bei steigender Flanke uebernommen
+
+    RCK ------------------------------------+  +--
+                                            |  |
+                                            +--+
+                                               ^
+                                              Latch: Shift -> Output
+\end{lstlisting}
+\caption{Timing des 74HC595 Schreibvorgangs}
+\label{fig:timing-74hc595}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Stromlimits}
+\label{subsec:hw-stromlimits}
+
+\begin{table}[H]
+\centering
+\caption{Elektrische Grenzwerte der ICs}
+\label{tab:stromlimits}
+\begin{tabular}{@{}l l r l@{}}
+\toprule
+\textbf{Komponente} & \textbf{Parameter} & \textbf{Wert} & \textbf{Bemerkung} \\
+\midrule
+\textbf{ESP32-S3} & GPIO Output (max)     & \SI{40}{\milli\ampere}   & Drive Strength 3 \\
+                  & GPIO Output (default) & \SI{20}{\milli\ampere}   & Drive Strength 2 \\
+                  & Gesamt alle GPIOs     & \SI{1200}{\milli\ampere} & Summe \\
+\midrule
+\textbf{74HC595}  & Output pro Pin (max)      & $\pm$\SI{35}{\milli\ampere} & Absolutes Maximum \\
+                  & Output pro Pin (empfohlen)& $\pm$\SI{6}{\milli\ampere}  & Dauerbetrieb \\
+                  & VCC/GND gesamt            & \SIrange{70}{75}{\milli\ampere} & \critical{Package-Limit!} \\
+\midrule
+\textbf{CD4021B}  & Input (pro Pin)  & $<$\,\SI{1}{\micro\ampere} & CMOS-Eingang \\
+                  & Output Q8        & \SIrange{1}{3}{\milli\ampere} & Für SPI ausreichend \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Stromversorgung}
+
+\begin{table}[H]
+\centering
+\caption{Stromaufnahme des Systems}
+\label{tab:stromversorgung}
+\begin{tabular}{@{}l r r@{}}
+\toprule
+\textbf{Komponente} & \textbf{Typisch} & \textbf{Maximum} \\
+\midrule
+ESP32-S3            & \SI{80}{\milli\ampere}  & \SI{500}{\milli\ampere} (WiFi aktiv) \\
+CD4021B ($\times$2) & $<$\,\SI{1}{\milli\ampere} & \SI{1}{\milli\ampere} \\
+74HC595 ($\times$2) & $<$\,\SI{1}{\milli\ampere} & \SI{70}{\milli\ampere} (alle Ausgänge) \\
+LEDs ($\times$10 @ \SI{4}{\milli\ampere}) & \SI{40}{\milli\ampere} & \SI{40}{\milli\ampere} \\
+\midrule
+\textbf{Gesamt}     & \textbf{$\approx$\,\SI{130}{\milli\ampere}} & \textbf{$\approx$\,\SI{620}{\milli\ampere}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{tipbox}[USB-Stromversorgung]
+Die USB-CDC-Versorgung vom Pi liefert bis zu \SI{500}{\milli\ampere}. Bei mehr als
+8 LEDs gleichzeitig oder höheren Strömen: Helligkeit per PWM reduzieren oder externe
+\SI{5}{\volt}-Versorgung verwenden.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Hardware-Eigenheiten}
+\label{subsec:hw-eigenheiten}
+
+\subsubsection{First-Bit-Problem (CD4021B)}
+
+Nach dem Parallel-Load liegt das erste Bit (PI-8 $\rightarrow$ Q8) sofort am Ausgang,
+\textbf{bevor} der erste Clock kommt. Der ESP32 samplet aber erst \textbf{nach} der
+ersten Clock-Flanke. Die Firmware löst dies durch einen \lstinline[style=arduino]|digitalRead()|
+vor dem SPI-Transfer.
+
+\subsubsection{DS-Pin des letzten CD4021B}
+
+Der DS-Pin (Serial Data Input, \textbf{Pin 11}) des \textbf{letzten} CD4021B in der
+Kette muss auf \SI{+3.3}{\volt} gelegt werden, nicht auf GND. Bei GND würden beim
+Einlesen Nullen nachgeschoben, die als \enquote{gedrückt} fehlinterpretiert werden.
+
+\subsubsection{SPI-Bus Crosstalk}
+
+Wenn der ESP32 vom CD4021B liest, taktet er dabei Nullen durch den 74HC595. Die
+Ausgänge ändern sich erst beim Latch-Impuls, aber ein glitchender RCK-Pin könnte
+LEDs kurz ausschalten. Die Firmware kompensiert dies durch
+\lstinline[style=arduino]|LED_REFRESH_EVERY_CYCLE = true|.
+
+\subsubsection{Active-Low Taster}
+
+Die Taster sind Active-Low beschaltet (gedrückt = 0, losgelassen = 1). Die Firmware
+invertiert dies in \filep{bitops.h}, sodass die Logik-Schicht mit
+\lstinline[style=arduino]|pressed = true| arbeitet.
+
+\subsubsection{Stützkondensatoren}
+
+Jeder IC benötigt einen \SI{100}{\nano\farad} Keramikkondensator zwischen VCC und
+GND, möglichst nah am Chip. Ohne diese Kondensatoren können Störungen auf der
+Versorgung zu Fehlfunktionen führen.
+
+% -----------------------------------------------------------------------------
+\subsection{Skalierung auf 100 Buttons}
+\label{subsec:hw-skalierung}
+
+Für das 100-Button-System verlängern wir die Daisy-Chain auf jeweils 13
+Schieberegister:
+
+\begin{table}[H]
+\centering
+\caption{Komponentenvergleich 10 vs.\ 100 Buttons}
+\label{tab:skalierung-hardware}
+\begin{tabular}{@{}l r r@{}}
+\toprule
+\textbf{Komponente} & \textbf{10-Button} & \textbf{100-Button} \\
+\midrule
+CD4021B       & 2   & 13 \\
+74HC595       & 2   & 13 \\
+Taster        & 10  & 100 \\
+LEDs          & 10  & 100 \\
+R (LED)       & 10  & 100 \\
+R (Pull-up)   & 10  & 100 \\
+C (\SI{100}{\nano\farad}) & 4 & 26 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Die SPI-Transferzeit steigt von ca.\ \SI{20}{\micro\second} auf ca.\
+\SI{260}{\micro\second} -- weit unter dem \SI{5}{\milli\second}-Zyklus der
+Firmware.

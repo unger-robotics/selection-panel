@@ -1,0 +1,53 @@
+% =============================================================================
+% main.tex – Technische Dokumentation
+% =============================================================================
+% Build-Standard: ueber "make" aus ./latex/.
+% Warum: TEXINPUTS wird im Makefile gesetzt, damit Builds aus Terminal/IDE/CI
+% reproduzierbar funktionieren.
+% =============================================================================
+\documentclass{techdoc}
+% \documentclass[print]{techdoc} % Warum: Druckversion ohne Link-Dekoration.
+% \documentclass[draft]{techdoc} % Warum: Layout-Probleme/TODOs frueh sichtbar machen.
+
+% =============================================================================
+% METADATEN (SSOT: alles an einem Ort, damit Titel/Version nicht divergieren)
+% =============================================================================
+\title{Titel}
+\subtitle{Untertitel}
+\tagline{Kurzbeschreibung}
+\scope{Anwendungsbereich}
+\stack{Keyword 1 \textbullet\ Keyword 2 \textbullet\ Keyword 3}
+\version{1.0.0}
+\date{11.01.2026}
+\author{Jan Unger}
+\credits{Claude 4.5, ChatGPT 5.2}
+
+% Bilder liegen in ./latex/images/
+\graphicspath{{images/}}
+
+\setheadertitle{Kurztitel}
+
+% Warum hier: PDF-Metadaten bleiben gebuendelt und konsistent.
+\hypersetup{
+  pdftitle={Titel},
+  pdfauthor={Jan Unger}
+}
+
+% =============================================================================
+% DOKUMENT
+% =============================================================================
+\begin{document}
+
+\maketitlepage
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% =============================================================================
+% INHALT (SSOT: Inhalt liegt in content/, main bleibt schlank)
+% =============================================================================
+%\input{content/kapitel}
+
+\end{document}

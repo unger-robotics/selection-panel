@@ -1,0 +1,189 @@
+% =============================================================================
+% VORAUSSETZUNGEN.tex – Hardware & Software für das Selection-Panel
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Voraussetzungen}
+\label{sec:voraussetzungen}
+
+Bevor wir mit dem Aufbau beginnen, werfen wir einen Blick auf die benötigte Hardware und Software. Die folgende Übersicht zeigt alle Komponenten, die wir für das Selection-Panel-Projekt benötigen.
+
+% -----------------------------------------------------------------------------
+\subsection{Hardware}
+\label{subsec:voraussetzungen-hardware}
+
+\Cref{tab:hardware-komponenten} listet die Kernkomponenten auf. Bei der Auswahl haben wir auf ein ausgewogenes Verhältnis zwischen Leistung und Kosten geachtet.
+
+\begin{table}[H]
+  \centering
+  \caption{Hardware-Komponenten für das Selection-Panel}
+  \label{tab:hardware-komponenten}
+  \begin{tabularx}{\textwidth}{@{}l X l r@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Zweck} & \textbf{Bezugsquelle} & \textbf{Preis} \\
+    \midrule
+    Raspberry Pi 5, \SI{4}{\giga\byte} RAM & Server, Media-Ausgabe & BerryBase (RPI5-4GB) & \SI{71,50}{\EUR} \\
+    Raspberry Pi Active Cooler & Kühlung & BerryBase (RPI5-ACOOL) & \SI{5,90}{\EUR} \\
+    Raspberry Pi \SI{27}{\watt} USB-C Netzteil & Stromversorgung & BerryBase (RPI5NT5AW) & \SI{12,40}{\EUR} \\
+    SanDisk Extreme microSDXC \SI{128}{\giga\byte} & Betriebssystem & BerryBase (A2 UHS-I U3 V30) & $\sim$\SI{18}{\EUR} \\
+    HDMI Adapter Micro-D → A & Monitor & BerryBase (8007067) & \SI{1,10}{\EUR} \\
+    Seeed XIAO ESP32-S3 & Taster/LEDs & Reichelt & $\sim$\SI{9}{\EUR} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[Bezugsquelle]
+  Alle Raspberry-Pi-Komponenten sind bei \href{https://www.berrybase.de}{BerryBase.de} erhältlich. Preise Stand Januar 2026.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Software (Entwicklungsrechner)}
+\label{subsec:voraussetzungen-software}
+
+Je nach Betriebssystem unterscheidet sich die Installation der Entwicklungswerkzeuge. Wir zeigen hier die Schritte für macOS, Windows und Linux.
+
+\subsubsection{macOS}
+
+Unter macOS nutzen wir Homebrew als Paketmanager:
+
+\begin{lstlisting}[style=shell]
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install python git vim
+\end{lstlisting}
+
+\subsubsection{Windows}
+
+Unter Windows installieren wir die Tools manuell:
+
+\begin{enumerate}
+  \item \textbf{Git:} Download von \href{https://git-scm.com/download/win}{git-scm.com/download/win}
+  \item \textbf{Python:} Download von \href{https://www.python.org/downloads/}{python.org/downloads} – Option \enquote{Add Python to PATH} aktivieren
+\end{enumerate}
+
+\subsubsection{Linux (Ubuntu/Debian)}
+
+Unter Linux greifen wir auf die Paketverwaltung zurück:
+
+\begin{lstlisting}[style=shell]
+sudo apt update && sudo apt install python3 python3-pip python3-venv git vim
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{VS Code + PlatformIO}
+\label{subsec:voraussetzungen-platformio}
+
+Für die Firmware-Entwicklung setzen wir auf VS Code mit der PlatformIO-Extension:
+
+\begin{enumerate}
+  \item \textbf{VS Code} von \href{https://code.visualstudio.com/}{code.visualstudio.com} herunterladen und installieren
+  \item Die Extension \texttt{PlatformIO IDE} über den Marketplace installieren
+\end{enumerate}
+
+\Cref{tab:platformio-befehle} fasst die wichtigsten PlatformIO-Befehle zusammen. Mit diesen vier Kommandos decken wir den gesamten Entwicklungszyklus ab.
+
+\begin{table}[H]
+  \centering
+  \caption{PlatformIO-Befehle für die ESP32-Entwicklung}
+  \label{tab:platformio-befehle}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Aktion} & \textbf{Befehl} \\
+    \midrule
+    Kompilieren & \texttt{pio run} \\
+    Flashen & \texttt{pio run -t upload} \\
+    Serial-Monitor & \texttt{pio device monitor} \\
+    Flash + Monitor & \texttt{pio run -t upload -t monitor} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Referenz-System}
+\label{subsec:voraussetzungen-referenz}
+
+Die folgende Konfiguration dient als Referenz für die Dokumentation. Wenn wir auf Versionsnummern oder Verhaltensweisen verweisen, beziehen wir uns auf dieses Setup.
+
+\begin{table}[H]
+  \centering
+  \caption{Hardware-Referenz}
+  \label{tab:referenz-hardware}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Hardware} & \textbf{Version} \\
+    \midrule
+    Board & Raspberry Pi 5 Model B Rev 1.1 \\
+    Microcontroller & Seeed XIAO ESP32-S3 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{Software-Versionen}
+  \label{tab:referenz-software}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Software} & \textbf{Version} \\
+    \midrule
+    Pi OS & Debian 13 (trixie), Build 2025-12-04 \\
+    Python & 3.13+ \\
+    aiohttp & 3.9+ \\
+    PlatformIO & 6.x \\
+    Firmware & 2.5.2 \\
+    Server & 2.5.2 \\
+    Dashboard & 2.5.1 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Checkliste}
+\label{subsec:voraussetzungen-checkliste}
+
+Bevor wir zum nächsten Kapitel übergehen, prüfen wir kurz, ob alle Voraussetzungen erfüllt sind.
+
+\subsubsection{Hardware}
+
+\begin{itemize}
+  \item[$\square$] Raspberry Pi 5 + Active Cooler
+  \item[$\square$] microSD-Karte (\SI{128}{\giga\byte})
+  \item[$\square$] ESP32-S3 XIAO
+  \item[$\square$] USB-C Kabel (Daten, nicht nur Laden)
+  \item[$\square$] Multimeter
+\end{itemize}
+
+\subsubsection{Software}
+
+\begin{itemize}
+  \item[$\square$] Git: \texttt{git --version}
+  \item[$\square$] Python: \texttt{python3 --version}
+  \item[$\square$] VS Code + PlatformIO
+  \item[$\square$] SSH-Zugang zum Pi
+\end{itemize}
+
+\begin{warnbox}[USB-Kabel beachten]
+  Viele USB-C-Kabel übertragen nur Strom, keine Daten. Ein defektes oder reines Ladekabel ist eine häufige Fehlerquelle beim Flashen des ESP32.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Nächste Schritte}
+\label{subsec:voraussetzungen-naechste}
+
+Mit der Hardware auf dem Tisch und der installierten Software können wir nun in die praktische Umsetzung einsteigen. \Cref{tab:naechste-schritte} zeigt den empfohlenen Ablauf.
+
+\begin{table}[H]
+  \centering
+  \caption{Weiterführende Dokumentation}
+  \label{tab:naechste-schritte}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Schritt} & \textbf{Dokument} \\
+    \midrule
+    Pi einrichten + SSH & → \Cref{sec:ssh} \\
+    Repository klonen & → \Cref{sec:git} \\
+    Server starten & → \Cref{sec:quickstart} \\
+    Löten & → \Cref{sec:loeten} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

@@ -125,13 +125,13 @@
 <thead>
 <tr>
 <th>Stand</th>
-<th>2026-01-08</th>
+<th>2026-01-31</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Version</td>
-<td>2.5.2</td>
+<td>2.5.3</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -156,18 +156,18 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv venv</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">venv/bin/pip</span> install <span class="at">-r</span> requirements.txt</span></code></pre></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">venv/bin/pip</span> install <span class="at">-r</span> server/requirements.txt</span></code></pre></div>
 <p><strong>Hinweis:</strong> Nur <code>aiohttp</code> wird benötigt
 (kein pyserial mehr).</p>
 <hr />
 <h2 id="server-starten">Server starten</h2>
 <div class="sourceCode" id="cb2"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> venv/bin/activate</span>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel/server</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> ../venv/bin/activate</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> server.py</span></code></pre></div>
 <p>Erwartete Ausgabe:</p>
 <pre><code>==================================================
-Auswahlpanel Server v2.5.2 (PROTOTYPE)
+Auswahlpanel Server v2.5.3 (PROTOTYPE)
 ==================================================
 Medien: 10 erwartet (IDs: 001-010)
 Taster: 1-10 (1-basiert)
@@ -282,8 +282,8 @@ style="text-align: left;"><code>journalctl -u selection-panel -f</code></td>
 </tr>
 <tr>
 <td style="text-align: left;">Falsche Medien</td>
-<td style="text-align: left;">Prüfen: <code>ls media/</code> (001.jpg
-bis 010.jpg)</td>
+<td style="text-align: left;">Prüfen: <code>ls server/media/</code>
+(001.jpg bis 010.jpg)</td>
 </tr>
 <tr>
 <td style="text-align: left;">Preload dauert lange</td>
@@ -294,7 +294,7 @@ erhöhen</td>
 </table>
 <hr />
 <h2 id="medien-struktur-1-basiert">Medien-Struktur (1-basiert!)</h2>
-<pre><code>media/
+<pre><code>server/media/
 ├── 001.jpg  001.mp3
 ├── 002.jpg  002.mp3
 ├── ...
@@ -358,15 +358,15 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="
 </tr>
 <tr>
 <td style="text-align: left;">ESP32 Firmware</td>
-<td style="text-align: left;">2.5.2</td>
+<td style="text-align: left;">2.5.3</td>
 </tr>
 <tr>
 <td style="text-align: left;">Server</td>
-<td style="text-align: left;">2.5.2</td>
+<td style="text-align: left;">2.5.3</td>
 </tr>
 <tr>
 <td style="text-align: left;">Dashboard</td>
-<td style="text-align: left;">2.5.1</td>
+<td style="text-align: left;">2.5.3</td>
 </tr>
 </tbody>
 </table>
@@ -382,7 +382,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="
 <tbody>
 <tr>
 <td>Server starten</td>
-<td><code>python server.py</code></td>
+<td><code>cd server &amp;&amp; python server.py</code></td>
 </tr>
 <tr>
 <td>Dashboard</td>
@@ -415,7 +415,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="
 </tbody>
 </table>
 <hr />
-<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+<p><em>Stand: 2026-01-31 | Version 2.5.3</em></p>
 </div>
 </body>
 </html>

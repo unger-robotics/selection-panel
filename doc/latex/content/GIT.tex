@@ -1,0 +1,225 @@
+% =============================================================================
+% GIT.tex – Git-Workflow und Versionskontrolle
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Git-Workflow}
+\label{sec:git}
+
+Wie verwalten wir den Quellcode des Selection Panels? Dieses Kapitel beschreibt den Git-Workflow für die Zusammenarbeit zwischen Entwicklungsrechner, Raspberry Pi und GitHub.
+
+\textbf{Repository:} \texttt{github.com:unger-robotics/selection-panel}
+
+% -----------------------------------------------------------------------------
+\subsection{Repository klonen}
+\label{subsec:git-klonen}
+
+\begin{lstlisting}[style=shell]
+git clone git@github.com:unger-robotics/selection-panel.git
+cd selection-panel
+\end{lstlisting}
+
+\begin{infobox}[Voraussetzung]
+  SSH-Key für GitHub muss eingerichtet sein → \Cref{subsec:ssh-github}
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Erstmaliges Setup (neues Repo)}
+\label{subsec:git-setup}
+
+Falls wir ein neues Repository anlegen:
+
+\begin{lstlisting}[style=shell]
+cd ~/selection-panel
+git init
+git add .
+git commit -m "feat: Initial commit"
+git branch -M main
+git remote add origin git@github.com:unger-robotics/selection-panel.git
+git push -u origin main
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Täglicher Workflow}
+\label{subsec:git-workflow}
+
+Der typische Arbeitsablauf besteht aus vier Schritten:
+
+\begin{lstlisting}[style=shell]
+git pull                    # Aenderungen holen
+git add .                   # Aenderungen stagen
+git commit -m "feat: ..."   # Committen
+git push                    # Pushen
+\end{lstlisting}
+
+So bleiben alle drei Ebenen synchron: Mac – Rover (Pi) – GitHub.
+
+\begin{lstlisting}[style=shell]
+# Status pruefen
+git fetch origin && git status
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Commit-Konventionen}
+\label{subsec:git-commits}
+
+Wir verwenden Conventional Commits für konsistente Commit-Messages.
+
+\begin{table}[H]
+  \centering
+  \caption{Commit-Präfixe und ihre Verwendung}
+  \label{tab:git-commits}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Präfix} & \textbf{Verwendung} & \textbf{Beispiel} \\
+    \midrule
+    \texttt{feat} & Neue Funktion & \texttt{feat(server): WebSocket-Broadcast} \\
+    \texttt{fix} & Bugfix & \texttt{fix(firmware): LED-Index korrigiert} \\
+    \texttt{docs} & Dokumentation & \texttt{docs: HARDWARE.md erweitert} \\
+    \texttt{perf} & Performance & \texttt{perf: Latenz-Optimierung} \\
+    \texttt{refactor} & Umstrukturierung & \texttt{refactor: shift\_register modularisiert} \\
+    \texttt{chore} & Build, Tooling & \texttt{chore: requirements.txt vereinfacht} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Scopes:} \texttt{firmware}, \texttt{server}, \texttt{dashboard}, \texttt{docs}
+
+% -----------------------------------------------------------------------------
+\subsection{Branching}
+\label{subsec:git-branching}
+
+Für größere Features erstellen wir einen eigenen Branch:
+
+\begin{lstlisting}[style=shell]
+# Feature-Branch erstellen
+git checkout -b feature/led-animation
+git add . && git commit -m "feat: LED-Animation"
+git push -u origin feature/led-animation
+
+# Nach Review: Mergen
+git checkout main
+git pull
+git merge feature/led-animation
+git push
+git branch -d feature/led-animation
+\end{lstlisting}
+
+\begin{tipbox}[Branch-Namenskonvention]
+  Wir verwenden das Muster \texttt{feature/beschreibung} für neue Features, \texttt{fix/beschreibung} für Bugfixes und \texttt{docs/beschreibung} für Dokumentationsänderungen.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Häufige Befehle}
+\label{subsec:git-befehle}
+
+\begin{table}[H]
+  \centering
+  \caption{Git-Schnellreferenz}
+  \label{tab:git-befehle}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Befehl} & \textbf{Aktion} \\
+    \midrule
+    \texttt{git status} & Was hat sich geändert? \\
+    \texttt{git log --oneline -10} & Letzte 10 Commits \\
+    \texttt{git diff} & Änderungen anzeigen \\
+    \texttt{git stash} & Änderungen parken \\
+    \texttt{git stash pop} & Änderungen zurückholen \\
+    \texttt{git commit --amend -m "..."} & Letzten Commit korrigieren \\
+    \texttt{git tag -a v2.5.2 -m "..."} & Release-Tag erstellen \\
+    \texttt{git push origin v2.5.2} & Tag pushen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Deployment (Mac → Pi)}
+\label{subsec:git-deployment}
+
+Zwei Optionen für das Deployment auf den Raspberry Pi:
+
+\subsubsection{Option 1: rsync}
+
+\begin{lstlisting}[style=shell]
+rsync -avz --delete \
+  --exclude='firmware' \
+  --exclude='hardwaretest_firmware' \
+  --exclude='venv' \
+  --exclude='.git' \
+  --exclude='__pycache__' \
+  . pi@rover:~/selection-panel/
+
+ssh rover 'sudo systemctl restart selection-panel'
+\end{lstlisting}
+
+\subsubsection{Option 2: Git (empfohlen)}
+
+\begin{lstlisting}[style=shell]
+ssh rover 'cd ~/selection-panel && git pull && sudo systemctl restart selection-panel'
+\end{lstlisting}
+
+\begin{infobox}[Empfehlung]
+  Die Git-Variante ist sauberer, weil sie nur committete Änderungen überträgt und die Historie konsistent bleibt.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{.gitignore}
+\label{subsec:git-gitignore}
+
+Diese Dateien und Verzeichnisse schließen wir von der Versionskontrolle aus:
+
+\begin{lstlisting}[style=shell,numbers=none]
+firmware/.pio/
+firmware/.vscode/
+hardwaretest_firmware/*/.pio/
+hardwaretest_firmware/*/.vscode/
+__pycache__/
+*.pyc
+venv/
+.DS_Store
+docs/_site/
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Git-Aliase}
+\label{subsec:git-aliase}
+
+Für häufige Befehle lohnen sich Aliase. In \filep{\textasciitilde/.gitconfig}:
+
+\begin{lstlisting}[style=shell,numbers=none]
+[alias]
+    st = status
+    lg = log --oneline --graph
+    co = checkout
+    br = branch
+\end{lstlisting}
+
+Dann genügt: \texttt{git st}, \texttt{git lg}, etc.
+
+% -----------------------------------------------------------------------------
+\subsection{Vim + Git}
+\label{subsec:git-vim}
+
+Git verwendet standardmäßig Vim für Commit-Messages. Die wichtigsten Befehle:
+
+\begin{table}[H]
+  \centering
+  \caption{Vim-Befehle für Git}
+  \label{tab:git-vim}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Tastenkombination} & \textbf{Aktion} \\
+    \midrule
+    \texttt{i} & Insert-Modus (Text eingeben) \\
+    \texttt{Esc} & Normal-Modus \\
+    \texttt{:wq} & Speichern und beenden (Commit ausführen) \\
+    \texttt{:q!} & Beenden ohne Speichern (Commit abbrechen) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[Editor ändern]
+  Wer VS Code bevorzugt: \texttt{git config --global core.editor "code --wait"}
+\end{tipbox}

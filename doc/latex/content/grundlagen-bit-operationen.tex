@@ -1,0 +1,623 @@
+% =============================================================================
+% grundlagen-bit-operationen.tex – Zahlensysteme und Bit-Operationen
+% =============================================================================
+
+\section{Zahlensysteme und Bit-Operationen – Grundlagen}
+
+\subsection{Begriffsrahmen und Zielsetzung}
+
+Bei der Arbeit mit Schieberegistern (CD4021, 74HC595) manipulierst du einzelne Bits in Bytes. Dafür brauchst du drei Fähigkeiten: Zahlensysteme verstehen, Datentypen korrekt wählen, Bit-Operationen sicher anwenden.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Begriff} & \textbf{Definition} \\
+\midrule
+Bit    & Kleinste Informationseinheit (0 oder 1) \\
+Byte   & 8 Bits, Wertebereich 0–255 \\
+Nibble & 4 Bits, entspricht einer Hex-Ziffer \\
+MSB    & Most Significant Bit – Bit 7, höchstwertiges Bit \\
+LSB    & Least Significant Bit – Bit 0, niedrigstwertiges Bit \\
+Maske  & Bit-Muster zur gezielten Manipulation bestimmter Bits \\
+\bottomrule
+\end{tabular}
+\caption{Begriffsrahmen Bit-Operationen}
+\label{tab:bit-begriffe}
+\end{table}
+
+\textbf{Ziel:} Du kannst eine Button-ID (\zB 7) in eine Bit-Position umrechnen und das entsprechende Bit lesen oder setzen.
+
+% -----------------------------------------------------------------------------
+\subsection{Zahlensysteme – Drei Darstellungen, ein Wert}
+
+\textbf{Problem:} Der Wert \glqq zwölf\grqq{} lässt sich auf verschiedene Arten schreiben. In der Embedded-Entwicklung begegnen dir alle drei Darstellungen – oft im selben Code.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lclll@{}}
+\toprule
+\textbf{System} & \textbf{Basis} & \textbf{Ziffern} & \textbf{C/C++ Präfix} & \textbf{Beispiel (12)} \\
+\midrule
+Dezimal     & 10 & 0–9      & (keiner) & \code{12} \\
+Binär       &  2 & 0, 1     & \code{0b} & \code{0b00001100} \\
+Hexadezimal & 16 & 0–9, A–F & \code{0x} & \code{0x0C} \\
+\bottomrule
+\end{tabular}
+\caption{Zahlensysteme im Vergleich}
+\label{tab:zahlensysteme}
+\end{table}
+
+\textbf{Wann verwendest du welches System?}
+
+\begin{itemize}
+\item \textbf{Dezimal} für Zählwerte, Indizes, Zeitangaben: \code{count = 10}
+\item \textbf{Binär} wenn du einzelne Bits siehst: \code{0b10000000} (Bit 7 gesetzt)
+\item \textbf{Hex} für Byte-Werte und Adressen: \code{0x80} (kompakter als binär)
+\end{itemize}
+
+\paragraph{Nibble-Prinzip – Hex lesen lernen}
+
+Ein Byte besteht aus zwei Nibbles (je 4 Bits). Jedes Nibble entspricht einer Hex-Ziffer:
+
+\begin{lstlisting}[style=wrap,numbers=none]
+Byte:     0b1100.0101
+Nibbles:    C     5
+Hex:      0xC5
+\end{lstlisting}
+
+\textbf{Umrechnungstabelle (auswendig lernen lohnt sich):}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}clr|clr@{}}
+\toprule
+\textbf{Hex} & \textbf{Binär} & \textbf{Dez} & \textbf{Hex} & \textbf{Binär} & \textbf{Dez} \\
+\midrule
+0 & \code{0000} &  0 & 8 & \code{1000} &  8 \\
+1 & \code{0001} &  1 & 9 & \code{1001} &  9 \\
+2 & \code{0010} &  2 & A & \code{1010} & 10 \\
+3 & \code{0011} &  3 & B & \code{1011} & 11 \\
+4 & \code{0100} &  4 & C & \code{1100} & 12 \\
+5 & \code{0101} &  5 & D & \code{1101} & 13 \\
+6 & \code{0110} &  6 & E & \code{1110} & 14 \\
+7 & \code{0111} &  7 & F & \code{1111} & 15 \\
+\bottomrule
+\end{tabular}
+\caption{Hex-Binär-Dezimal Umrechnungstabelle}
+\label{tab:hex-binaer}
+\end{table}
+
+\textbf{Beispiel – 0x80 in Binär umwandeln:}
+
+\begin{lstlisting}[style=wrap,numbers=none]
+0x80 = 0x8 + 0x0
+     = 0b1000 + 0b0000
+     = 0b10000000
+\end{lstlisting}
+
+Das ist Bit 7 gesetzt – genau die Maske für ID 1 im MSB-first-Mapping.
+
+% -----------------------------------------------------------------------------
+\subsection{Bit-Positionen – Wo ist was im Byte?}
+
+\textbf{Aufbau eines Bytes:}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    bit/.style={draw, minimum width=1.2cm, minimum height=0.8cm, font=\ttfamily\small},
+    label/.style={font=\footnotesize}
+]
+% Bit cells
+\foreach \i in {0,...,7} {
+    \node[bit] (b\i) at ({(7-\i)*1.2},0) {\i};
+}
+% Position labels
+\node[label, above=0.1cm of b7] {7};
+\node[label, above=0.1cm of b6] {6};
+\node[label, above=0.1cm of b5] {5};
+\node[label, above=0.1cm of b4] {4};
+\node[label, above=0.1cm of b3] {3};
+\node[label, above=0.1cm of b2] {2};
+\node[label, above=0.1cm of b1] {1};
+\node[label, above=0.1cm of b0] {0};
+% Value labels
+\node[label, below=0.1cm of b7] {128};
+\node[label, below=0.1cm of b6] {64};
+\node[label, below=0.1cm of b5] {32};
+\node[label, below=0.1cm of b4] {16};
+\node[label, below=0.1cm of b3] {8};
+\node[label, below=0.1cm of b2] {4};
+\node[label, below=0.1cm of b1] {2};
+\node[label, below=0.1cm of b0] {1};
+% MSB/LSB labels
+\node[font=\footnotesize\sffamily, color=ArduinoDark] at (-0.8,0) {MSB};
+\node[font=\footnotesize\sffamily, color=ArduinoDark] at (9.2,0) {LSB};
+\end{tikzpicture}
+\caption{Aufbau eines Bytes mit Bit-Positionen und Stellenwerten}
+\label{fig:byte-aufbau}
+\end{figure}
+
+\textbf{Stellenwert-Formel:} Bit $n$ hat den Wert $2^n$.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}crr@{}}
+\toprule
+\textbf{Bit} & \textbf{Stellenwert} & \textbf{Hex-Maske} \\
+\midrule
+7 & 128 & \code{0x80} \\
+6 &  64 & \code{0x40} \\
+5 &  32 & \code{0x20} \\
+4 &  16 & \code{0x10} \\
+3 &   8 & \code{0x08} \\
+2 &   4 & \code{0x04} \\
+1 &   2 & \code{0x02} \\
+0 &   1 & \code{0x01} \\
+\bottomrule
+\end{tabular}
+\caption{Stellenwerte und Hex-Masken}
+\label{tab:stellenwerte}
+\end{table}
+
+\textbf{Beispiel – Welchen Wert hat} \code{0b01001010}?
+
+\begin{lstlisting}[style=wrap,numbers=none]
+Gesetzte Bits: 6, 3, 1
+Wert = 64 + 8 + 2 = 74 = 0x4A
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Datentypen – Die richtige Größe wählen}
+
+\textbf{Problem:} C/C++ bietet viele Integer-Typen. Bei Embedded-Systemen ist die exakte Bitbreite entscheidend – ein Schieberegister liefert genau 8 Bits, nicht mehr, nicht weniger.
+
+\textbf{Typen mit fester Breite (aus} \code{<stdint.h>}):
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lcll@{}}
+\toprule
+\textbf{Typ} & \textbf{Bits} & \textbf{Wertebereich} & \textbf{Typischer Einsatz} \\
+\midrule
+\code{uint8\_t}  &  8 & 0 – 255           & Schieberegister-Bytes \\
+\code{int8\_t}   &  8 & $-128$ – $+127$   & Vorzeichen-behaftete kleine Werte \\
+\code{uint16\_t} & 16 & 0 – 65.535        & Sequenznummern, Timer \\
+\code{uint32\_t} & 32 & 0 – 4.294.967.295 & Timestamps, große Zähler \\
+\bottomrule
+\end{tabular}
+\caption{Integer-Typen mit fester Breite}
+\label{tab:datentypen}
+\end{table}
+
+\textbf{Namenskonvention:} \code{u} = unsigned, Zahl = Bits, \code{\_t} = type
+
+\textbf{Warum} \code{uint8\_t} \textbf{für Schieberegister?}
+
+\begin{lstlisting}[style=arduino]
+// Korrekt: exakt 8 Bit
+uint8_t buttonState = 0;
+uint8_t ledState[2] = {0, 0};
+
+// Problematisch: Groesse plattformabhaengig
+int buttonState = 0;  // 16 oder 32 Bit - verschwendet RAM
+\end{lstlisting}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Typ} & \textbf{Empfehlung} \\
+\midrule
+\code{uint8\_t}       & Empfohlen – exakt 8 Bit, portabel \\
+\code{byte}           & Nur Arduino – nicht portabel \\
+\code{unsigned char}  & Funktioniert, aber weniger explizit \\
+\code{int}            & Zu groß, verschwendet RAM \\
+\bottomrule
+\end{tabular}
+\caption{Typ-Empfehlungen für Byte-Daten}
+\label{tab:typ-empfehlungen}
+\end{table}
+
+\paragraph{Überlauf beachten}
+
+\begin{lstlisting}[style=arduino]
+uint8_t x = 255;
+x = x + 1;  // x = 0, nicht 256!
+
+uint8_t y = 0;
+y = y - 1;  // y = 255, nicht -1!
+\end{lstlisting}
+
+\begin{infobox}[Regel]
+Bei \code{uint8\_t} \glqq wickelt\grqq{} der Wert um – von 255 auf 0 bzw. von 0 auf 255.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Bit-Operationen – Die vier Grundoperationen}
+
+\textbf{Übersicht:}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lclll@{}}
+\toprule
+\textbf{Operation} & \textbf{Operator} & \textbf{Code} & \textbf{Wirkung} \\
+\midrule
+Bit setzen  & OR      & \code{x |= mask}  & 0→1, 1→1 \\
+Bit löschen & AND NOT & \code{x \&= \textasciitilde mask} & 1→0, 0→0 \\
+Bit toggeln & XOR     & \code{x \^{}= mask} & 0→1, 1→0 \\
+Bit prüfen  & AND     & \code{x \& mask}  & Ergebnis $\neq$ 0 wenn gesetzt \\
+\bottomrule
+\end{tabular}
+\caption{Die vier Bit-Grundoperationen}
+\label{tab:bit-operationen}
+\end{table}
+
+\paragraph{Bit setzen (OR)}
+
+\textbf{Prinzip:} \code{x | 0 = x} (bleibt), \code{x | 1 = 1} (wird gesetzt)
+
+\begin{lstlisting}[style=arduino]
+uint8_t ledState = 0b00000000;
+ledState |= 0b00010000;  // Bit 4 setzen
+
+// Visualisierung:
+//   0b00000000
+// | 0b00010000
+// -----------
+//   0b00010000
+\end{lstlisting}
+
+\textbf{Anwendung:} LED einschalten
+
+\begin{lstlisting}[style=arduino]
+ledState |= (1u << 4);  // Bit 4 setzen -> LED 5 an (MSB-first)
+\end{lstlisting}
+
+\paragraph{Bit löschen (AND NOT)}
+
+\textbf{Prinzip:} \code{x \& 1 = x} (bleibt), \code{x \& 0 = 0} (wird gelöscht)
+
+\begin{lstlisting}[style=arduino]
+uint8_t ledState = 0b00010000;
+ledState &= ~0b00010000;  // Bit 4 loeschen
+
+// Visualisierung:
+// ~0b00010000 = 0b11101111
+//
+//   0b00010000
+// & 0b11101111
+// -----------
+//   0b00000000
+\end{lstlisting}
+
+\textbf{Anwendung:} LED ausschalten
+
+\begin{lstlisting}[style=arduino]
+ledState &= ~(1u << 4);  // Bit 4 loeschen -> LED 5 aus
+\end{lstlisting}
+
+\paragraph{Bit toggeln (XOR)}
+
+\textbf{Prinzip:} \code{x \^{} 0 = x} (bleibt), \code{x \^{} 1 = \textasciitilde x} (wechselt)
+
+\begin{lstlisting}[style=arduino]
+uint8_t ledState = 0b00010000;
+ledState ^= 0b00010000;  // Bit 4 toggeln -> 0
+
+ledState ^= 0b00010000;  // Bit 4 toggeln -> 1
+\end{lstlisting}
+
+\textbf{Anwendung:} Blinken ohne Zustandsvariable
+
+\begin{lstlisting}[style=arduino]
+ledState ^= (1u << 4);  // Jeder Aufruf wechselt den Zustand
+\end{lstlisting}
+
+\paragraph{Bit prüfen (AND)}
+
+\textbf{Prinzip:} Ergebnis ist 0 wenn Bit nicht gesetzt, sonst $\neq$ 0
+
+\begin{lstlisting}[style=arduino]
+uint8_t buttonState = 0b11011111;  // Bit 5 = 0 (Button gedrueckt)
+
+if (buttonState & 0b00100000) {
+    // Bit 5 ist gesetzt -> Button NICHT gedrueckt
+} else {
+    // Bit 5 ist 0 -> Button gedrueckt (active-low)
+}
+\end{lstlisting}
+
+\textbf{Anwendung:} Button-Zustand abfragen
+
+\begin{lstlisting}[style=arduino]
+bool isPressed = (buttonState & (1u << 5)) == 0;  // Active-low
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Warum \code{1u} statt \code{1}?}
+
+\textbf{Problem:} Der Literal \code{1} ist vom Typ \code{int} (signed). Bei Bit-Shifts kann das zu undefiniertem Verhalten führen.
+
+\begin{lstlisting}[style=arduino]
+// Problematisch:
+1 << 31  // Undefiniert! Signed overflow
+
+// Sicher:
+1u << 31  // OK, unsigned
+\end{lstlisting}
+
+\begin{warnbox}[Regel]
+Verwende immer \code{1u} bei Bit-Operationen:
+\begin{lstlisting}[style=arduino,numbers=none]
+ledState |= (1u << bitPos);     // Setzen
+ledState &= ~(1u << bitPos);    // Loeschen
+if (state & (1u << bitPos))     // Pruefen
+\end{lstlisting}
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Maske erstellen – Vom Bit zur Maske}
+
+\textbf{Formel:} \code{mask = 1u << bitPosition}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}clll@{}}
+\toprule
+\textbf{Bit-Position} & \textbf{Shift} & \textbf{Maske (binär)} & \textbf{Maske (hex)} \\
+\midrule
+0 & \code{1u << 0} & \code{0b00000001} & \code{0x01} \\
+1 & \code{1u << 1} & \code{0b00000010} & \code{0x02} \\
+2 & \code{1u << 2} & \code{0b00000100} & \code{0x04} \\
+3 & \code{1u << 3} & \code{0b00001000} & \code{0x08} \\
+4 & \code{1u << 4} & \code{0b00010000} & \code{0x10} \\
+5 & \code{1u << 5} & \code{0b00100000} & \code{0x20} \\
+6 & \code{1u << 6} & \code{0b01000000} & \code{0x40} \\
+7 & \code{1u << 7} & \code{0b10000000} & \code{0x80} \\
+\bottomrule
+\end{tabular}
+\caption{Masken für Bit-Positionen 0–7}
+\label{tab:masken}
+\end{table}
+
+\begin{tipbox}[Merkregel]
+Die Hex-Werte folgen dem Muster 1, 2, 4, 8 (pro Nibble).
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{MSB-first Mapping – Von der ID zur Bit-Position}
+
+\textbf{Projektstandard:} Das Selection Panel verwendet MSB-first. ID 1 liegt in Bit 7, ID 8 in Bit 0.
+
+\textbf{Formeln:}
+
+\begin{lstlisting}[style=arduino]
+uint8_t byteIndex   = (id - 1) / 8;
+uint8_t bitPosition = 7 - ((id - 1) % 8);  // MSB-first!
+uint8_t mask        = 1u << bitPosition;
+\end{lstlisting}
+
+\textbf{Herleitung am Beispiel – ID 5:}
+
+\begin{lstlisting}[style=wrap,numbers=none]
+id = 5
+
+byteIndex   = (5 - 1) / 8       = 4 / 8 = 0
+bitPosition = 7 - ((5 - 1) % 8) = 7 - 4  = 3
+mask        = 1u << 3           = 0x08
+
+// Visualisierung:
+// Byte 0:  ID  1   2   3   4   5   6   7   8
+//          Bit 7   6   5   4   3   2   1   0
+//                              ^
+//                            ID 5 -> Bit 3 -> Maske 0x08
+\end{lstlisting}
+
+\textbf{Mapping-Tabelle (10 IDs):}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+\textbf{ID} & \textbf{Byte} & \textbf{Bit} & \textbf{Maske} \\
+\midrule
+1  & 0 & 7 & \code{0x80} \\
+2  & 0 & 6 & \code{0x40} \\
+3  & 0 & 5 & \code{0x20} \\
+4  & 0 & 4 & \code{0x10} \\
+5  & 0 & 3 & \code{0x08} \\
+6  & 0 & 2 & \code{0x04} \\
+7  & 0 & 1 & \code{0x02} \\
+8  & 0 & 0 & \code{0x01} \\
+9  & 1 & 7 & \code{0x80} \\
+10 & 1 & 6 & \code{0x40} \\
+\bottomrule
+\end{tabular}
+\caption{MSB-first Mapping für 10 IDs}
+\label{tab:msb-mapping}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Praktische Funktionen}
+
+\paragraph{LED setzen/löschen/abfragen}
+
+\begin{lstlisting}[style=arduino]
+#define LED_COUNT 10
+#define LED_BYTES ((LED_COUNT + 7) / 8)
+
+uint8_t ledState[LED_BYTES] = {0};
+
+void setLed(uint8_t id) {
+    if (id == 0 || id > LED_COUNT) return;
+    uint8_t byteIdx = (id - 1) / 8;
+    uint8_t bitPos  = 7 - ((id - 1) % 8);
+    ledState[byteIdx] |= (1u << bitPos);
+}
+
+void clearLed(uint8_t id) {
+    if (id == 0 || id > LED_COUNT) return;
+    uint8_t byteIdx = (id - 1) / 8;
+    uint8_t bitPos  = 7 - ((id - 1) % 8);
+    ledState[byteIdx] &= ~(1u << bitPos);
+}
+
+bool getLed(uint8_t id) {
+    if (id == 0 || id > LED_COUNT) return false;
+    uint8_t byteIdx = (id - 1) / 8;
+    uint8_t bitPos  = 7 - ((id - 1) % 8);
+    return (ledState[byteIdx] & (1u << bitPos)) != 0;
+}
+\end{lstlisting}
+
+\paragraph{Button prüfen (Active-Low)}
+
+\begin{lstlisting}[style=arduino]
+bool isButtonPressed(uint8_t id, const uint8_t* raw) {
+    if (id == 0 || id > BTN_COUNT) return false;
+    uint8_t byteIdx = (id - 1) / 8;
+    uint8_t bitPos  = 7 - ((id - 1) % 8);
+
+    // Active-low: gedrueckt wenn Bit = 0
+    return (raw[byteIdx] & (1u << bitPos)) == 0;
+}
+\end{lstlisting}
+
+\paragraph{One-Hot setzen}
+
+\begin{lstlisting}[style=arduino]
+void setOneHot(uint8_t selectedId, uint8_t* out, size_t bytes) {
+    memset(out, 0, bytes);  // Alle Bits loeschen
+
+    if (selectedId >= 1 && selectedId <= LED_COUNT) {
+        uint8_t byteIdx = (selectedId - 1) / 8;
+        uint8_t bitPos  = 7 - ((selectedId - 1) % 8);
+        out[byteIdx] = 1u << bitPos;
+    }
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Last-Byte-Maskierung}
+
+\textbf{Problem:} Bei 10 LEDs brauchst du 2 Bytes (16 Bits), aber nur 10 sind gültig. Die Bits 5–0 im zweiten Byte sind \glqq überzählig\grqq.
+
+\textbf{Berechnung:}
+
+\begin{lstlisting}[style=arduino]
+uint8_t validBits = LED_COUNT % 8;
+if (validBits == 0) validBits = 8;
+
+// MSB-first: die obersten validBits sind gueltig
+uint8_t LAST_MASK = 0xFF << (8 - validBits);
+\end{lstlisting}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}rrrl@{}}
+\toprule
+\textbf{Count} & \textbf{validBits} & \textbf{LAST\_MASK} & \textbf{Gültige Bits} \\
+\midrule
+8   & 8 & \code{0xFF} & alle \\
+10  & 2 & \code{0xC0} & Bit 7, 6 \\
+12  & 4 & \code{0xF0} & Bit 7, 6, 5, 4 \\
+100 & 4 & \code{0xF0} & Bit 7, 6, 5, 4 \\
+\bottomrule
+\end{tabular}
+\caption{Last-Byte-Masken für verschiedene Kanalzahlen}
+\label{tab:last-mask-bit}
+\end{table}
+
+\textbf{Anwendung:}
+
+\begin{lstlisting}[style=arduino]
+// LEDs: ungueltige Bits auf 0 setzen (bevor an HC595 gesendet)
+ledState[LED_BYTES - 1] &= LED_LAST_MASK;
+
+// Buttons: ungueltige Bits auf 1 setzen (active-low idle)
+raw[BTN_BYTES - 1] |= ~BTN_LAST_MASK;
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Zusammenfassung – Merkregeln}
+
+\paragraph{Zahlensysteme}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Situation} & \textbf{Verwende} \\
+\midrule
+Zählwerte, Indizes     & Dezimal: \code{10} \\
+Einzelne Bits sichtbar & Binär: \code{0b10000000} \\
+Byte-Werte             & Hex: \code{0x80} \\
+\bottomrule
+\end{tabular}
+\caption{Zahlensystem-Wahl}
+\label{tab:zahlensystem-wahl}
+\end{table}
+
+\paragraph{Bit-Operationen}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Aufgabe} & \textbf{Code} \\
+\midrule
+Bit setzen  & \code{x |= (1u << n)} \\
+Bit löschen & \code{x \&= \textasciitilde(1u << n)} \\
+Bit toggeln & \code{x \^{}= (1u << n)} \\
+Bit prüfen  & \code{if (x \& (1u << n))} \\
+\bottomrule
+\end{tabular}
+\caption{Bit-Operationen Kurzreferenz}
+\label{tab:bit-kurzreferenz}
+\end{table}
+
+\paragraph{MSB-first Mapping}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Formel} & \textbf{Berechnung} \\
+\midrule
+Byte-Anzahl  & \code{(count + 7) / 8} \\
+Byte-Index   & \code{(id - 1) / 8} \\
+Bit-Position & \code{7 - ((id - 1) \% 8)} \\
+Maske        & \code{1u << bitPosition} \\
+\bottomrule
+\end{tabular}
+\caption{MSB-first Mapping-Formeln}
+\label{tab:mapping-formeln}
+\end{table}
+
+\paragraph{Hex-Masken (auswendig)}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+\textbf{Bit} & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\midrule
+\textbf{Hex} & \code{0x80} & \code{0x40} & \code{0x20} & \code{0x10} & \code{0x08} & \code{0x04} & \code{0x02} & \code{0x01} \\
+\textbf{ID (MSB-first)} & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+\bottomrule
+\end{tabular}
+\caption{Hex-Masken und IDs Schnellreferenz}
+\label{tab:hex-masken-referenz}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Weiterführende Dokumentation}
+
+\begin{description}
+\item[\code{docs/bit-mapping-schieberegister.md}] Detailliertes Mapping
+\item[\code{firmware/docs/overview.md}] Projektübersicht
+\item[\code{firmware/include/hw/io\_counts.h}] SSOT für Counts/Masks
+\end{description}

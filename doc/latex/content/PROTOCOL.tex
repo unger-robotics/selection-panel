@@ -1,0 +1,368 @@
+% =============================================================================
+% PROTOCOL.tex – Serial + WebSocket API Referenz
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Protokoll-Referenz}
+\label{sec:protocol}
+
+Das Selection Panel verwendet zwei Protokolle: Ein zeilenbasiertes Serial-Protokoll zwischen ESP32 und Pi, sowie ein JSON-basiertes WebSocket-Protokoll zwischen Server und Browser. Schauen wir uns beide im Detail an.
+
+% -----------------------------------------------------------------------------
+\subsection{Übersicht}
+\label{subsec:protocol-uebersicht}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum width=2.8cm, minimum height=1.8cm, align=center, font=\small},
+    arrow/.style={->, >=Stealth, thick},
+    label/.style={font=\tiny, align=center}
+  ]
+    % Boxes
+    \node[box, fill=TipBoxBg] (esp) at (0,0) {ESP32-S3};
+    \node[box, fill=InfoBoxBg] (server) at (5,0) {server.py};
+    \node[box, fill=WarnBoxBg] (browser) at (10,0) {Browser};
+
+    % Arrows with labels
+    \draw[arrow] (esp.north east) -- node[above, label] {\texttt{PRESS 001}} (server.north west);
+    \draw[arrow] (server.south west) -- node[below, label] {\texttt{LEDCLR}} (esp.south east);
+
+    \draw[arrow] (server.north east) -- node[above, label] {\texttt{\{"type":"play","id":1\}}} (browser.north west);
+    \draw[arrow] (browser.south west) -- node[below, label] {\texttt{\{"type":"ended","id":1\}}} (server.south east);
+
+    % Protocol labels
+    \node[below=0.3cm of esp, font=\footnotesize] {Serial};
+    \node[below=0.5cm of esp, font=\tiny] {USB-CDC @ \SI{115200}{\baud}};
+    \node[below=0.3cm of browser, font=\footnotesize] {WebSocket};
+    \node[below=0.5cm of browser, font=\tiny] {ws://host:8080/ws};
+  \end{tikzpicture}
+  \caption{Protokoll-Übersicht: Datenfluss zwischen den Komponenten}
+  \label{fig:protocol-overview}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Verbindungsaufbau}
+\label{subsec:protocol-verbindung}
+
+\subsubsection{Serial (ESP32 ↔ Pi)}
+
+Nach dem Start sendet der ESP32 automatisch:
+
+\begin{lstlisting}[style=shell,numbers=none]
+READY
+FW SelectionPanel v2.5.2
+\end{lstlisting}
+
+Der Server wartet auf \texttt{READY}, bevor er Befehle sendet. Empfohlener Timeout: \SI{5}{\second}.
+
+\subsubsection{WebSocket (Server ↔ Browser)}
+
+Der Browser verbindet sich zu \texttt{ws://host:8080/ws}. Nach Verbindung ist der Client sofort empfangsbereit – kein Handshake auf Anwendungsebene nötig.
+
+% =============================================================================
+\subsection{Serial-Protokoll (ESP32 ↔ Pi)}
+\label{subsec:protocol-serial}
+
+IDs sind 1-basiert und 3-stellig formatiert (001–100). Physikalisch: USB-CDC @ \SI{115200}{\baud}, 8N1, LF-terminiert.
+
+\subsubsection{Nachrichten ESP32 → Pi}
+
+\begin{table}[H]
+  \centering
+  \caption{Nachrichten vom ESP32 zum Pi}
+  \label{tab:protocol-esp-pi}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Nachricht} & \textbf{Beispiel} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{READY} & \texttt{READY} & ESP32 betriebsbereit \\
+    \texttt{FW} & \texttt{FW SelectionPanel v2.5.2} & Firmware-Version \\
+    \texttt{PRESS} & \texttt{PRESS 001} & Taster gedrückt (nach Entprellung) \\
+    \texttt{RELEASE} & \texttt{RELEASE 001} & Taster losgelassen \\
+    \texttt{PONG} & \texttt{PONG} & Antwort auf \texttt{PING} \\
+    \texttt{OK} & \texttt{OK} & Befehl erfolgreich ausgeführt \\
+    \texttt{ERROR} & \texttt{ERROR invalid id} & Fehlermeldung \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Befehle Pi → ESP32}
+
+\begin{table}[H]
+  \centering
+  \caption{Befehle vom Pi zum ESP32}
+  \label{tab:protocol-pi-esp}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Befehl} & \textbf{Beispiel} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{PING} & \texttt{PING} & Verbindungstest → \texttt{PONG} \\
+    \texttt{STATUS} & \texttt{STATUS} & Zustand abfragen \\
+    \texttt{VERSION} & \texttt{VERSION} & Firmware-Version abfragen \\
+    \texttt{HELP} & \texttt{HELP} & Verfügbare Befehle auflisten \\
+    \texttt{LEDSET} & \texttt{LEDSET 003} & One-Hot: nur diese LED an \\
+    \texttt{LEDON} & \texttt{LEDON 003} & LED additiv einschalten \\
+    \texttt{LEDOFF} & \texttt{LEDOFF 003} & LED ausschalten \\
+    \texttt{LEDCLR} & \texttt{LEDCLR} & Alle LEDs aus \\
+    \texttt{LEDALL} & \texttt{LEDALL} & Alle LEDs an \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[One-Hot vs. Additiv]
+  \texttt{LEDSET} schaltet \textit{nur} die angegebene LED an (alle anderen aus). \texttt{LEDON}/\texttt{LEDOFF} ändern einzelne LEDs, ohne andere zu beeinflussen.
+\end{infobox}
+
+\subsubsection{Fehlerbehandlung}
+
+\begin{table}[H]
+  \centering
+  \caption{Fehlermeldungen und ihre Ursachen}
+  \label{tab:protocol-fehler}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Fehlermeldung} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    \texttt{ERROR unknown command} & Unbekannter Befehl & Befehlsname prüfen \\
+    \texttt{ERROR invalid id} & ID außerhalb 1–100 & ID-Bereich prüfen \\
+    \texttt{ERROR missing id} & ID fehlt & \texttt{LEDSET <id>} mit ID \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Timing}
+
+\begin{table}[H]
+  \centering
+  \caption{Timing-Parameter des Serial-Protokolls}
+  \label{tab:protocol-timing}
+  \begin{tabularx}{\textwidth}{@{}l r X@{}}
+    \toprule
+    \textbf{Parameter} & \textbf{Wert} & \textbf{Beschreibung} \\
+    \midrule
+    Baudrate & \SI{115200}{\baud} & 8N1 \\
+    Event-Latenz & < \SI{35}{\milli\second} & Abtastung + Entprellung \\
+    Befehl-Antwort & < \SI{5}{\milli\second} & Typische Antwortzeit \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Die Event-Latenz setzt sich zusammen aus: IO-Zyklus (\SI{5}{\milli\second} worst case), Debounce (\SI{30}{\milli\second}) und Serial (< \SI{1}{\milli\second}).
+
+% -----------------------------------------------------------------------------
+\subsubsection{Protokoll-Muster}
+\label{subsec:protocol-muster}
+
+Drei typische Anwendungsmuster zeigen die Flexibilität des Protokolls.
+
+\paragraph{Echo-Modus (LED folgt Taster)}
+
+\begin{lstlisting}[style=python,caption={Echo-Modus: LED spiegelt Tastendruck}]
+while True:
+    line = ser.readline().decode().strip()
+    if line.startswith("PRESS"):
+        btn_id = line.split()[1]
+        ser.write(f"LEDSET {btn_id}\n".encode())
+\end{lstlisting}
+
+\paragraph{Toggle-Modus}
+
+\begin{lstlisting}[style=python,caption={Toggle-Modus: Tastendruck schaltet LED um}]
+led_state = [False] * 10
+
+while True:
+    line = ser.readline().decode().strip()
+    if line.startswith("PRESS"):
+        btn_id = int(line.split()[1])
+        led_state[btn_id - 1] = not led_state[btn_id - 1]
+
+        if led_state[btn_id - 1]:
+            ser.write(f"LEDON {btn_id:03d}\n".encode())
+        else:
+            ser.write(f"LEDOFF {btn_id:03d}\n".encode())
+\end{lstlisting}
+
+\paragraph{Sequenz-Modus}
+
+\begin{lstlisting}[style=python,caption={Sequenz-Modus: Letzte N Tastendrücke anzeigen}]
+sequence = []
+MAX_LEN = 5
+
+while True:
+    line = ser.readline().decode().strip()
+    if line.startswith("PRESS"):
+        btn_id = int(line.split()[1])
+        sequence.append(btn_id)
+
+        if len(sequence) > MAX_LEN:
+            sequence.pop(0)
+
+        # Alle LEDs der Sequenz anzeigen
+        ser.write(b"LEDCLR\n")
+        for led_id in sequence:
+            ser.write(f"LEDON {led_id:03d}\n".encode())
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsubsection{Beispiel-Session}
+\label{subsec:protocol-beispiel}
+
+Eine vollständige Kommunikation zwischen Pi und ESP32:
+
+\begin{lstlisting}[style=shell,numbers=none,caption={Beispiel-Session (← = Pi → ESP32, → = ESP32 → Pi)}]
+# ESP32 startet
+-> READY
+-> FW SelectionPanel v2.5.2
+
+# Pi prueft Verbindung
+<- PING
+-> PONG
+
+# Pi fragt Status ab
+<- STATUS
+-> STATUS active=0 leds=0x00
+
+# Benutzer drueckt Taster 3
+-> PRESS 003
+
+# Pi schaltet LED 3 an
+<- LEDSET 003
+-> OK
+
+# Benutzer laesst Taster 3 los
+-> RELEASE 003
+
+# Benutzer drueckt Taster 7 (Preempt!)
+-> PRESS 007
+
+# Pi schaltet auf LED 7 um
+<- LEDSET 007
+-> OK
+
+# Pi schaltet alle LEDs aus
+<- LEDCLR
+-> OK
+
+# Ungueltiger Befehl
+<- FOOBAR
+-> ERROR unknown command
+\end{lstlisting}
+
+\begin{tipbox}[Debug-Modus]
+  Mit \texttt{SERIAL\_PROTOCOL\_ONLY = false} in \filep{config.h} werden zusätzliche Debug-Informationen ausgegeben. Diese sollten vom Parser ignoriert werden. Für Produktivbetrieb: \texttt{true} verwenden.
+\end{tipbox}
+
+% =============================================================================
+\subsection{WebSocket-Protokoll (Server ↔ Browser)}
+\label{subsec:protocol-websocket}
+
+Der Server kommuniziert mit dem Browser-Dashboard über WebSocket. Die Verbindung erfolgt zu \texttt{ws://host:8080/ws}.
+
+\subsubsection{Server → Browser}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten vom Server zum Browser}
+  \label{tab:protocol-ws-server}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Type} & \textbf{Beispiel} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{play} & \texttt{\{"type":"play","id":3\}} & Medien-Wiedergabe starten \\
+    \texttt{stop} & \texttt{\{"type":"stop"\}} & Aktuelle Wiedergabe stoppen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Bei \texttt{play} zeigt der Browser das Bild \filep{/media/003.jpg} und spielt \filep{/media/003.mp3} ab.
+
+\subsubsection{Browser → Server}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten vom Browser zum Server}
+  \label{tab:protocol-ws-browser}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Type} & \textbf{Beispiel} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{ended} & \texttt{\{"type":"ended","id":3\}} & Audio beendet \\
+    \texttt{ping} & \texttt{\{"type":"ping"\}} & Heartbeat (optional) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Nach \texttt{ended} sendet der Server \texttt{LEDCLR} an den ESP32 – aber nur, wenn die ID noch aktuell ist (Race-Condition-Schutz).
+
+% -----------------------------------------------------------------------------
+\subsubsection{WebSocket-Ablauf}
+\label{subsec:protocol-ws-ablauf}
+
+Der typische Ablauf bei einem Tastendruck:
+
+\begin{enumerate}
+  \item Browser verbindet sich zu \texttt{ws://host:8080/ws}
+  \item ESP32 sendet \texttt{PRESS 003} an Server
+  \item Server broadcastet \texttt{\{"type":"play","id":3\}} an alle Clients
+  \item Browser spielt Audio ab
+  \item Browser sendet \texttt{\{"type":"ended","id":3\}} nach Audio-Ende
+  \item Server sendet \texttt{LEDCLR} an ESP32 (falls ID noch aktuell)
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{HTTP-Endpoints}
+\label{subsec:protocol-http}
+
+Neben WebSocket bietet der Server REST-Endpoints für Status und Tests.
+
+\begin{table}[H]
+  \centering
+  \caption{HTTP-Endpoints des Servers}
+  \label{tab:protocol-http}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Endpoint} & \textbf{Methode} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{/} & GET & Dashboard (index.html) \\
+    \texttt{/ws} & WebSocket & Echtzeit-Events \\
+    \texttt{/status} & GET & Server-Status (JSON) \\
+    \texttt{/health} & GET & Health-Check (200/503) \\
+    \texttt{/test/play/\{id\}} & GET & Tastendruck simulieren \\
+    \texttt{/test/stop} & GET & Wiedergabe stoppen \\
+    \texttt{/static/} & GET & JavaScript, CSS \\
+    \texttt{/media/} & GET & Bilder und Audio \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Status-Endpoint}
+
+\begin{lstlisting}[style=shell]
+curl http://rover:8080/status | jq
+\end{lstlisting}
+
+\begin{lstlisting}[style=json,caption={Beispiel-Antwort von /status}]
+{
+  "version": "2.5.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 3,
+  "ws_clients": 2,
+  "serial_connected": true,
+  "serial_port": "/dev/serial/by-id/...",
+  "media_missing": 0,
+  "esp32_local_led": true
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Lokale LED-Steuerung}
+\label{subsec:protocol-local-led}
+
+\begin{warnbox}[ESP32 setzt LED lokal]
+  Mit \texttt{ESP32\_SETS\_LED\_LOCALLY = true} (Standard) setzt der ESP32 bei Tastendruck die LED selbst. Der Server sendet dann nur \texttt{LEDCLR} wenn das Audio beendet ist. Dies reduziert die Latenz auf unter \SI{5}{\milli\second}.
+\end{warnbox}
+
+Der Vorteil: Die LED-Reaktion ist unabhängig von der Netzwerk- und Server-Latenz. Der Benutzer sieht sofortiges Feedback.

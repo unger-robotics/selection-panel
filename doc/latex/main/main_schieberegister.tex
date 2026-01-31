@@ -1,0 +1,55 @@
+% =============================================================================
+% main.tex – Technische Dokumentation
+% =============================================================================
+% Optionen: print (Links ausblenden), draft (Overfull + TODOs)
+% =============================================================================
+\documentclass{techdoc}
+% \documentclass[print]{techdoc} % Warum: PDF fuer Ausdruck ohne Link-Dekoration.
+% \documentclass[draft]{techdoc} % Warum: Layout-Probleme/TODOs frueh sichtbar machen.
+
+% =============================================================================
+% METADATEN (SSOT: alles an einem Ort, damit nichts divergiert)
+% =============================================================================
+\title{Bit-Mapping bei Schieberegistern}
+\subtitle{CD4021B (Input) \& 74HC595 (Output)}
+\tagline{\glqq MSB vs. LSB -- Warum die Asymmetrie?\grqq}
+\scope{ESP32-S3 \textbullet\ Selection Panel \textbullet\ SPI-Kommunikation}
+\stack{CD4021B \textbullet\ 74HC595 \textbullet\ PISO/SIPO \textbullet\ MSB/LSB \textbullet\ Bit-Masken}
+\version{1.0.0}
+\date{20.01.2026}
+\author{Jan Unger}
+\credits{Claude Opus 4.5, ChatGPT 5.2}
+\coverimage{cover-schieberegister.pdf}
+
+% Bilder liegen in ./images/ und ./covers/
+\graphicspath{{images/}{covers/}}
+
+\setheadertitle{Schieberegister Bit-Mapping}
+
+% PDF-Metadaten für Suchmaschinen und Dokumentenverwaltung.
+\hypersetup{
+  pdftitle={Bit-Mapping bei Schieberegistern: MSB vs. LSB},
+  pdfauthor={Jan Unger},
+  pdfsubject={CD4021B und 74HC595 Schieberegister},
+  pdfkeywords={Schieberegister, PISO, SIPO, MSB, LSB, Bit-Masken, ESP32-S3}
+}
+
+% =============================================================================
+% DOKUMENT
+% =============================================================================
+\begin{document}
+
+\maketitlepage
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% =============================================================================
+% INHALT (main bleibt schlank, Inhalt liegt in content/)
+% =============================================================================
+\input{content/grundlagen-bit-operationen}
+\input{content/bit-mapping-schieberegister}
+
+\end{document}

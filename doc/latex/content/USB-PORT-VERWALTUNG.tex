@@ -1,0 +1,236 @@
+% =============================================================================
+% USB-PORT-VERWALTUNG.tex – Serial-Port-Exklusivität auf dem Pi 5
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{USB-Port-Verwaltung}
+\label{sec:usb-port-verwaltung}
+
+Auf dem Raspberry Pi 5 teilen sich zwei Projekte denselben ESP32: das Selection Panel und die AMR Platform. Doch der Serial-Port verträgt nur einen Zugriff gleichzeitig – sonst gehen Daten verloren oder Reads brechen ab. Wie lösen wir dieses Problem?
+
+\subsection{Das Exklusivitätsprinzip}
+\label{subsec:usb-exklusivitaet}
+
+Die Lösung liegt in einem gemeinsamen Lock via \texttt{flock} auf die Datei \filep{/var/lock/esp32-serial.lock}. Beide Projekte respektieren diesen Lock, verhalten sich aber unterschiedlich:
+
+\begin{itemize}
+  \item \textbf{Selection Panel (systemd):} Nutzt \texttt{flock -n} – startet nur, wenn der Lock frei ist, sonst Abbruch.
+  \item \textbf{AMR micro-ROS Agent (Docker):} Nutzt \texttt{flock} ohne \texttt{-n} – wartet geduldig, bis der Lock frei wird.
+\end{itemize}
+
+\begin{infobox}[Stabiler Device-Pfad]
+  Statt \texttt{/dev/ttyACM0} (kann sich ändern) empfehlen wir den by-id-Pfad:\\
+  \texttt{/dev/serial/by-id/usb-Espressif\_USB\_JTAG\_serial\_debug\_unit\_98:3D:AE:EA:08:1C-if00}
+\end{infobox}
+
+\Cref{tab:usb-komponenten} zeigt die beiden Projekte und ihre Zugriffsmethoden im Überblick.
+
+\begin{table}[H]
+  \centering
+  \caption{Serial-Port-Nutzung der beiden Projekte}
+  \label{tab:usb-komponenten}
+  \begin{tabularx}{\textwidth}{@{}l l X l@{}}
+    \toprule
+    \textbf{Projekt} & \textbf{Prozess} & \textbf{Startart} & \textbf{Serial-Port} \\
+    \midrule
+    Selection Panel & \texttt{server.py} & systemd (\texttt{selection-panel.service}) & by-id (stabil) \\
+    AMR Platform & \texttt{micro\_ros\_agent} & Docker Compose (\texttt{microros\_agent}) & by-id (empfohlen) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Nach dem Reboot: Standard-Ablauf}
+\label{subsec:usb-nach-reboot}
+
+Nach einem Neustart des Pi müssen wir entscheiden, welches Projekt den Port nutzen soll. Schauen wir uns beide Modi an.
+
+\subsubsection{Selection Panel Modus (UI + Taster/LEDs)}
+
+Wir starten den Service und prüfen, ob alles läuft:
+
+\begin{lstlisting}[style=shell]
+sudo systemctl start selection-panel.service
+sudo systemctl status selection-panel.service --no-pager
+\end{lstlisting}
+
+Das Dashboard erreichen wir im Browser unter \texttt{http://rover.local:8080/}. Falls mDNS nicht funktioniert, ermitteln wir die IP manuell:
+
+\begin{lstlisting}[style=shell]
+hostname -I
+# Ausgabe z.B.: 192.168.1.24 172.17.0.1
+# Browser: http://192.168.1.24:8080/
+\end{lstlisting}
+
+\begin{tipbox}[IP-Adressen verstehen]
+  Die erste Adresse (hier \texttt{192.168.1.24}) ist die LAN/WLAN-IP für den Browser. Die \texttt{172.17.0.1} gehört zur Docker-Bridge und ist für den externen Zugriff nicht relevant.
+\end{tipbox}
+
+Für die Live-Logs nutzen wir:
+
+\begin{lstlisting}[style=shell]
+sudo journalctl -u selection-panel.service -f
+\end{lstlisting}
+
+Wenn wir jetzt Taster 1–10 drücken, sehen wir im Log Meldungen wie \texttt{Button X gedrueckt}.
+
+\subsubsection{AMR Modus (micro-ROS Agent)}
+
+Bevor der Agent starten kann, müssen wir das Selection Panel sauber beenden – das gibt Lock und Port frei:
+
+\begin{lstlisting}[style=shell]
+sudo systemctl stop selection-panel.service
+
+cd /home/pi/amr/docker
+sudo docker compose -p docker up -d microros_agent
+\end{lstlisting}
+
+Die Agent-Logs verfolgen wir mit:
+
+\begin{lstlisting}[style=shell]
+sudo docker compose -p docker logs -f microros_agent
+\end{lstlisting}
+
+Falls das Selection Panel noch laufen sollte, wartet der Agent dank \texttt{flock} geduldig, statt den Port zu blockieren.
+
+% -----------------------------------------------------------------------------
+\subsection{Schneller Wechsel ohne Reboot}
+\label{subsec:usb-schneller-wechsel}
+
+Im Entwicklungsalltag wechseln wir häufig zwischen beiden Modi. Die folgenden Befehle ermöglichen einen sauberen Übergang.
+
+\subsubsection{Wechsel zum Selection Panel}
+
+\begin{lstlisting}[style=shell]
+cd /home/pi/amr/docker
+sudo docker compose -p docker stop microros_agent
+
+sudo systemctl start selection-panel.service
+sudo journalctl -u selection-panel.service -f
+\end{lstlisting}
+
+\subsubsection{Wechsel zur AMR Platform}
+
+\begin{lstlisting}[style=shell]
+sudo systemctl stop selection-panel.service
+
+cd /home/pi/amr/docker
+sudo docker compose -p docker up -d microros_agent
+sudo docker compose -p docker logs -f microros_agent
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Autostart konfigurieren}
+\label{subsec:usb-autostart}
+
+Soll das Selection Panel beim Boot automatisch starten?
+
+\begin{lstlisting}[style=shell]
+# Autostart aktivieren
+sudo systemctl enable selection-panel.service
+
+# Autostart deaktivieren
+sudo systemctl disable selection-panel.service
+\end{lstlisting}
+
+\begin{warnbox}[Empfehlung für AMR]
+  Den AMR-Agent starten wir bewusst manuell mit \texttt{docker compose up -d microros\_agent}. So ist immer klar definiert, wer den Port belegt.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Sanity Checks: Port und Lock prüfen}
+\label{subsec:usb-sanity-checks}
+
+Wenn etwas nicht funktioniert, helfen diese Befehle bei der Diagnose:
+
+\begin{lstlisting}[style=shell]
+# Wer haelt den USB-Port?
+sudo fuser -v /dev/ttyACM0 || true
+
+# Wer haelt den Lock?
+sudo lslocks | grep esp32-serial || true
+ls -l /var/lock/esp32-serial.lock || true
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{One-time Setup: Docker Compose mit Serial-Lock}
+\label{subsec:usb-docker-setup}
+
+Damit der AMR-Agent den Lock respektiert, passen wir die Docker-Compose-Konfiguration einmalig an. Die Datei liegt unter \filep{/home/pi/amr/docker/docker-compose.yml}.
+
+\subsubsection{Backup erstellen}
+
+\begin{lstlisting}[style=shell]
+cd /home/pi/amr/docker
+cp -a docker-compose.yml docker-compose.yml.bak.$(date +%F_%H%M%S)
+\end{lstlisting}
+
+\subsubsection{Service-Definition anpassen}
+
+Wir modifizieren nur den Service \texttt{microros\_agent}:
+
+\begin{lstlisting}[style=json,caption={Lock-Wrapper für den microros\_agent}]
+services:
+  microros_agent:
+    image: microros/micro-ros-agent:humble
+    container_name: amr_agent
+    network_mode: host
+    privileged: true
+    restart: always
+
+    volumes:
+      - /dev:/dev
+      - /var/lock:/var/lock
+
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      DEV="/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_
+      98:3D:AE:EA:08:1C-if00";
+      echo "[microros_agent] waiting for lock (DEV=$DEV)";
+      exec flock /var/lock/esp32-serial.lock
+      /bin/sh /micro-ros_entrypoint.sh serial --dev "$DEV" -b 921600
+\end{lstlisting}
+
+\subsubsection{Änderungen anwenden}
+
+\begin{lstlisting}[style=shell]
+cd /home/pi/amr/docker
+sudo docker compose -p docker config >/dev/null
+sudo docker compose -p docker up -d --force-recreate microros_agent
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Troubleshooting}
+\label{subsec:usb-troubleshooting}
+
+\subsubsection{Selection Panel startet nicht}
+
+Die häufigste Ursache: Der Lock ist belegt, weil der AMR-Agent läuft. Das Selection Panel bricht dann absichtlich ab.
+
+\begin{lstlisting}[style=shell]
+sudo journalctl -u selection-panel.service -n 120 --no-pager
+sudo lslocks | grep esp32-serial || true
+sudo fuser -v /dev/ttyACM0 || true
+\end{lstlisting}
+
+\textbf{Fix:} Den jeweils anderen Prozess stoppen – für Selection Panel also \texttt{sudo docker compose -p docker stop microros\_agent}.
+
+\subsubsection{Device-Pfad hat sich geändert}
+
+Nach einem Firmware-Update oder bei einem neuen ESP32 kann sich der by-id-Pfad ändern:
+
+\begin{lstlisting}[style=shell]
+ls -l /dev/serial/by-id/
+ls /dev/ttyACM*
+\end{lstlisting}
+
+\textbf{Fix:} Den neuen Pfad in \filep{server.py} (Selection Panel) und im \texttt{DEV="..."} der Compose-Datei eintragen.
+
+\subsubsection{Docker-Status prüfen}
+
+\begin{lstlisting}[style=shell]
+cd /home/pi/amr/docker
+sudo docker compose -p docker ps
+sudo docker compose -p docker logs --tail=120 microros_agent
+\end{lstlisting}

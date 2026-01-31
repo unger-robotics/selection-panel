@@ -1,0 +1,533 @@
+% =============================================================================
+% ARDUINO-CPP.tex – Embedded Firmware mit Arduino C++
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Embedded Firmware mit Arduino C++}
+\label{sec:arduino-cpp}
+
+Wie programmiert man einen Mikrocontroller? Dieses Kapitel erklärt die Grundlagen der Embedded-Entwicklung mit Arduino C++ – von den Unterschieden zur Desktop-Programmierung bis zu den Best Practices für robusten Code.
+
+% -----------------------------------------------------------------------------
+\subsection{Was ist Embedded Firmware?}
+\label{subsec:cpp-embedded}
+
+\textbf{Firmware} ist Software, die direkt auf Hardware läuft – ohne Betriebssystem dazwischen. Sie steuert Mikrocontroller, die in Geräten „eingebettet" (embedded) sind.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum width=8cm, minimum height=0.8cm, align=center, font=\small},
+    label/.style={font=\small\bfseries}
+  ]
+    % Desktop-PC
+    \node[label] at (-4,3.5) {Desktop-PC};
+    \node[box, fill=InfoBoxBg] at (-4,2.8) {Anwendung (Browser, Word, ...)};
+    \node[box, fill=TipBoxBg!50] at (-4,1.8) {Betriebssystem (Windows, Linux, macOS)};
+    \node[box, fill=gray!20] at (-4,0.8) {Hardware (CPU, RAM, SSD, ...)};
+
+    % Embedded System
+    \node[label] at (4,3.5) {Embedded System};
+    \node[box, fill=WarnBoxBg!50] at (4,2.3) {Firmware (dein Code) ← Läuft direkt!};
+    \node[box, fill=gray!20] at (4,1.3) {Hardware (ESP32, Sensoren, LEDs, ...)};
+  \end{tikzpicture}
+  \caption{Vergleich: Desktop vs. Embedded System}
+  \label{fig:cpp-desktop-vs-embedded}
+\end{figure}
+
+\textbf{Konsequenzen für den Code:}
+
+\begin{table}[H]
+  \centering
+  \caption{Unterschiede zwischen Desktop- und Embedded-Entwicklung}
+  \label{tab:cpp-desktop-embedded}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Aspekt} & \textbf{Desktop} & \textbf{Embedded} \\
+    \midrule
+    Speicher & GBs RAM & KBs RAM \\
+    Dateisystem & Ja & Meist nein \\
+    Multitasking & OS regelt & Du regelst \\
+    Timing & Unkritisch & Oft kritisch \\
+    Fehler & Absturz → Neustart & Kann Hardware beschädigen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Arduino C++: Welche Version?}
+\label{subsec:cpp-version}
+
+\subsubsection{Der Arduino-Core}
+
+Arduino verwendet \textbf{C++11} mit Erweiterungen. Der ESP32-Arduino-Core (Espressif) basiert auf GCC 8.4 und unterstützt C++11 vollständig, C++14 und C++17 teilweise.
+
+\subsubsection{Was Arduino hinzufügt}
+
+Arduino ist kein eigener Compiler, sondern ein \textbf{Framework} auf C++:
+
+\begin{lstlisting}[style=arduino,caption={Klassisches C++ vs. Arduino}]
+// Klassisches C/C++: Du schreibst main()
+int main() {
+    // Hardware initialisieren
+    while (1) {
+        // Endlosschleife
+    }
+    return 0;
+}
+
+// Arduino: Das Framework versteckt main()
+void setup() {
+    // Wird einmal ausgefuehrt
+}
+
+void loop() {
+    // Wird endlos wiederholt
+}
+\end{lstlisting}
+
+\begin{infobox}[Hinter den Kulissen]
+  Arduino's \texttt{main()} ruft \texttt{init()} für die Hardware-Initialisierung, dann \texttt{setup()}, und schließlich \texttt{loop()} in einer Endlosschleife auf.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Programmierdogma: Embedded Best Practices}
+\label{subsec:cpp-dogma}
+
+\subsubsection{Die goldenen Regeln}
+
+\begin{enumerate}
+  \item \textbf{KEIN} dynamischer Speicher (\texttt{new}, \texttt{malloc}) in der Hauptschleife
+  \item \textbf{KEINE} Blockierung (\texttt{delay} nur wenn unvermeidbar)
+  \item \textbf{DETERMINISMUS:} Jeder Durchlauf dauert gleich lang
+  \item \textbf{FEHLERTOLERANZ:} Hardware kann jederzeit „spinnen"
+  \item \textbf{RESSOURCEN-BEWUSSTSEIN:} Jedes Byte zählt
+\end{enumerate}
+
+\subsubsection{Speicher-Dogma}
+
+\begin{lstlisting}[style=arduino,caption={Speicherverwaltung: Schlecht vs. Gut}]
+// SCHLECHT: Dynamische Allokation
+void loop() {
+    String text = "Hello";        // String alloziert auf Heap
+    text += " World";             // Re-Allokation!
+}
+// -> Speicherfragmentierung, irgendwann Absturz
+
+// GUT: Statische Allokation
+static char text[32];             // Feste Groesse, einmal alloziert
+void loop() {
+    snprintf(text, sizeof(text), "Hello World");
+}
+\end{lstlisting}
+
+\subsubsection{Timing-Dogma}
+
+\begin{lstlisting}[style=arduino,caption={Timing: Blockierend vs. Nicht-blockierend}]
+// SCHLECHT: Blockierendes Warten
+void loop() {
+    if (buttonPressed()) {
+        doSomething();
+        delay(1000);              // CPU macht 1 Sekunde NICHTS
+    }
+}
+
+// GUT: Nicht-blockierendes Warten
+static uint32_t lastAction = 0;
+void loop() {
+    if (buttonPressed() && (millis() - lastAction >= 1000)) {
+        doSomething();
+        lastAction = millis();
+    }
+}
+\end{lstlisting}
+
+\begin{warnbox}[delay() vermeiden]
+  \texttt{delay()} blockiert die gesamte CPU. In dieser Zeit können keine anderen Aufgaben ausgeführt werden – keine Taster-Abfrage, keine Serial-Kommunikation, nichts.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Code-Aufbau: Die Anatomie der Firmware}
+\label{subsec:cpp-aufbau}
+
+\subsubsection{Dateistruktur}
+
+\begin{lstlisting}[style=shell,numbers=none]
+src/
+|-- config.h      <-- Konfiguration (Konstanten, Pins)
++-- main.cpp      <-- Hauptprogramm (Logik)
+\end{lstlisting}
+
+\subsubsection{Aufbau von main.cpp}
+
+\begin{lstlisting}[style=arduino,caption={Struktur einer Firmware-Datei}]
+// 1. INCLUDES - Externe Bibliotheken einbinden
+#include "config.h"
+#include <SPI.h>
+
+// 2. KONSTANTEN & KONFIGURATION
+static const SPISettings spiButtons(500000, MSBFIRST, SPI_MODE1);
+
+// 3. GLOBALE VARIABLEN (ZUSTAND)
+// static = nur in dieser Datei sichtbar
+static uint8_t btnRaw[BTN_BYTES];
+static uint8_t activeId = 0;
+
+// 4. HILFSFUNKTIONEN - Kleine, wiederverwendbare Bausteine
+static inline bool btnIsPressed(const uint8_t *state, uint8_t id) { /* ... */ }
+
+// 5. HARDWARE-FUNKTIONEN - Direkter Zugriff auf Peripherie
+static void readButtons() { /* ... */ }
+
+// 6. LOGIK-FUNKTIONEN - Verarbeitung, Entscheidungen
+static void debounceButtons() { /* ... */ }
+
+// 7. DEBUG-FUNKTIONEN - Ausgaben fuer Entwicklung
+static void printState() { /* ... */ }
+
+// 8. ARDUINO ENTRY POINTS
+void setup() { /* Einmalige Initialisierung */ }
+void loop() { /* Hauptschleife */ }
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{C++ Syntax im Detail}
+\label{subsec:cpp-syntax}
+
+\subsubsection{Präprozessor-Direktiven}
+
+Der Präprozessor läuft \textbf{vor} dem Compiler und manipuliert den Quelltext:
+
+\begin{lstlisting}[style=arduino,caption={Präprozessor-Direktiven}]
+// Include: Fuegt Dateiinhalt ein
+#include <SPI.h>          // Sucht in System-Pfaden
+#include "config.h"       // Sucht im Projekt-Ordner
+
+// Include Guard: Verhindert doppeltes Einbinden
+#pragma once              // Moderne Variante (eine Zeile)
+
+// Alternativ (klassisch):
+#ifndef CONFIG_H
+#define CONFIG_H
+// ... Inhalt ...
+#endif
+\end{lstlisting}
+
+\subsubsection{Datentypen}
+
+\begin{lstlisting}[style=arduino,caption={Exakte Datentypen für Embedded}]
+// Embedded Best Practice: Exakte Groessen verwenden!
+#include <cstdint>
+
+int8_t   a;       //  8 Bit mit Vorzeichen:    -128 bis 127
+uint8_t  b;       //  8 Bit ohne Vorzeichen:      0 bis 255
+int16_t  c;       // 16 Bit mit Vorzeichen: -32768 bis 32767
+uint16_t d;       // 16 Bit ohne Vorzeichen:      0 bis 65535
+int32_t  e;       // 32 Bit mit Vorzeichen
+uint32_t f;       // 32 Bit ohne Vorzeichen
+
+// size_t: Fuer Groessen und Indizes (plattformabhaengig, immer positiv)
+size_t arraySize = 10;
+\end{lstlisting}
+
+\begin{tipbox}[Warum exakte Größen?]
+  \texttt{int} ist auf verschiedenen Plattformen unterschiedlich groß (16 oder 32 Bit). Mit \texttt{uint32\_t} ist die Größe immer 32 Bit – egal welche Plattform.
+\end{tipbox}
+
+\subsubsection{Konstanten}
+
+\begin{lstlisting}[style=arduino,caption={Konstanten: \#define vs. constexpr}]
+// C-Style (veraltet, aber funktioniert)
+#define LED_COUNT 10      // Textersetzung, kein Typ!
+
+// C++ Style (empfohlen)
+const int LED_COUNT = 10;           // Zur Laufzeit, braucht RAM
+constexpr int LED_COUNT = 10;       // Zur Compile-Zeit, kein RAM!
+
+// constexpr vs const:
+constexpr int COMPILE_TIME = 5 * 2;     // Berechnung zur Compile-Zeit
+const int RUNTIME = analogRead(A0);      // Kann nur const sein (Laufzeit)
+\end{lstlisting}
+
+\subsubsection{Variablen-Deklaration}
+
+\begin{lstlisting}[style=arduino,caption={Speicherklassen und static}]
+// Speicherklassen
+int globalVar;                    // Global: ueberall sichtbar
+static int fileVar;               // Datei-lokal: nur in dieser .cpp
+void func() {
+    int localVar;                 // Lokal: nur in dieser Funktion
+    static int persistentVar;     // Lokal, aber behaelt Wert zwischen Aufrufen!
+}
+
+// static bei lokalen Variablen:
+void countCalls() {
+    static int counter = 0;   // Initialisierung nur beim ersten Aufruf!
+    counter++;
+    Serial.println(counter);
+}
+// Aufruf 1: Ausgabe "1", Aufruf 2: "2", Aufruf 3: "3"
+\end{lstlisting}
+
+\subsubsection{Funktionen}
+
+\begin{lstlisting}[style=arduino,caption={Funktionen mit Schlüsselwörtern}]
+// static: Funktion nur in dieser Datei sichtbar
+static void readButtons() { }
+
+// inline: Compiler soll Code direkt einsetzen statt Funktionsaufruf
+inline bool isValid(int x) { return x > 0; }
+
+// static inline: Beides kombiniert (haeufig fuer kleine Hilfsfunktionen)
+static inline uint8_t byteIndex(uint8_t id) { return (id - 1) / 8; }
+
+// Parameter und Rueckgabe
+static inline bool btnIsPressed(const uint8_t *state, uint8_t id) {
+    // state: Zeiger auf Array (wird nicht veraendert wegen const)
+    // id: Kopie des Wertes (call by value)
+    return !(state[byte] & (1u << bit));
+}
+\end{lstlisting}
+
+\subsubsection{Zeiger und Referenzen}
+
+\begin{lstlisting}[style=arduino,caption={Zeiger, Arrays und Parameterübergabe}]
+uint8_t buffer[10];           // Array
+uint8_t *ptr = buffer;        // Zeiger auf erstes Element
+
+*ptr = 42;                    // Dereferenzierung: Wert schreiben
+uint8_t x = *ptr;             // Dereferenzierung: Wert lesen
+ptr++;                        // Zeiger auf naechstes Element
+
+// const-Korrektheit
+const uint8_t *readOnly = buffer;    // Daten nicht aenderbar
+
+// Funktionsparameter:
+void modify(int x) { x = 99; }           // Call by Value: Kopie
+void modify(int *x) { *x = 99; }         // Call by Pointer: Original
+void modify(int &x) { x = 99; }          // Call by Reference: Original
+void print(const String &s) { }          // Const Reference: effizient
+\end{lstlisting}
+
+\subsubsection{Bit-Operationen}
+
+Bit-Operationen sind essentiell für Embedded-Entwicklung!
+
+\begin{lstlisting}[style=arduino,caption={Bit-Operatoren und praktische Anwendungen}]
+uint8_t a = 0b11001010;
+uint8_t b = 0b10101100;
+
+a & b     // AND:  0b10001000  (beide 1 -> 1)
+a | b     // OR:   0b11101110  (mindestens einer 1 -> 1)
+a ^ b     // XOR:  0b01100110  (genau einer 1 -> 1)
+~a        // NOT:  0b00110101  (invertiert)
+a << 2    // Links-Shift: 0b00101000 (x 4)
+a >> 2    // Rechts-Shift: 0b00110010 (/ 4)
+
+// Praktische Anwendungen:
+value |= (1u << bitNr);       // Bit setzen (auf 1)
+value &= ~(1u << bitNr);      // Bit loeschen (auf 0)
+value ^= (1u << bitNr);       // Bit umschalten (toggle)
+if (value & (1u << bitNr)) {} // Bit pruefen
+\end{lstlisting}
+
+\begin{lstlisting}[style=arduino,caption={Bit-Operationen im Selection Panel}]
+// Taster gedrueckt pruefen (Active-Low: 0 = gedrueckt)
+return !(state[byte] & (1u << bit));
+//       ^              ^
+//       Invertieren    Bit-Maske
+
+// LED einschalten
+ledState[byte] |= (1u << bit);
+
+// LED ausschalten
+ledState[byte] &= ~(1u << bit);
+\end{lstlisting}
+
+\subsubsection{Kontrollstrukturen}
+
+\begin{lstlisting}[style=arduino,caption={Schleifen und Kontrollfluss}]
+// for-Schleife
+for (int i = 0; i < 10; i++) {
+    // i laeuft von 0 bis 9
+}
+
+// Rueckwaerts (wichtig fuer Daisy-Chain!)
+for (int i = LED_BYTES - 1; i >= 0; --i) {
+    SPI.transfer(ledState[i]);
+}
+
+// Fruehes Verlassen
+for (int i = 0; i < 100; i++) {
+    if (found) break;         // Schleife sofort verlassen
+    if (skip) continue;       // Zum naechsten Durchlauf springen
+}
+
+// Ternaerer Operator
+int max = (a > b) ? a : b;
+\end{lstlisting}
+
+\subsubsection{Speicher-Funktionen}
+
+\begin{lstlisting}[style=arduino,caption={memcpy, memset, memcmp}]
+#include <cstring>
+
+uint8_t src[10] = {1, 2, 3};
+uint8_t dst[10];
+
+memcpy(dst, src, 10);         // 10 Bytes von src nach dst kopieren
+memset(dst, 0x00, 10);        // 10 Bytes mit 0x00 fuellen
+memset(dst, 0xFF, 10);        // 10 Bytes mit 0xFF fuellen
+
+if (memcmp(src, dst, 10) == 0) {
+    // Identisch
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Arduino-spezifische Funktionen}
+\label{subsec:cpp-arduino-funktionen}
+
+\begin{table}[H]
+  \centering
+  \caption{Wichtige Arduino-Funktionen}
+  \label{tab:cpp-arduino-funktionen}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Funktion} & \textbf{Beschreibung} \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{Digitale I/O}} \\
+    \texttt{pinMode(PIN, MODE)} & MODE: INPUT, OUTPUT, INPUT\_PULLUP \\
+    \texttt{digitalWrite(PIN, val)} & HIGH oder LOW setzen \\
+    \texttt{digitalRead(PIN)} & HIGH oder LOW lesen \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{Timing}} \\
+    \texttt{delay(ms)} & Warten (BLOCKIEREND!) \\
+    \texttt{delayMicroseconds(us)} & Warten in µs (BLOCKIEREND!) \\
+    \texttt{millis()} & Millisekunden seit Start \\
+    \texttt{micros()} & Mikrosekunden seit Start \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{Serial}} \\
+    \texttt{Serial.begin(baud)} & Baudrate setzen \\
+    \texttt{Serial.print(x)} & Ohne Zeilenumbruch \\
+    \texttt{Serial.println(x)} & Mit Zeilenumbruch \\
+    \texttt{Serial.printf(...)} & Formatiert (ESP32) \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{SPI}} \\
+    \texttt{SPI.begin(SCK, MISO, MOSI, SS)} & Pins konfigurieren \\
+    \texttt{SPI.beginTransaction(settings)} & Transaktion starten \\
+    \texttt{SPI.transfer(byte)} & Byte senden/empfangen \\
+    \texttt{SPI.endTransaction()} & Transaktion beenden \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{PWM (ESP32)}} \\
+    \texttt{ledcSetup(ch, freq, res)} & Kanal konfigurieren \\
+    \texttt{ledcAttachPin(pin, ch)} & Pin zuweisen \\
+    \texttt{ledcWrite(ch, duty)} & Duty Cycle setzen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Der Code im Kontext}
+\label{subsec:cpp-kontext}
+
+\subsubsection{Ablaufdiagramm}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum width=3cm, minimum height=0.8cm, align=center, font=\small},
+    arrow/.style={->, >=Stealth, thick}
+  ]
+    % Setup
+    \node[box, fill=InfoBoxBg, minimum width=8cm] (setup) at (0,5) {\textbf{setup()}};
+    \node[font=\tiny, align=left, right=0.5cm of setup] {
+      Serial.begin()\\
+      pinMode()\\
+      SPI.begin()\\
+      ledcSetup()
+    };
+
+    % Loop boxes
+    \node[box, fill=TipBoxBg!50] (read) at (0,3.5) {readButtons()};
+    \node[box, fill=TipBoxBg!50] (debounce) at (0,2.5) {debounceButtons()};
+    \node[box, fill=TipBoxBg!50] (update) at (0,1.5) {updateActiveId()};
+    \node[box, fill=TipBoxBg!50] (led) at (0,0.5) {writeLEDs()};
+    \node[box, fill=gray!20] (delay) at (0,-0.5) {delay(2)};
+
+    % Arrows
+    \draw[arrow] (setup) -- (read);
+    \draw[arrow] (read) -- (debounce);
+    \draw[arrow] (debounce) -- (update);
+    \draw[arrow] (update) -- (led);
+    \draw[arrow] (led) -- (delay);
+    \draw[arrow] (delay.west) -- ++(-1.5,0) |- (read.west);
+
+    % Labels
+    \node[font=\tiny, right=0.3cm of read] {Hardware → btnRaw[]};
+    \node[font=\tiny, right=0.3cm of debounce] {btnRaw[] → btnDebounced[]};
+    \node[font=\tiny, right=0.3cm of update] {btnDebounced[] → activeId};
+    \node[font=\tiny, right=0.3cm of led] {activeId → Hardware};
+  \end{tikzpicture}
+  \caption{Ablauf der Firmware-Hauptschleife}
+  \label{fig:cpp-ablauf}
+\end{figure}
+
+\subsubsection{Datenfluss}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Hardware          Firmware                    Hardware
+---------         --------                    --------
+Taster ----------> btnRaw[]
+                      |
+                      v
+                  btnDebounced[] (zeitverzoegert, stabil)
+                      |
+                      v
+                  activeId (0-10)
+                      |
+                      v
+                  ledState[]
+                      |
+                      v
+                                --------------> LEDs
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Zusammenfassung}
+\label{subsec:cpp-zusammenfassung}
+
+\subsubsection{Checkliste für guten Embedded-Code}
+
+\begin{itemize}
+  \item[$\square$] Exakte Datentypen verwenden (\texttt{uint8\_t}, \texttt{uint32\_t}, ...)
+  \item[$\square$] \texttt{static} für datei-lokale Variablen und Funktionen
+  \item[$\square$] \texttt{constexpr} für Compile-Zeit-Konstanten
+  \item[$\square$] Kein dynamischer Speicher in \texttt{loop()}
+  \item[$\square$] Blockierende Wartezeiten vermeiden
+  \item[$\square$] Bit-Operationen statt Division/Multiplikation wo möglich
+  \item[$\square$] Fehlerprüfung bei Parametern (Range-Checks)
+  \item[$\square$] Aussagekräftige Namen (nicht \texttt{x}, \texttt{temp}, \texttt{data})
+  \item[$\square$] Kommentare erklären WARUM, nicht WAS
+\end{itemize}
+
+\subsubsection{Schnellreferenz: Schlüsselwörter}
+
+\begin{table}[H]
+  \centering
+  \caption{C++ Schlüsselwörter für Embedded}
+  \label{tab:cpp-schluesselwoerter}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Schlüsselwort} & \textbf{Bedeutung} \\
+    \midrule
+    \texttt{static} & Datei-lokal (global) oder persistent (lokal) \\
+    \texttt{const} & Wert nicht änderbar (zur Laufzeit) \\
+    \texttt{constexpr} & Wert zur Compile-Zeit berechnet \\
+    \texttt{inline} & Compiler-Hinweis: Code direkt einsetzen \\
+    \texttt{volatile} & Wert kann sich „von außen" ändern (Hardware, ISR) \\
+    \texttt{void} & Kein Rückgabewert / generischer Zeiger \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

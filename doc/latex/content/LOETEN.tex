@@ -1,0 +1,251 @@
+% =============================================================================
+% LOETEN.tex – Bleifreies Löten mit SAC305
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2025-12 | Version: 1.0
+% =============================================================================
+
+\section{Bleifreies Löten mit SAC305}
+\label{sec:loeten}
+
+Handlöten von \textbf{ESP32-Breakout-Boards} und \textbf{XT60-Steckern} mit bleifreiem Lot.
+
+% -----------------------------------------------------------------------------
+\subsection{Ausrüstung}
+\label{subsec:loeten-ausruestung}
+
+\subsubsection{Lötzinn}
+
+\begin{table}[H]
+  \centering
+  \caption{Empfohlenes Lötzinn}
+  \label{tab:loeten-loetzinn}
+  \begin{tabularx}{\textwidth}{@{}l l c l r@{}}
+    \toprule
+    \textbf{Produkt} & \textbf{Legierung} & \textbf{Durchmesser} & \textbf{Reichelt-Nr.} & \textbf{Preis} \\
+    \midrule
+    Felder ISO-Core \glqq Clear\grqq & SAC305 (Sn96,5Ag3Cu0,5) & \SI{0,5}{\milli\meter} & LZ FE CSA 0,5 25 & € 45,99 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{Lötzinn-Parameter}
+  \label{tab:loeten-parameter}
+  \begin{tabularx}{0.5\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Parameter} & \textbf{Wert} \\
+    \midrule
+    Schmelzbereich & \SI{217}{\celsius}–\SI{219}{\celsius} \\
+    Flussmittelanteil & 3,5\,\% (No-Clean) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[0,5 mm für alles]
+  THT, SMD, XT60 – bei großen Kontakten 5–6× zuführen.
+\end{tipbox}
+
+\subsubsection{Lötstationen}
+
+\begin{table}[H]
+  \centering
+  \caption{Lötstationen}
+  \label{tab:loeten-stationen}
+  \begin{tabularx}{\textwidth}{@{}l c l c l@{}}
+    \toprule
+    \textbf{Gerät} & \textbf{Leistung} & \textbf{Einsatz} & \textbf{Temperatur} & \textbf{Spitze} \\
+    \midrule
+    Ersa i-CON PICO & \SI{68}{\watt} & THT, SMD & \SI{360}{\celsius} & 0102CDLF16 (\SI{1,6}{\milli\meter} Meißel) \\
+    Ersa 150 S & \SI{150}{\watt} & XT60 & \SI{400}{\celsius} & 0152KD (\SI{5,3}{\milli\meter} Meißel) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Zubehör}
+
+\begin{table}[H]
+  \centering
+  \caption{Lötzubehör}
+  \label{tab:loeten-zubehoer}
+  \begin{tabularx}{\textwidth}{@{}l l l r@{}}
+    \toprule
+    \textbf{Produkt} & \textbf{Funktion} & \textbf{Reichelt-Nr.} & \textbf{Preis} \\
+    \midrule
+    Stannol X32-10i & Flussmittelstift & STANNOL X32-10I & € 6,99 \\
+    ERSA Tip-Reactivator & Spitzen regenerieren & ERSA 0TR01 & $\sim$€ 13 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Temperatur}
+\label{subsec:loeten-temperatur}
+
+Die Spitzentemperatur ergibt sich aus der Schmelztemperatur plus Aufschlag:
+
+\begin{equation}
+  T_{\text{Spitze}} = T_{\text{Schmelz}} + \SI{120}{\celsius}
+\end{equation}
+
+\begin{table}[H]
+  \centering
+  \caption{Arbeitstemperaturen}
+  \label{tab:loeten-temperaturen}
+  \begin{tabularx}{0.6\textwidth}{@{}l c@{}}
+    \toprule
+    \textbf{Arbeitsgang} & \textbf{Temperatur} \\
+    \midrule
+    SMD, Fein-Pitch & \SI{350}{\celsius}–\SI{360}{\celsius} \\
+    THT, Pin-Header & \SI{360}{\celsius}–\SI{380}{\celsius} \\
+    XT60, Litzen $\geq$ \SI{1,5}{\milli\meter\squared} & \SI{400}{\celsius} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{Temperaturanpassungen}
+  \label{tab:loeten-anpassungen}
+  \begin{tabularx}{0.6\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Situation} & \textbf{Anpassung} \\
+    \midrule
+    Große Masseflächen & +\SI{20}{\celsius}–\SI{30}{\celsius} \\
+    Empfindliche Bauteile & $-$\SI{20}{\celsius} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Technik}
+\label{subsec:loeten-technik}
+
+\subsubsection{Lötstelle in 5 Schritten}
+
+\begin{enumerate}
+  \item \textbf{Spitze verzinnen} → Wärmeübertragung verbessern
+  \item \textbf{Spitze ansetzen} → An Pad UND Bauteilbein
+  \item \textbf{Warten} (1–2 s) → Wärme übertragen
+  \item \textbf{Lot zuführen} → Von der Gegenseite
+  \item \textbf{Abziehen} → Erst Lot, dann Spitze
+\end{enumerate}
+
+\textbf{Gesamtzeit:} 2–4 Sekunden
+
+\subsubsection{Entlöten}
+
+\begin{table}[H]
+  \centering
+  \caption{Entlötmethoden}
+  \label{tab:loeten-entloeten}
+  \begin{tabularx}{0.6\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Methode} & \textbf{Anwendung} \\
+    \midrule
+    Entlötlitze + Flux & SMD, kleine Mengen \\
+    Entlötpumpe & THT, große Mengen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{ESP32 Breakout löten}
+\label{subsec:loeten-esp32}
+
+\begin{itemize}
+  \item[$\square$] i-CON PICO auf \textbf{\SI{360}{\celsius}}
+  \item[$\square$] Spitze 0102CDLF16 (\SI{1,6}{\milli\meter} Meißel)
+  \item[$\square$] Platine fixieren
+\end{itemize}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Spitze verzinnen -> An Pad+Pin -> 1-2 s -> Lot zufuehren -> Abziehen
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{XT60 Stecker löten}
+\label{subsec:loeten-xt60}
+
+\begin{itemize}
+  \item[$\square$] Ersa 150 S auf \textbf{\SI{400}{\celsius}} (5 Min vorheizen)
+  \item[$\square$] Spitze 0152KD (\SI{5,3}{\milli\meter} Meißel)
+  \item[$\square$] Litze abisolieren (8–10 mm), verdrillen
+\end{itemize}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Huelse vorverzinnen -> Litze vorverzinnen -> Einfuehren ->
+Spitze seitlich -> Warten (3-5 s) -> Nicht bewegen bis erstarrt
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Spitzenpflege}
+\label{subsec:loeten-spitzenpflege}
+
+\begin{table}[H]
+  \centering
+  \caption{Spitzenpflege}
+  \label{tab:loeten-spitzenpflege}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Wann} & \textbf{Aktion} \\
+    \midrule
+    Vor jedem Löten & Messingwolle → frisch verzinnen \\
+    Vor dem Ausschalten & \textbf{Niemals blank} – Zinn drauf \\
+    Oxidiert (Lot perlt ab) & Tip-Reactivator bei \SI{250}{\celsius}–\SI{300}{\celsius} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Qualitätskontrolle}
+\label{subsec:loeten-qualitaet}
+
+\begin{table}[H]
+  \centering
+  \caption{Qualitätsmerkmale}
+  \label{tab:loeten-qualitaet}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Gut} & \textbf{Mangelhaft} \\
+    \midrule
+    Glänzend bis seidenmatt & Rissig, körnig \\
+    Konkaver Meniskus & Kugelig \\
+    Vollständige Benetzung & Lot perlt ab \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Hinweis]
+  SAC305 glänzt weniger als verbleites Lot. Seidenmatt ist normal.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Sicherheit}
+\label{subsec:loeten-sicherheit}
+
+\begin{itemize}
+  \item Dämpfe nicht einatmen – Absaugung verwenden
+  \item Lötkolben nie unbeaufsichtigt
+  \item Bleihaltiges und bleifreies Lot \textbf{nie mischen}
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Einkaufsliste}
+\label{subsec:loeten-einkauf}
+
+\begin{table}[H]
+  \centering
+  \caption{Einkaufsliste (Reichelt)}
+  \label{tab:loeten-einkauf}
+  \begin{tabularx}{0.7\textwidth}{@{}l l r@{}}
+    \toprule
+    \textbf{Artikel} & \textbf{Art.-Nr.} & \textbf{Preis} \\
+    \midrule
+    Lötzinn bleifrei \SI{0,5}{\milli\meter}, \SI{250}{\gram} & LZ FE CSA 0,5 25 & € 45,99 \\
+    Flussmittelstift No-Clean & STANNOL X32-10I & € 6,99 \\
+    \midrule
+    \textbf{Gesamt} & & \textbf{€ 52,98} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

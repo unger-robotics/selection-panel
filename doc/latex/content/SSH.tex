@@ -1,0 +1,202 @@
+% =============================================================================
+% SSH.tex – Pi einrichten und passwortloses SSH konfigurieren
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{SSH-Setup}
+\label{sec:ssh}
+
+Bevor wir mit der Entwicklung beginnen können, richten wir den Raspberry Pi ein und konfigurieren einen passwortlosen SSH-Zugang. Das Ziel: Mit einem simplen \texttt{ssh rover} landen wir direkt auf dem Pi – ohne Passwortabfrage.
+
+% -----------------------------------------------------------------------------
+\subsection{Pi OS installieren}
+\label{subsec:ssh-pi-os}
+
+Wir nutzen den offiziellen Raspberry Pi Imager, um das Betriebssystem auf die SD-Karte zu schreiben.
+
+\subsubsection{Raspberry Pi Imager}
+
+\begin{enumerate}
+  \item \textbf{Download:} \href{https://www.raspberrypi.com/software/}{raspberrypi.com/software}
+  \item \textbf{OS auswählen:} Raspberry Pi OS Lite (64-bit)
+  \item \textbf{Einstellungen} über das Zahnrad-Symbol konfigurieren (\cref{tab:imager-settings})
+  \item \textbf{Schreiben} – SD-Karte einlegen – Netzteil einstecken
+\end{enumerate}
+
+\begin{table}[H]
+  \centering
+  \caption{Einstellungen im Raspberry Pi Imager}
+  \label{tab:imager-settings}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Einstellung} & \textbf{Wert} \\
+    \midrule
+    Hostname & \texttt{rover} \\
+    SSH & ✓ aktivieren \\
+    Benutzer & \texttt{pi} \\
+    Passwort & (eigenes Passwort) \\
+    WLAN & SSID + Passwort \\
+    Zeitzone & \texttt{Europe/Berlin} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Nach dem ersten Boot}
+
+Sobald der Pi hochgefahren ist, verbinden wir uns erstmals per SSH und führen die Grundkonfiguration durch:
+
+\begin{lstlisting}[style=shell]
+ssh pi@rover.local
+sudo apt update && sudo apt upgrade -y
+sudo usermod -aG dialout pi
+\end{lstlisting}
+
+Der letzte Befehl fügt den Benutzer \texttt{pi} zur Gruppe \texttt{dialout} hinzu – das benötigen wir später für den Zugriff auf den ESP32 über USB.
+
+% -----------------------------------------------------------------------------
+\subsection{SSH-Key einrichten}
+\label{subsec:ssh-key}
+
+Passwörter sind umständlich und unsicher. Wir generieren stattdessen ein Schlüsselpaar und kopieren den öffentlichen Schlüssel auf den Pi.
+
+\subsubsection{Mac / Linux}
+
+\begin{lstlisting}[style=shell]
+ssh-keygen -t ed25519
+ssh-copy-id pi@rover.local
+\end{lstlisting}
+
+Der erste Befehl erzeugt ein Ed25519-Schlüsselpaar (aktueller Standard, kompakt und sicher). Der zweite kopiert den Public Key automatisch in die \filep{authorized\_keys} des Pi.
+
+\subsubsection{Windows (PowerShell)}
+
+Unter Windows müssen wir zunächst den OpenSSH-Client aktivieren:
+
+\begin{lstlisting}[style=shell,language={}]
+# OpenSSH aktivieren (als Admin ausfuehren)
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+
+# Key erstellen
+ssh-keygen -t ed25519
+
+# Key manuell kopieren
+type $env:USERPROFILE\.ssh\id_ed25519.pub |
+ssh pi@rover.local "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+\end{lstlisting}
+
+\begin{infobox}[Warum Ed25519?]
+  Ed25519 bietet bei nur \SI{256}{\bit} Schlüssellänge eine Sicherheit vergleichbar mit RSA-3072. Die Schlüssel sind kompakter und die Signaturoperationen schneller.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{SSH-Config anlegen}
+\label{subsec:ssh-config}
+
+Mit einer SSH-Konfigurationsdatei sparen wir uns künftig die Tipparbeit. Statt \texttt{ssh pi@rover.local} genügt dann \texttt{ssh rover}.
+
+\subsubsection{Mac / Linux}
+
+Wir erstellen oder erweitern die Datei \filep{\textasciitilde/.ssh/config}:
+
+\begin{lstlisting}[style=shell,numbers=none]
+Host rover
+    HostName rover.local
+    User pi
+    IdentityFile ~/.ssh/id_ed25519
+\end{lstlisting}
+
+Die Berechtigungen müssen stimmen:
+
+\begin{lstlisting}[style=shell]
+chmod 600 ~/.ssh/config
+\end{lstlisting}
+
+\subsubsection{Windows}
+
+Die Config-Datei liegt unter \filep{\%USERPROFILE\%\textbackslash.ssh\textbackslash config}:
+
+\begin{lstlisting}[style=shell,numbers=none]
+Host rover
+    HostName rover.local
+    User pi
+    IdentityFile ~/.ssh/id_ed25519
+\end{lstlisting}
+
+\begin{tipbox}[Verbindung testen]
+  Nach der Konfiguration testen wir mit \texttt{ssh rover}. Wenn alles funktioniert, landen wir ohne Passwortabfrage direkt auf dem Pi.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{GitHub-Zugang einrichten}
+\label{subsec:ssh-github}
+
+Für den Zugriff auf GitHub-Repositories erstellen wir einen separaten Schlüssel:
+
+\begin{lstlisting}[style=shell]
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
+\end{lstlisting}
+
+Die SSH-Config erweitern wir um einen Eintrag für GitHub:
+
+\begin{lstlisting}[style=shell,numbers=none]
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_github
+    IdentitiesOnly yes
+\end{lstlisting}
+
+Den Public Key hinterlegen wir bei GitHub unter \textit{Settings → SSH Keys → New SSH Key}. Den Inhalt der Datei \filep{\textasciitilde/.ssh/id\_ed25519\_github.pub} kopieren wir in das Textfeld.
+
+\begin{lstlisting}[style=shell]
+# Verbindung testen
+ssh -T git@github.com
+# Erwartete Ausgabe: "Hi username! You've successfully authenticated..."
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial-Port-Berechtigungen}
+\label{subsec:ssh-serial}
+
+Damit wir den ESP32 über USB ansprechen können, benötigt der Benutzer \texttt{pi} Zugriff auf die Serial-Ports:
+
+\begin{lstlisting}[style=shell]
+# Auf dem Pi ausfuehren
+sudo usermod -aG dialout pi
+# Danach neu einloggen (oder reboot)
+
+# Stabilen by-id Pfad pruefen
+ls -la /dev/serial/by-id/usb-Espressif*
+\end{lstlisting}
+
+\begin{warnbox}[Neu einloggen erforderlich]
+  Gruppenmitgliedschaften werden erst nach einem neuen Login aktiv. Ein einfaches \texttt{exit} und erneutes \texttt{ssh rover} genügt.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Troubleshooting}
+\label{subsec:ssh-troubleshooting}
+
+\Cref{tab:ssh-troubleshooting} listet die häufigsten Probleme und deren Lösungen.
+
+\begin{table}[H]
+  \centering
+  \caption{SSH-Fehlerbehebung}
+  \label{tab:ssh-troubleshooting}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Lösung} \\
+    \midrule
+    \texttt{Permission denied (publickey)} & \texttt{ssh-copy-id} erneut ausführen \\
+    \texttt{Could not resolve hostname} & IP direkt nutzen: \texttt{ssh pi@192.168.x.x} \\
+    \texttt{UNPROTECTED PRIVATE KEY FILE} & Berechtigungen setzen: \texttt{chmod 600 \textasciitilde/.ssh/id\_ed25519} \\
+    Serial-Port nicht zugänglich & Gruppe hinzufügen: \texttt{sudo usermod -aG dialout pi} \\
+    mDNS funktioniert nicht & Avahi prüfen: \texttt{sudo systemctl status avahi-daemon} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[IP-Adresse ermitteln]
+  Falls \texttt{rover.local} nicht auflöst, finden wir die IP über den Router oder – falls wir noch einen Monitor am Pi haben – mit \texttt{hostname -I}.
+\end{infobox}

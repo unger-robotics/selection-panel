@@ -1,0 +1,288 @@
+% =============================================================================
+% QUICKSTART.tex – Server + Dashboard in 5 Minuten
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Quickstart}
+\label{sec:quickstart}
+
+In diesem Kapitel bringen wir das Selection Panel zum Laufen – Server und Dashboard in 5 Minuten. Wir gehen davon aus, dass SSH eingerichtet, das Repository geklont und der ESP32 geflasht ist.
+
+\begin{table}[H]
+  \centering
+  \caption{Quickstart-Metadaten}
+  \label{tab:quickstart-meta}
+  \begin{tabularx}{0.5\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Metadaten} & \textbf{Wert} \\
+    \midrule
+    Stand & 2026-01-08 \\
+    Version & 2.5.2 \\
+    Status & ✓ Prototyp funktionsfähig \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Voraussetzungen}
+\label{subsec:quickstart-voraussetzungen}
+
+Bevor wir starten, prüfen wir kurz die Voraussetzungen:
+
+\begin{itemize}
+  \item[$\square$] SSH eingerichtet → \Cref{sec:ssh}
+  \item[$\square$] Repository geklont → \Cref{sec:git}
+  \item[$\square$] ESP32 geflasht → \Cref{sec:firmware-code-guide}
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Setup (einmalig)}
+\label{subsec:quickstart-setup}
+
+Zunächst erstellen wir eine virtuelle Python-Umgebung und installieren die Abhängigkeiten:
+
+\begin{lstlisting}[style=shell]
+ssh rover
+cd ~/selection-panel
+
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+\end{lstlisting}
+
+\begin{tipbox}[Minimale Abhängigkeiten]
+  Nur \texttt{aiohttp} wird benötigt – kein pyserial mehr. Der Server nutzt direkte Dateizugriffe auf den Serial-Port.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Server starten}
+\label{subsec:quickstart-server}
+
+Jetzt starten wir den Server:
+
+\begin{lstlisting}[style=shell]
+cd ~/selection-panel
+source venv/bin/activate
+python server.py
+\end{lstlisting}
+
+Bei erfolgreichem Start sehen wir folgende Ausgabe:
+
+\begin{lstlisting}[style=shell,numbers=none]
+==================================================
+Auswahlpanel Server v2.5.2 (PROTOTYPE)
+==================================================
+Medien: 10 erwartet (IDs: 001-010)
+Taster: 1-10 (1-basiert)
+Serial: /dev/serial/by-id/usb-Espressif...
+HTTP:   http://0.0.0.0:8080/
+ESP32 lokale LED: aktiviert
+==================================================
+Medien-Validierung: 10/10 vollstaendig
+==================================================
+Serial verbinde: /dev/serial/by-id/usb-Espressif...
+Serial verbunden
+\end{lstlisting}
+
+Das Dashboard erreichen wir unter \texttt{http://rover:8080/}.
+
+% -----------------------------------------------------------------------------
+\subsection{Dashboard nutzen}
+\label{subsec:quickstart-dashboard}
+
+Das Dashboard führt uns durch den Startvorgang:
+
+\begin{enumerate}
+  \item Dashboard öffnen: \texttt{http://rover:8080/}
+  \item \textbf{„Sound aktivieren"} Button klicken – wichtig für die Audio-Wiedergabe!
+  \item Warten auf Preload: „Lade Medien... 5/10" → „Warte auf Tastendruck..."
+  \item Taster drücken → Bild und Ton werden sofort abgespielt
+\end{enumerate}
+
+\begin{infobox}[Latenz-Verhalten]
+  Die LED leuchtet sofort (< \SI{1}{\milli\second}), die Wiedergabe erfolgt aus dem Cache (< \SI{50}{\milli\second}). Das System fühlt sich instantan an.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Testen ohne Hardware}
+\label{subsec:quickstart-test}
+
+Auch ohne angeschlossene Taster können wir das System testen. Die HTTP-API simuliert Tastendrücke:
+
+\begin{lstlisting}[style=shell]
+# Wiedergabe simulieren (1-basiert!)
+curl http://rover:8080/test/play/1
+curl http://rover:8080/test/play/5
+curl http://rover:8080/test/play/10
+
+# Status abfragen
+curl http://rover:8080/status | jq
+
+# Health-Check
+curl http://rover:8080/health | jq
+
+# Wiedergabe stoppen
+curl http://rover:8080/test/stop
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial direkt testen}
+\label{subsec:quickstart-serial}
+
+Für die Fehlersuche ist es hilfreich, die Serial-Kommunikation direkt zu beobachten:
+
+\begin{lstlisting}[style=shell]
+# Stabilen Port ermitteln
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+echo "Port: $SERIAL_PORT"
+
+# Port konfigurieren
+stty -F $SERIAL_PORT 115200 raw -echo
+
+# Daten empfangen (Ctrl+C zum Beenden)
+cat $SERIAL_PORT
+\end{lstlisting}
+
+Befehle können wir direkt an den ESP32 senden:
+
+\begin{lstlisting}[style=shell]
+echo "PING" > $SERIAL_PORT
+echo "STATUS" > $SERIAL_PORT
+echo "LEDSET 001" > $SERIAL_PORT
+echo "LEDCLR" > $SERIAL_PORT
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Autostart einrichten}
+\label{subsec:quickstart-autostart}
+
+Damit der Server nach einem Reboot automatisch startet, installieren wir den systemd-Service:
+
+\begin{lstlisting}[style=shell]
+sudo cp selection-panel.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now selection-panel.service
+\end{lstlisting}
+
+Status und Logs prüfen wir mit:
+
+\begin{lstlisting}[style=shell]
+sudo systemctl status selection-panel
+journalctl -u selection-panel -f
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Troubleshooting}
+\label{subsec:quickstart-troubleshooting}
+
+\Cref{tab:quickstart-troubleshooting} listet die häufigsten Probleme und deren Lösungen.
+
+\begin{table}[H]
+  \centering
+  \caption{Häufige Probleme und Lösungen}
+  \label{tab:quickstart-troubleshooting}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Lösung} \\
+    \midrule
+    \texttt{ModuleNotFoundError} & \texttt{venv/bin/pip install aiohttp} \\
+    \texttt{Permission denied: /dev/ttyACM0} & \texttt{sudo usermod -aG dialout \$USER} → Neu einloggen \\
+    Port blockiert & \texttt{sudo fuser /dev/ttyACM0} → Prozess beenden \\
+    Kein Ton & „Sound aktivieren"-Button im Browser klicken \\
+    Server startet nicht & \texttt{journalctl -u selection-panel -f} \\
+    Taster nicht erkannt & Serial testen: \texttt{cat /dev/serial/by-id/usb-Espressif*} \\
+    Falsche Medien & Prüfen: \texttt{ls media/} (001.jpg bis 010.jpg) \\
+    Preload dauert lange & Medien komprimieren oder Concurrency erhöhen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien-Struktur}
+\label{subsec:quickstart-medien}
+
+Die Medien folgen der 1-basierten Nummerierung mit Zero-Padding auf 3 Stellen:
+
+\begin{lstlisting}[style=shell,numbers=none]
+media/
+|-- 001.jpg  001.mp3
+|-- 002.jpg  002.mp3
+|-- ...
++-- 010.jpg  010.mp3
+\end{lstlisting}
+
+Für Tests generieren wir Platzhalter-Medien mit:
+
+\begin{lstlisting}[style=shell]
+./scripts/generate_test_media.sh 10
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Latenz-Budget}
+\label{subsec:quickstart-latenz}
+
+\begin{table}[H]
+  \centering
+  \caption{Latenz-Budget vom Tastendruck bis zur Wiedergabe}
+  \label{tab:quickstart-latenz}
+  \begin{tabularx}{0.6\textwidth}{@{}l r@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Latenz} \\
+    \midrule
+    ESP32 LED & < \SI{1}{\milli\second} \\
+    Serial + Server & $\sim$\SI{10}{\milli\second} \\
+    Dashboard (aus Cache) & < \SI{50}{\milli\second} \\
+    \midrule
+    \textbf{Gesamt} & \textbf{< \SI{70}{\milli\second}} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Referenz-System}
+\label{subsec:quickstart-referenz}
+
+\begin{table}[H]
+  \centering
+  \caption{Referenz-System für diese Dokumentation}
+  \label{tab:quickstart-referenz}
+  \begin{tabularx}{0.6\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Version} \\
+    \midrule
+    Raspberry Pi 5 & \SI{4}{\giga\byte} RAM \\
+    Pi OS & Debian 13 (trixie) \\
+    Python & 3.13+ \\
+    aiohttp & 3.9+ \\
+    ESP32 Firmware & 2.5.2 \\
+    Server & 2.5.2 \\
+    Dashboard & 2.5.1 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Schnellreferenz}
+\label{subsec:quickstart-schnellreferenz}
+
+\Cref{tab:quickstart-schnellreferenz} fasst die wichtigsten Befehle zusammen.
+
+\begin{table}[H]
+  \centering
+  \caption{Befehls-Schnellreferenz}
+  \label{tab:quickstart-schnellreferenz}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Aktion} & \textbf{Befehl} \\
+    \midrule
+    Server starten & \texttt{python server.py} \\
+    Dashboard & \texttt{http://rover:8080/} \\
+    Status & \texttt{curl http://rover:8080/status} \\
+    Health & \texttt{curl http://rover:8080/health} \\
+    Test Play & \texttt{curl http://rover:8080/test/play/5} \\
+    Serial Monitor & \texttt{cat /dev/serial/by-id/usb-Espressif*} \\
+    Service Status & \texttt{sudo systemctl status selection-panel} \\
+    Service Logs & \texttt{journalctl -u selection-panel -f} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

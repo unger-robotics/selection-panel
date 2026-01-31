@@ -1,0 +1,380 @@
+% =============================================================================
+% JAVASCRIPT-CODE-GUIDE.tex – Dashboard-Client Architektur und Best Practices
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{JavaScript-Code-Guide}
+\label{sec:javascript-code-guide}
+
+Wie ist das Dashboard aufgebaut? Dieser Guide erklärt die Architektur von \filep{app.js} und \filep{index.html} und die Designentscheidungen dahinter. Die zentrale Regel: UI-Code wird wartbar, wenn der Datenfluss eindeutig ist.
+
+% -----------------------------------------------------------------------------
+\subsection{Architektur: Datenfluss in 4 Schritten}
+\label{subsec:js-datenfluss}
+
+Der Datenfluss folgt einem klaren Muster: \textbf{Input → Parse → State → Render}. Schauen wir uns die einzelnen Schritte an:
+
+\begin{enumerate}
+  \item \textbf{Input:} WebSocket empfängt \texttt{\{"type":"stop"\}} oder \texttt{\{"type":"play","id":n\}}
+  \item \textbf{Parse:} \texttt{handleServerMessage()} macht \texttt{JSON.parse} + Switch auf \texttt{message.type}
+  \item \textbf{State:} \texttt{state.currentId}, \texttt{state.isPlaying}, \texttt{state.audioUnlocked}, \texttt{state.preloaded}
+  \item \textbf{Render:} \texttt{handleStop()} / \texttt{handlePlay(id)} aktualisieren DOM
+\end{enumerate}
+
+\begin{tipbox}[Leitplanke für Erweiterungen]
+  Jede neue Funktion (z.\,B. „pause", „volume", „shuffle") sollte entweder \textbf{State ändern} oder \textbf{rendern} – nicht beides quer verteilt.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Konfiguration und globaler Zustand}
+\label{subsec:js-konfiguration}
+
+Konstanten zentralisieren, Zustand minimal halten, Zustandsänderung an wenigen Stellen – das sind die Grundregeln.
+
+\begin{lstlisting}[style=javascript,caption={Konfiguration und State-Struktur}]
+const CONFIG = {
+    reconnectInterval: 5000,
+    numMedia: 10,
+    preloadConcurrency: 3,
+    wsUrl: `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`
+};
+
+const state = {
+    ws: null,
+    audioUnlocked: false,
+    currentId: null,
+    isPlaying: false,
+    preloaded: false,
+    preloadProgress: 0
+};
+
+const mediaCache = {
+    images: {},  // images[id] = HTMLImageElement
+    audio: {}    // audio[id] = HTMLAudioElement
+};
+\end{lstlisting}
+
+\begin{infobox}[Skalierung auf 100 Medien]
+  Für 100 Medien: nur \texttt{CONFIG.numMedia = 100} ändern und ggf. \texttt{preloadConcurrency} an Netzwerk/Server anpassen.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{WebSocket: Robust verbinden, sauber senden}
+\label{subsec:js-websocket}
+
+Reconnect ist Teil des Normalbetriebs. Fehler sollen sichtbar sein, aber nicht „crashen".
+
+\begin{lstlisting}[style=javascript,caption={WebSocket-Verbindung mit Reconnect}]
+function connectWebSocket() {
+    state.ws = new WebSocket(CONFIG.wsUrl);
+
+    state.ws.onopen = () => {
+        log('WebSocket verbunden');
+        updateConnectionStatus(true);
+    };
+
+    state.ws.onclose = () => {
+        log('WebSocket getrennt, Reconnect in 5s...');
+        updateConnectionStatus(false);
+        setTimeout(connectWebSocket, CONFIG.reconnectInterval);
+    };
+
+    state.ws.onmessage = (event) => {
+        handleServerMessage(JSON.parse(event.data));
+    };
+}
+
+function sendMessage(msg) {
+    if (state.ws?.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify(msg));
+    } else {
+        console.warn('WebSocket nicht verbunden');
+    }
+}
+\end{lstlisting}
+
+\begin{warnbox}[Protokoll-Disziplin]
+  Wenn du zusätzliche Message-Typen einführst, halte das Protokoll strikt (\texttt{type} Pflicht, Payload validieren). Sonst werden UI-Bugs zu „Netzwerkproblemen".
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien-Preloading}
+\label{subsec:js-preloading}
+
+Preload parallel, aber begrenzt – sonst überlastest du Browser und Server. Die Beobachtung: Viele gleichzeitige Requests können „stottern". Die Lösung: Eine Semaphore begrenzt die Concurrency.
+
+\begin{lstlisting}[style=javascript,caption={Preloading mit begrenzter Concurrency}]
+class Semaphore {
+    constructor(max) {
+        this.max = max;
+        this.current = 0;
+        this.queue = [];
+    }
+
+    async acquire() {
+        if (this.current < this.max) {
+            this.current++;
+            return;
+        }
+        await new Promise(resolve => this.queue.push(resolve));
+        this.current++;
+    }
+
+    release() {
+        this.current--;
+        if (this.queue.length > 0) {
+            this.queue.shift()();
+        }
+    }
+}
+
+async function preloadAllMedia() {
+    const sem = new Semaphore(CONFIG.preloadConcurrency);
+    const promises = [];
+
+    for (let id = 1; id <= CONFIG.numMedia; id++) {
+        promises.push(preloadMedia(id, sem));
+    }
+
+    await Promise.all(promises);
+    state.preloaded = true;
+}
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Empfohlene Concurrency-Werte}
+  \label{tab:js-concurrency}
+  \begin{tabularx}{0.7\textwidth}{@{}l r X@{}}
+    \toprule
+    \textbf{Szenario} & \textbf{Concurrency} & \textbf{Begründung} \\
+    \midrule
+    LAN / Pi lokal & 4–8 & Schnelle Verbindung \\
+    WLAN / Handy & 2–4 & Weniger Peaks \\
+    Mobiles Netz & 1–2 & Bandbreite schonen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Preload-Details}
+
+\begin{itemize}
+  \item \textbf{Bilder:} \texttt{new Image()} + \texttt{onload/onerror}, speichern in Cache
+  \item \textbf{Audio:} \texttt{new Audio()} + \texttt{oncanplaythrough}, Timeout-Fallback nach \SI{5000}{\milli\second}
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Playback-State-Machine: Preempt + Race-Fix}
+\label{subsec:js-playback}
+
+Bei schnellem Umschalten brauchen wir eine eindeutige Zuordnung von Events zur aktuellen ID. Sonst führen „alte" \texttt{ended}-Events zu falschen LED-Clears.
+
+\begin{lstlisting}[style=javascript,caption={Preempt und Race-Condition-Schutz}]
+function handlePlay(id) {
+    // Preempt: Vorheriges Audio stoppen
+    if (state.currentId !== null) {
+        stopCurrentAudio();
+    }
+
+    state.currentId = id;
+    state.isPlaying = true;
+
+    const cachedAudio = mediaCache.audio[id];
+    cachedAudio.currentTime = 0;
+
+    // Race-Fix: ended-Event an diese ID binden
+    cachedAudio.onended = () => handleAudioEnded(id);
+
+    cachedAudio.play();
+    updateUI(id);
+}
+
+function handleAudioEnded(endedId) {
+    // Ignorieren wenn nicht mehr aktuelle ID
+    if (endedId !== state.currentId) {
+        log(`Ignoriere ended fuer ${endedId}, aktuell: ${state.currentId}`);
+        return;
+    }
+
+    state.isPlaying = false;
+    state.currentId = null;
+    sendMessage({ type: 'ended', id: endedId });
+}
+\end{lstlisting}
+
+\begin{infobox}[Erweiterte Absicherung]
+  Für noch robustere Zuordnung bei Multi-Tab oder hoher Latenz: Ergänze eine Sequenznummer (\texttt{seq}) in \texttt{play}/\texttt{ended}. Der Server kann dann „alte ended" sicher ignorieren.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Audio-Unlock: iOS/Autoplay-Policies}
+\label{subsec:js-audio-unlock}
+
+Audio darf erst nach User-Geste zuverlässig starten – besonders iOS/Safari. Daher: Unlock-Button + „silent play".
+
+\begin{lstlisting}[style=javascript,caption={Audio-Unlock für iOS/Safari}]
+async function unlockAudio() {
+    try {
+        // Methode 1: AudioContext
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
+
+        // Methode 2: Silent WAV abspielen
+        const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10...';
+        const audio = new Audio(silentWav);
+        await audio.play();
+        audio.pause();
+
+        state.audioUnlocked = true;
+        elements.unlockBtn.hidden = true;
+
+        // Jetzt Medien vorladen
+        await preloadAllMedia();
+
+    } catch (err) {
+        log('Audio-Unlock fehlgeschlagen: ' + err.message);
+    }
+}
+\end{lstlisting}
+
+\begin{warnbox}[Unlock-Prüfung]
+  Alle Audio-Starts müssen hinter \texttt{state.audioUnlocked === true} liegen. Im \texttt{handlePlay} ist das so geprüft.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{DOM-Integration}
+\label{subsec:js-dom}
+
+DOM-Zugriffe einmal bündeln, Rendering über klar definierte UI-Aktionen.
+
+\begin{lstlisting}[style=javascript,caption={DOM-Element-Referenzen}]
+const elements = {
+    unlockBtn: document.getElementById('unlock-btn'),
+    waiting: document.getElementById('waiting'),
+    mediaContainer: document.getElementById('media-container'),
+    currentId: document.getElementById('current-id'),
+    imageContainer: document.getElementById('image-container'),
+    audio: document.getElementById('audio'),
+    progressBar: document.getElementById('progress-bar'),
+    debugPanel: document.getElementById('debug')
+};
+\end{lstlisting}
+
+\subsubsection{Debug-Logging}
+
+\begin{lstlisting}[style=javascript,caption={Debug-Funktion mit UI-Output}]
+function log(message) {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${message}`);
+
+    // In Debug-Panel schreiben (max 50 Zeilen)
+    const line = document.createElement('div');
+    line.textContent = `[${timestamp}] ${message}`;
+    elements.debugPanel.appendChild(line);
+
+    while (elements.debugPanel.children.length > 50) {
+        elements.debugPanel.removeChild(elements.debugPanel.firstChild);
+    }
+}
+\end{lstlisting}
+
+\begin{tipbox}[Sicherheitshinweis]
+  \texttt{innerHTML} ist ok, solange du nur kontrollierte Inhalte einsetzt. Bei künftig „freiem Text" aus dem Server: auf \texttt{textContent} wechseln (XSS-Risiko vermeiden).
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Protokoll-Übersicht}
+\label{subsec:js-protokoll}
+
+\subsubsection{Server → Dashboard (WebSocket)}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten vom Server}
+  \label{tab:js-ws-server}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Message} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{\{"type":"play","id":n\}} & Starte Wiedergabe für Taste n \\
+    \texttt{\{"type":"stop"\}} & Stoppe aktuelle Wiedergabe \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Dashboard → Server (WebSocket)}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten vom Dashboard}
+  \label{tab:js-ws-dashboard}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Message} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{\{"type":"ended","id":n\}} & Audio für Taste n beendet \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{HTTP-Endpoints}
+
+\begin{table}[H]
+  \centering
+  \caption{Vom Dashboard genutzte HTTP-Endpoints}
+  \label{tab:js-http}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Endpoint} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{GET /} & Dashboard HTML \\
+    \texttt{GET /media/\{id\}.jpg} & Bild für Taste id \\
+    \texttt{GET /media/\{id\}.mp3} & Audio für Taste id \\
+    \texttt{GET /status} & Server-Status (JSON) \\
+    \texttt{GET /test/play/\{id\}} & Tastendruck simulieren \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Checkliste für Erweiterungen}
+\label{subsec:js-checkliste}
+
+\begin{itemize}
+  \item[$\square$] Neues Protokollfeld: in \texttt{handleServerMessage()} validieren (Typ/Range)
+  \item[$\square$] Neue UI-Anzeige: erst \texttt{elements} erweitern, dann dedizierte Render-Funktion
+  \item[$\square$] Preload bei 100 Medien: Concurrency und Timeout realistisch wählen (\SI{5000}{\milli\second}–\SI{15000}{\milli\second})
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Glossar}
+\label{subsec:js-glossar}
+
+\begin{table}[H]
+  \centering
+  \caption{Begriffe aus der Dashboard-Entwicklung}
+  \label{tab:js-glossar}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Begriff} & \textbf{Erklärung} \\
+    \midrule
+    AudioContext & WebAudio-API-Kontext; wird genutzt, um Audio auf iOS nach User-Geste freizuschalten \\
+    Autoplay Policy & Browser-Regeln, die automatisches Abspielen ohne Nutzerinteraktion blockieren \\
+    Base64 & Kodierung von Binärdaten als Text (hier: Silent-WAV als Data-URL) \\
+    Cache & Zwischenspeicher für Ressourcen (Bild/Audio) ohne Netz-Latenz \\
+    CloneNode & DOM-Methode zum Duplizieren eines Elements \\
+    Concurrency & Anzahl gleichzeitig laufender Operationen/Requests \\
+    DOMContentLoaded & Event, wenn das HTML geparst ist und DOM verfügbar \\
+    Event Listener & Registrierte Callback-Funktion für Events \\
+    Preempt & Neue Wiedergabe ersetzt sofort die laufende \\
+    Progress Bar & UI-Element für Audio-Fortschritt (\texttt{currentTime/duration}) \\
+    Race-Condition & Timing-Problem bei konkurrierenden Events \\
+    Reconnect & Automatisches Wiederverbinden nach Verbindungsabbruch \\
+    Semaphore & Synchronisationsmechanismus zur Begrenzung paralleler Tasks \\
+    WebSocket & Persistente bidirektionale Verbindung; \texttt{wss} ist TLS-verschlüsselt \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

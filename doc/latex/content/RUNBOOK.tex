@@ -1,0 +1,406 @@
+% =============================================================================
+% RUNBOOK.tex – Betrieb und Troubleshooting
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-31 | Version: 2.5.3
+% =============================================================================
+
+\section{Runbook – Betrieb und Troubleshooting}
+\label{sec:runbook}
+
+Debugging-Checklisten und Testprozeduren. Befehle: siehe \Cref{sec:commands}.
+
+\begin{table}[H]
+  \centering
+  \caption{Runbook-Metadaten}
+  \label{tab:runbook-meta}
+  \begin{tabularx}{0.4\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Metadaten} & \textbf{Wert} \\
+    \midrule
+    Stand & 2026-01-31 \\
+    Version & 2.5.3 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Schnellstart}
+\label{subsec:runbook-schnellstart}
+
+\begin{lstlisting}[style=shell]
+open http://rover:8080/              # Dashboard
+curl http://rover:8080/status | jq   # Status
+curl http://rover:8080/health        # Health (200/503)
+curl http://rover:8080/test/play/5   # Test (1-basiert!)
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Hardware-Debugging}
+\label{subsec:runbook-hardware}
+
+\subsubsection{CD4021B (Buttons)}
+
+\begin{table}[H]
+  \centering
+  \caption{CD4021B Troubleshooting}
+  \label{tab:runbook-cd4021}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Symptom} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    Keine Events & P/S-Logik invertiert & HIGH = Load, LOW = Shift \\
+    Falsche Bits & Kaskadierung falsch & Q8 → DS prüfen \\
+    Instabil & Fehlende Kondensatoren & \SI{100}{\nano\farad} an VDD/VSS \\
+    Zufällige Trigger & DS floatet (letzter IC) & Pin 11 → VCC \\
+    Falsche Taster-Zuordnung & Verdrahtung & BTN 1 → PI-8 (Pin 1) \\
+    First-Bit fehlt & SPI-Timing & First-Bit-Rescue in Firmware \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{74HC595 (LEDs)}
+
+\begin{table}[H]
+  \centering
+  \caption{74HC595 Troubleshooting}
+  \label{tab:runbook-hc595}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Symptom} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    Keine LEDs & OE nicht auf GND/PWM & Pin 13 → D2 oder GND \\
+    Alle LEDs an & SRCLR auf LOW & Pin 10 → VCC \\
+    Falsche LED & Kaskadierung & QH' → SER prüfen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{ESP32-S3 XIAO}
+
+\begin{table}[H]
+  \centering
+  \caption{ESP32-S3 Troubleshooting}
+  \label{tab:runbook-esp32}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Symptom} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    Keine Antwort & USB-Port belegt & Server stoppen: \texttt{sudo systemctl stop selection-panel} \\
+    Kein Upload & Falscher Port & \texttt{ls /dev/serial/by-id/usb-Espressif*} \\
+    Reboot-Schleife & Watchdog & Firmware prüfen \\
+    Fragmentierte Serial-Daten & USB-CDC Timing & Firmware v2.5.3 mit \texttt{Serial.flush()} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial-Debugging}
+\label{subsec:runbook-serial}
+
+\subsubsection{Port ermitteln (stabil)}
+
+\begin{lstlisting}[style=shell]
+# Stabilen by-id Pfad verwenden (empfohlen)
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+echo "Port: $SERIAL_PORT"
+
+# Port konfigurieren
+stty -F $SERIAL_PORT 115200 raw -echo
+
+# Daten empfangen (Ctrl+C zum Beenden)
+cat $SERIAL_PORT
+
+# Erwartete Ausgabe bei Tastendruck:
+# PRESS 001
+# RELEASE 001
+\end{lstlisting}
+
+\subsubsection{Befehle senden}
+
+\begin{lstlisting}[style=shell]
+echo "PING" > $SERIAL_PORT      # -> PONG
+echo "STATUS" > $SERIAL_PORT    # -> active=N leds=0xNN
+echo "VERSION" > $SERIAL_PORT   # -> FW SelectionPanel v2.5.3
+echo "LEDSET 001" > $SERIAL_PORT  # LED 1 ein
+echo "LEDCLR" > $SERIAL_PORT    # Alle LEDs aus
+\end{lstlisting}
+
+\subsubsection{STATUS-Ausgabe (v2.5.3)}
+
+\begin{lstlisting}[style=shell,numbers=none]
+STATUS active=5 leds=0x10
+LEDS 0000100000      <- Bit-Vektor (MSB links)
+BTNS 1111111111      <- Active-Low: 1 = losgelassen
+\end{lstlisting}
+
+\subsubsection{Häufige Serial-Probleme}
+
+\begin{table}[H]
+  \centering
+  \caption{Serial-Probleme}
+  \label{tab:runbook-serial-probleme}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Symptom} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    \texttt{Permission denied} & Fehlende Rechte & \texttt{sudo usermod -aG dialout \$USER} → Neu einloggen \\
+    \texttt{Device busy} & Port belegt & \texttt{sudo fuser /dev/ttyACM0} → Prozess beenden \\
+    Fragmentierte Daten & USB-CDC & Firmware v2.5.3 verwenden \\
+    Keine Daten & Falscher Port & \texttt{ls /dev/serial/by-id/usb-Espressif*} prüfen \\
+    Port ändert sich & Instabiler Pfad & by-id Pfad verwenden \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Browser-Debugging}
+\label{subsec:runbook-browser}
+
+\subsubsection{Kein Ton}
+
+\begin{enumerate}
+  \item \glqq Sound aktivieren\grqq-Button klicken (Autoplay-Sperre)
+  \item Warten: \glqq Lade Medien... 5/10\grqq{} → \glqq Warte auf Tastendruck...\grqq
+  \item Audio-Status muss \textbf{grün} werden
+  \item DevTools → Console auf Fehler prüfen
+\end{enumerate}
+
+\begin{infobox}[iOS/Safari]
+  Falls Unlock fehlschlägt, Safari komplett schließen und neu öffnen. Dashboard v2.5.1 verwendet AudioContext API mit Preloading.
+\end{infobox}
+
+\subsubsection{Debug-Panel}
+
+Button unten rechts oder \texttt{Ctrl+D}:
+
+\begin{lstlisting}[style=shell,numbers=none]
+Preloading 10 Medien...
+Preload abgeschlossen: 10/10 OK (1823ms)
+RX: {"type": "play", "id": 5}
+Bild aus Cache: 005 (instant)
+Audio aus Cache gestartet: 005 (12ms)
+Audio beendet: 5
+TX: {"type":"ended","id":5}
+\end{lstlisting}
+
+\subsubsection{Shortcuts}
+
+\begin{table}[H]
+  \centering
+  \caption{Dashboard-Shortcuts}
+  \label{tab:runbook-shortcuts}
+  \begin{tabularx}{0.4\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Taste} & \textbf{Funktion} \\
+    \midrule
+    \texttt{Space} & Play/Pause \\
+    \texttt{Ctrl+D} & Debug-Panel \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Server-Debugging}
+\label{subsec:runbook-server}
+
+\begin{lstlisting}[style=shell]
+# Logs live
+journalctl -u selection-panel -f
+
+# Letzte 10 Minuten
+journalctl -u selection-panel --since "10 min ago"
+
+# Service-Status
+sudo systemctl status selection-panel
+
+# Server manuell starten (fuer Debugging)
+cd ~/selection-panel
+source venv/bin/activate
+python server.py
+\end{lstlisting}
+
+\subsubsection{Häufige Server-Probleme}
+
+\begin{table}[H]
+  \centering
+  \caption{Server-Probleme}
+  \label{tab:runbook-server-probleme}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Symptom} & \textbf{Ursache} & \textbf{Lösung} \\
+    \midrule
+    \glqq Serial verbinde...\grqq{} hängt & Port belegt & \texttt{sudo fuser /dev/ttyACM0} \\
+    Taster nicht erkannt & Serial-Fragment & Parser prüfen, Firmware v2.5.3 \\
+    Medien fehlen & Falscher Pfad & \texttt{ls media/} (001.jpg - 010.jpg) \\
+    WebSocket-Fehler & Client-Absturz & Browser neu laden \\
+    Health 503 & Serial getrennt & ESP32 Verbindung prüfen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{End-to-End Tests}
+\label{subsec:runbook-e2e}
+
+\subsubsection{Latenz-Test}
+
+\begin{enumerate}
+  \item Button drücken
+  \item \textbf{LED-Reaktion:} < \SI{1}{\milli\second} (lokal auf ESP32)
+  \item \textbf{Dashboard-Wiedergabe:} < \SI{50}{\milli\second} (aus Cache)
+  \item \textbf{Gesamt:} < \SI{70}{\milli\second}
+\end{enumerate}
+
+\subsubsection{Preempt-Test}
+
+\begin{enumerate}
+  \item Button 5 drücken → LED 5 an, Audio läuft
+  \item Nach 1 s: Button 3 drücken
+  \item \textbf{Erwartet:} Audio 5 stoppt sofort, LED 3 an, Audio 3 läuft
+\end{enumerate}
+
+\subsubsection{One-hot Test}
+
+\begin{lstlisting}[style=shell]
+curl http://rover:8080/test/play/5
+curl http://rover:8080/test/play/3
+# Erwartet: Nur LED 3 leuchtet
+\end{lstlisting}
+
+\subsubsection{Ende-Test}
+
+\begin{enumerate}
+  \item Audio abspielen lassen
+  \item Warten bis Ende
+  \item \textbf{Erwartet:} Alle LEDs aus
+\end{enumerate}
+
+\subsubsection{Race-Condition Test}
+
+\begin{enumerate}
+  \item Button 3 drücken, Audio läuft
+  \item Kurz vor Ende: Button 5 drücken
+  \item Audio 3 endet
+  \item \textbf{Erwartet:} LED 5 bleibt an (nicht aus!)
+\end{enumerate}
+
+\subsubsection{Stresstest}
+
+\begin{lstlisting}[style=shell]
+for i in {1..200}; do
+    curl -s "http://rover:8080/test/play/$((RANDOM % 10 + 1))"
+    sleep 0.2
+done
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Deployment-Checkliste}
+\label{subsec:runbook-deployment}
+
+\subsubsection{Hardware}
+
+\begin{itemize}
+  \item[$\square$] ESP32 mit Firmware v2.5.3 geflasht
+  \item[$\square$] 10 Taster verdrahtet und funktionsfähig
+  \item[$\square$] 10 LEDs verdrahtet und funktionsfähig
+  \item[$\square$] USB-Kabel ESP32 ↔ Pi verbunden (Daten, nicht nur Laden!)
+\end{itemize}
+
+\subsubsection{Software}
+
+\begin{itemize}
+  \item[$\square$] Repository auf Pi geklont
+  \item[$\square$] venv erstellt: \texttt{python3 -m venv venv}
+  \item[$\square$] Pakete installiert: \texttt{pip install aiohttp}
+  \item[$\square$] server.py vorhanden (v2.5.3)
+\end{itemize}
+
+\subsubsection{Medien}
+
+\begin{itemize}
+  \item[$\square$] 10 Bilder: \texttt{media/001.jpg} - \texttt{media/010.jpg}
+  \item[$\square$] 10 Audio: \texttt{media/001.mp3} - \texttt{media/010.mp3}
+\end{itemize}
+
+\subsubsection{Tests}
+
+\begin{itemize}
+  \item[$\square$] Serial-Test: \texttt{cat /dev/serial/by-id/usb-Espressif*} zeigt PRESS/RELEASE
+  \item[$\square$] Server startet ohne Fehler
+  \item[$\square$] Dashboard öffnet sich
+  \item[$\square$] \glqq Sound aktivieren\grqq{} funktioniert
+  \item[$\square$] Preload abgeschlossen (\glqq 10/10 OK\grqq)
+  \item[$\square$] Alle 10 Taster erkannt
+  \item[$\square$] Zuordnung Taster → Medien korrekt
+  \item[$\square$] LED-Reaktion < \SI{1}{\milli\second} ✓
+  \item[$\square$] Dashboard-Latenz < \SI{50}{\milli\second} ✓
+  \item[$\square$] Preempt-Test bestanden
+\end{itemize}
+
+\subsubsection{Autostart (optional)}
+
+\begin{itemize}
+  \item[$\square$] systemd-Service kopiert
+  \item[$\square$] Service aktiviert: \texttt{sudo systemctl enable selection-panel}
+  \item[$\square$] Reboot-Test bestanden
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Nützliche Einzeiler}
+\label{subsec:runbook-einzeiler}
+
+\begin{lstlisting}[style=shell]
+# Medien zaehlen
+ls ~/selection-panel/media/*.jpg 2>/dev/null | wc -l
+ls ~/selection-panel/media/*.mp3 2>/dev/null | wc -l
+
+# Service-Status
+systemctl is-active selection-panel
+
+# Health-Check
+curl -s http://rover:8080/health | jq -r '.status'
+
+# Port-Nutzung pruefen
+sudo fuser /dev/ttyACM0
+
+# USB-Geraete
+lsusb | grep -i espressif
+
+# Serial-Port finden (stabil)
+ls /dev/serial/by-id/usb-Espressif*
+
+# Firewall oeffnen (falls noetig)
+sudo ufw allow 8080/tcp
+
+# Server-Version
+grep -m1 "VERSION" ~/selection-panel/server.py
+
+# Firmware-Version (ueber Serial)
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* | head -1)
+echo "VERSION" > $SERIAL_PORT && sleep 0.5 && cat $SERIAL_PORT
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Bekannte Probleme und Lösungen}
+\label{subsec:runbook-bekannt}
+
+\begin{table}[H]
+  \centering
+  \caption{Bekannte Probleme}
+  \label{tab:runbook-bekannt}
+  \begin{tabularx}{\textwidth}{@{}X c l@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Status} & \textbf{Lösung} \\
+    \midrule
+    iOS Audio-Unlock fehlgeschlagen & ✓ & Dashboard v2.5.1 mit AudioContext API \\
+    ESP32-S3 USB-CDC fragmentiert & ✓ & Firmware v2.5.3 mit \texttt{Serial.flush()} \\
+    pyserial funktioniert nicht & ✓ & Server v2.5.3 mit \texttt{os.open} \\
+    CD4021B First-Bit-Problem & ✓ & First-Bit-Rescue in Firmware \\
+    CD4021B Timing & ✓ & \SI{2}{\micro\second} Load-Pulse \\
+    0-basiert vs 1-basiert & ✓ & Durchgängig 1-basiert \\
+    LED-Latenz durch Roundtrip & ✓ & Firmware v2.5.3 (lokal < \SI{1}{\milli\second}) \\
+    Dashboard-Latenz & ✓ & Dashboard v2.5.1 (Preload < \SI{50}{\milli\second}) \\
+    Serial-Pfad instabil & ✓ & by-id Pfad verwenden \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

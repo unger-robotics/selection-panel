@@ -1,0 +1,462 @@
+% =============================================================================
+% COMMANDS.tex – Entwickler-Referenz für Befehle und Diagnose
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Befehlsreferenz}
+\label{sec:commands}
+
+Diese Referenz fasst alle wichtigen Befehle für Deployment, Build, Test und Diagnose zusammen. Wir beginnen mit einer Schnellreferenz und gehen dann ins Detail.
+
+% -----------------------------------------------------------------------------
+\subsection{Schnellreferenz}
+\label{subsec:cmd-schnellreferenz}
+
+\begin{table}[H]
+  \centering
+  \caption{Wichtigste Befehle auf einen Blick}
+  \label{tab:cmd-schnellreferenz}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Aktion} & \textbf{Befehl} \\
+    \midrule
+    Server starten & \texttt{python server.py} \\
+    Dashboard öffnen & \texttt{http://rover:8080/} \\
+    Status abfragen & \texttt{curl http://rover:8080/status | jq} \\
+    Health-Check & \texttt{curl http://rover:8080/health} \\
+    Test-Play & \texttt{curl http://rover:8080/test/play/5} \\
+    Serial-Monitor & \texttt{cat /dev/serial/by-id/usb-Espressif*} \\
+    Firmware flashen & \texttt{pio run -t upload} \\
+    Service Status & \texttt{sudo systemctl status selection-panel} \\
+    Service Logs & \texttt{journalctl -u selection-panel -f} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Server starten}
+\label{subsec:cmd-server}
+
+\begin{infobox}[URL-Hinweis]
+  \texttt{rover} funktioniert auf allen Geräten (Mac, iPhone, iPad) dank mDNS. Alternative: IP-Adresse direkt verwenden (\texttt{http://192.168.1.24:8080/}).
+\end{infobox}
+
+\begin{lstlisting}[style=shell]
+# Auf dem Pi
+ssh rover
+cd ~/selection-panel
+source venv/bin/activate
+python server.py
+\end{lstlisting}
+
+\textbf{Erwartete Ausgabe:}
+
+\begin{lstlisting}[style=shell,numbers=none]
+==================================================
+Auswahlpanel Server v2.5.2 (PROTOTYPE)
+==================================================
+Medien: 10 erwartet (IDs: 001-010)
+Serial: /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_...
+HTTP:   http://0.0.0.0:8080/
+ESP32 lokale LED: aktiviert
+==================================================
+Serial verbunden
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial direkt testen}
+\label{subsec:cmd-serial}
+
+\subsubsection{Serial-Port finden}
+
+\begin{lstlisting}[style=shell]
+# Stabiler Pfad (empfohlen)
+ls -la /dev/serial/by-id/usb-Espressif*
+
+# Fallback
+ls -la /dev/ttyACM*
+\end{lstlisting}
+
+\subsubsection{Empfangen (ohne Server)}
+
+\begin{lstlisting}[style=shell]
+# Port konfigurieren (by-id Pfad verwenden)
+SERIAL_PORT=$(ls /dev/serial/by-id/usb-Espressif* 2>/dev/null | head -1)
+stty -F $SERIAL_PORT 115200 raw -echo
+
+# Serial-Monitor (Ctrl+C zum Beenden)
+cat $SERIAL_PORT
+\end{lstlisting}
+
+\subsubsection{Befehle senden}
+
+\begin{lstlisting}[style=shell]
+# Verbindungstest
+echo "PING" > $SERIAL_PORT
+echo "STATUS" > $SERIAL_PORT
+echo "VERSION" > $SERIAL_PORT
+echo "HELP" > $SERIAL_PORT
+\end{lstlisting}
+
+\subsubsection{LED-Befehle (1-basiert!)}
+
+\begin{lstlisting}[style=shell]
+# Einzelne LED (one-hot)
+echo "LEDSET 001" > $SERIAL_PORT   # LED 1 ein
+echo "LEDSET 005" > $SERIAL_PORT   # LED 5 ein
+echo "LEDSET 010" > $SERIAL_PORT   # LED 10 ein
+
+# Additiv
+echo "LEDON 001" > $SERIAL_PORT    # LED 1 ein (additiv)
+echo "LEDON 002" > $SERIAL_PORT    # LED 2 ein (additiv)
+echo "LEDOFF 001" > $SERIAL_PORT   # LED 1 aus
+
+# Alle LEDs
+echo "LEDALL" > $SERIAL_PORT       # Alle ein
+echo "LEDCLR" > $SERIAL_PORT       # Alle aus
+
+# LED-Test (Lauflicht)
+echo "TEST" > $SERIAL_PORT
+echo "STOP" > $SERIAL_PORT         # Test stoppen
+\end{lstlisting}
+
+\subsubsection{Diagnose-Befehle}
+
+\begin{lstlisting}[style=shell]
+# Status zeigt CURLED (aktuelle LED)
+echo "STATUS" > $SERIAL_PORT
+# Ausgabe:
+# LEDS 0000100000
+# CURLED 5          <-- Aktuelle LED (1-basiert)
+# BTNS 0000000000
+# HEAP 372756
+# QOVFL 0
+# MODE PROTOTYPE
+\end{lstlisting}
+
+\subsubsection{Screen (interaktiv)}
+
+\begin{lstlisting}[style=shell]
+screen $SERIAL_PORT 115200
+\end{lstlisting}
+
+\begin{tipbox}[Screen beenden]
+  \texttt{Ctrl+A}, dann \texttt{K}, dann \texttt{Y}
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{HTTP-Endpoints}
+\label{subsec:cmd-http}
+
+\begin{lstlisting}[style=shell]
+# Status (JSON)
+curl http://rover:8080/status | jq
+
+# Health-Check (200 = healthy, 503 = degraded)
+curl -w "%{http_code}" http://rover:8080/health
+
+# Tastendruck simulieren (1-basiert!)
+curl http://rover:8080/test/play/1
+curl http://rover:8080/test/play/5
+curl http://rover:8080/test/play/10
+
+# Wiedergabe stoppen
+curl http://rover:8080/test/stop
+\end{lstlisting}
+
+\subsubsection{Status-Response (v2.5.2)}
+
+\begin{lstlisting}[style=json,caption={Beispiel-Antwort von /status}]
+{
+  "version": "2.5.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 5,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "serial_port": "/dev/serial/by-id/usb-Espressif_USB_JTAG_...",
+  "media_missing": 0,
+  "missing_files": [],
+  "esp32_local_led": true
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Deployment (Mac → Pi)}
+\label{subsec:cmd-deployment}
+
+\subsubsection{Mit rsync}
+
+\begin{lstlisting}[style=shell]
+cd ~/selection-panel
+
+rsync -avz --delete \
+    --exclude='firmware' \
+    --exclude='hardwaretest_firmware' \
+    --exclude='venv' \
+    --exclude='.git' \
+    --exclude='__pycache__' \
+    . pi@rover:/home/pi/selection-panel/
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{rsync-Flags}
+  \label{tab:cmd-rsync}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Flag} & \textbf{Bedeutung} \\
+    \midrule
+    \texttt{-a} & Archiv-Modus (Rechte, Zeiten erhalten) \\
+    \texttt{-v} & Verbose (zeigt Dateien) \\
+    \texttt{-z} & Komprimiert Übertragung \\
+    \texttt{--delete} & Löscht Dateien auf Ziel, die lokal fehlen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Mit Git (empfohlen)}
+
+\begin{lstlisting}[style=shell]
+# Auf dem Mac
+git add -A && git commit -m "..." && git push
+
+# Auf dem Pi
+ssh rover "cd ~/selection-panel && git pull && sudo systemctl restart selection-panel"
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Server-Steuerung (systemd)}
+\label{subsec:cmd-systemd}
+
+\begin{lstlisting}[style=shell]
+# Starten
+sudo systemctl start selection-panel
+
+# Stoppen
+sudo systemctl stop selection-panel
+
+# Neu starten
+sudo systemctl restart selection-panel
+
+# Status pruefen
+sudo systemctl status selection-panel
+
+# Autostart aktivieren/deaktivieren
+sudo systemctl enable selection-panel
+sudo systemctl disable selection-panel
+\end{lstlisting}
+
+\subsubsection{Logs (journalctl)}
+
+\begin{lstlisting}[style=shell]
+# Live-Logs
+journalctl -u selection-panel -f
+
+# Letzte 50 Zeilen
+journalctl -u selection-panel -n 50
+
+# Letzte Stunde
+journalctl -u selection-panel --since "1 hour ago"
+
+# Heute
+journalctl -u selection-panel --since today
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Firmware flashen (Mac)}
+\label{subsec:cmd-firmware}
+
+\begin{lstlisting}[style=shell]
+cd ~/selection-panel/firmware
+
+# Kompilieren
+pio run
+
+# Flashen
+pio run -t upload
+
+# Serial-Monitor (PlatformIO)
+pio device monitor
+
+# Flash + Monitor
+pio run -t upload -t monitor
+
+# Clean Build
+pio run -t clean
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien verwalten}
+\label{subsec:cmd-medien}
+
+\subsubsection{Prüfen (1-basiert: 001–010)}
+
+\begin{lstlisting}[style=shell]
+# Auf dem Pi
+cd ~/selection-panel
+
+# Medien auflisten
+ls -la media/
+
+# Medien-Check
+for i in $(seq -w 1 10); do
+    echo -n "0$i: "
+    [ -f "media/0$i.jpg" ] && echo -n "JPG OK " || echo -n "JPG -- "
+    [ -f "media/0$i.mp3" ] && echo -n "MP3 OK" || echo -n "MP3 --"
+    echo
+done
+
+# Anzahl pruefen
+ls media/*.jpg 2>/dev/null | wc -l
+ls media/*.mp3 2>/dev/null | wc -l
+\end{lstlisting}
+
+\subsubsection{Generieren}
+
+\begin{lstlisting}[style=shell]
+# Test-Medien generieren (auf Mac)
+./scripts/generate_test_media.sh 10    # Prototyp
+./scripts/generate_test_media.sh 100   # Produktion
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Diagnose}
+\label{subsec:cmd-diagnose}
+
+\subsubsection{USB / Serial}
+
+\begin{lstlisting}[style=shell]
+# USB-Geraete
+ls -la /dev/serial/by-id/usb-Espressif*
+lsusb | grep -i espressif
+
+# Wer nutzt den Serial-Port?
+sudo fuser /dev/serial/by-id/usb-Espressif*
+
+# Port freigeben (falls blockiert)
+sudo systemctl stop selection-panel
+sudo systemctl stop microros-agent.service  # falls vorhanden
+\end{lstlisting}
+
+\subsubsection{Netzwerk}
+
+\begin{lstlisting}[style=shell]
+# IP-Adressen
+ip addr | grep 192.168
+hostname -I
+
+# Hostname
+hostname
+\end{lstlisting}
+
+\subsubsection{Python}
+
+\begin{lstlisting}[style=shell]
+# Python-Version
+python3 --version
+
+# Pakete im venv
+~/selection-panel/venv/bin/pip list
+
+# Detailliert
+~/selection-panel/venv/bin/pip freeze
+\end{lstlisting}
+
+\subsubsection{System-Info}
+
+\begin{lstlisting}[style=shell]
+# Pi Hardware-Modell
+cat /proc/device-tree/model
+
+# Pi OS Version
+cat /etc/os-release
+
+# Kernel
+uname -r
+
+# Speicherplatz
+df -h /
+
+# RAM
+free -h
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Schnelltest (Komplettablauf)}
+\label{subsec:cmd-schnelltest}
+
+Der folgende Ablauf testet das gesamte System:
+
+\begin{enumerate}
+  \item \textbf{Server starten} (Terminal 1):
+\begin{lstlisting}[style=shell,numbers=none]
+ssh rover
+cd ~/selection-panel && source venv/bin/activate && python server.py
+\end{lstlisting}
+
+  \item \textbf{Dashboard öffnen} (Mac):
+\begin{lstlisting}[style=shell,numbers=none]
+open http://rover:8080/
+\end{lstlisting}
+
+  \item \textbf{Sound aktivieren:} Button im Browser klicken → Medien werden vorgeladen
+
+  \item \textbf{Alle 10 Taster durchdrücken:}
+    \begin{itemize}
+      \item Jeder Taster sollte Bild + Ton abspielen
+      \item LED leuchtet sofort (< \SI{1}{\milli\second})
+      \item Wiedergabe startet aus Cache (< \SI{50}{\milli\second})
+    \end{itemize}
+
+  \item \textbf{Status prüfen:}
+\begin{lstlisting}[style=shell,numbers=none]
+curl http://rover:8080/status | jq
+\end{lstlisting}
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{Erwartete Ausgaben}
+\label{subsec:cmd-ausgaben}
+
+\subsubsection{Server-Log (erfolgreich)}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Button 1 gedrueckt
+GET /media/001.mp3 HTTP/1.1 206
+Wiedergabe 1 beendet -> LEDs aus
+\end{lstlisting}
+
+\subsubsection{Dashboard Debug-Panel}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Preloading 10 Medien...
+Preload abgeschlossen: 10/10 OK (1823ms)
+RX: {"type": "play", "id": 1}
+Bild aus Cache: 001 (instant)
+Audio aus Cache gestartet: 001 (12ms)
+Audio beendet: 1
+TX: {"type":"ended","id":1}
+\end{lstlisting}
+
+\subsubsection{Serial-Monitor}
+
+\begin{lstlisting}[style=shell,numbers=none]
+PRESS 001
+RELEASE 001
+\end{lstlisting}
+
+\subsubsection{Status-Endpoint}
+
+\begin{lstlisting}[style=json,numbers=none]
+{
+  "version": "2.5.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": null,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "esp32_local_led": true
+}
+\end{lstlisting}

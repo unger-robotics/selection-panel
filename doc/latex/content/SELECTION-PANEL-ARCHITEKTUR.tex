@@ -1,0 +1,354 @@
+% =============================================================================
+% SELECTION-PANEL-ARCHITEKTUR.tex – Architektur-Übersicht
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Architektur-Übersicht}
+\label{sec:architektur}
+
+Das Selection Panel verbindet 10 Taster und 10 LEDs über einen ESP32-S3 mit einem Raspberry Pi 5. Wie arbeiten die Komponenten zusammen? Der Pi übernimmt die Multimedia-Wiedergabe, während der ESP32 die zeitkritische I/O-Verarbeitung in Echtzeit bewältigt.
+
+\begin{table}[H]
+  \centering
+  \caption{Metadaten der Architektur}
+  \label{tab:architektur-meta}
+  \begin{tabularx}{0.6\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Metadaten} & \textbf{Wert} \\
+    \midrule
+    Version & 2.5.2 \\
+    Phase & 7 (Raspberry Pi Integration) \\
+    Stand & 2026-01-08 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Systemkontext}
+\label{subsec:architektur-kontext}
+
+\Cref{fig:systemkontext} zeigt den Gesamtaufbau des Systems. Die Kommunikation zwischen Pi und ESP32 erfolgt über USB-CDC mit \SI{115200}{\baud}.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum width=3cm, minimum height=1cm, align=center},
+    bigbox/.style={draw, rounded corners, minimum width=12cm, minimum height=1.5cm, align=center, fill=InfoBoxBg},
+    arrow/.style={->, >=Stealth, thick}
+  ]
+    % Raspberry Pi
+    \node[bigbox, fill=InfoBoxBg] (pi) at (0,4) {
+      \textbf{Raspberry Pi 5}\\
+      \small Python-Server + Web-Dashboard
+    };
+
+    % Protokoll
+    \node[box, fill=WarnBoxBg] (proto) at (0,2.2) {
+      \small Serial-Protokoll\\
+      \tiny ESP→Pi: READY, PRESS 001\\
+      \tiny Pi→ESP: LEDSET 001, LEDCLR
+    };
+
+    % ESP32
+    \node[bigbox, fill=TipBoxBg] (esp) at (0,0) {
+      \textbf{ESP32-S3 (XIAO)}\\
+      \small FreeRTOS Dual-Core @ \SI{240}{\mega\hertz}
+    };
+
+    % Hardware
+    \node[box] (cd4021) at (-3,-2) {CD4021B\\(PISO)};
+    \node[box] (hc595) at (3,-2) {74HC595\\(SIPO)};
+    \node (taster) at (-3,-3.5) {\small 10× Taster};
+    \node (leds) at (3,-3.5) {\small 10× LEDs};
+
+    % Verbindungen
+    \draw[arrow] (pi) -- node[right, font=\tiny] {USB-CDC} (proto);
+    \draw[arrow] (proto) -- (esp);
+    \draw[arrow] (esp) -- node[left, font=\tiny] {SPI} (cd4021);
+    \draw[arrow] (esp) -- node[right, font=\tiny] {SPI} (hc595);
+    \draw[arrow] (cd4021) -- (taster);
+    \draw[arrow] (hc595) -- (leds);
+  \end{tikzpicture}
+  \caption{Systemkontext des Selection Panels}
+  \label{fig:systemkontext}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Schichtenmodell}
+\label{subsec:architektur-schichten}
+
+Die Firmware folgt einem strikten Schichtenmodell. Jede Schicht kennt nur die darunterliegende – das erleichtert Tests und Wartung erheblich.
+
+\begin{table}[H]
+  \centering
+  \caption{Firmware-Schichten und ihre Verantwortlichkeiten}
+  \label{tab:schichtenmodell}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Schicht} & \textbf{Verzeichnis} & \textbf{Verantwortung} \\
+    \midrule
+    Entry & \filep{main.cpp} & Queue erstellen, Tasks starten \\
+    App & \filep{src/app/} & FreeRTOS Tasks (io\_task, serial\_task) \\
+    Logic & \filep{src/logic/} & Debouncing, Selection-Logik \\
+    Driver & \filep{src/drivers/} & CD4021B, 74HC595 Ansteuerung \\
+    HAL & \filep{src/hal/} & SPI-Bus Abstraktion mit Mutex \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Datenfluss}
+\label{subsec:architektur-datenfluss}
+
+Was passiert, wenn wir einen Taster drücken? Der Datenfluss durchläuft mehrere Stationen:
+
+\begin{enumerate}
+  \item \textbf{Hardware → Driver:} Der CD4021B liest den Tasterzustand per Parallel Load ein
+  \item \textbf{Driver → Logic:} \texttt{readRaw()} liefert ein 2-Byte-Array mit den Rohwerten
+  \item \textbf{Logic (Debouncer):} Filtert Prellen heraus, liefert stabile Zustände
+  \item \textbf{Logic (Selection):} Ermittelt die aktive ID nach „Last Press Wins"
+  \item \textbf{App → Serial:} Ein \texttt{LogEvent} wird in die Queue geschrieben
+  \item \textbf{Serial → Pi:} Die Nachricht \texttt{PRESS 001\textbackslash n} geht über USB
+\end{enumerate}
+
+Parallel dazu aktualisiert die Logic-Schicht das LED-Array, das der 74HC595 ausgibt.
+
+% -----------------------------------------------------------------------------
+\subsection{Timing}
+\label{subsec:architektur-timing}
+
+Die zeitlichen Zusammenhänge verdeutlichen, warum wir mit einem \SI{5}{\milli\second}-Zyklus arbeiten:
+
+\begin{table}[H]
+  \centering
+  \caption{Timing-Parameter des IO-Tasks}
+  \label{tab:timing}
+  \begin{tabularx}{\textwidth}{@{}l r X@{}}
+    \toprule
+    \textbf{Operation} & \textbf{Dauer} & \textbf{Beschreibung} \\
+    \midrule
+    CD4021B Read & $\sim$\SI{20}{\micro\second} & SPI @ \SI{500}{\kilo\hertz} \\
+    74HC595 Write & $\sim$\SI{16}{\micro\second} & SPI @ \SI{1}{\mega\hertz} \\
+    Debounce-Zeit & \SI{30}{\milli\second} & Pro Taster, zeitbasiert \\
+    IO-Periode & \SI{5}{\milli\second} & Abtastrate 200 Hz \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Timing-Budget]
+  Bei \SI{5}{\milli\second} Zykluszeit und $\sim$\SI{40}{\micro\second} SPI-Transferzeit bleiben 99,2\% der CPU-Zeit für andere Tasks. Das System ist nicht annähernd ausgelastet.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Gemeinsamer SPI-Bus}
+\label{subsec:architektur-spi}
+
+CD4021B und 74HC595 teilen sich einen SPI-Bus, verwenden aber unterschiedliche Modi. Der \texttt{SpiGuard} (RAII-Pattern) stellt sicher, dass Transaktionen korrekt beendet werden.
+
+\begin{table}[H]
+  \centering
+  \caption{SPI-Konfiguration der Schieberegister}
+  \label{tab:spi-config}
+  \begin{tabularx}{\textwidth}{@{}l l l l l@{}}
+    \toprule
+    \textbf{Chip} & \textbf{Funktion} & \textbf{SPI-Modus} & \textbf{Takt} & \textbf{Bit-Ordnung} \\
+    \midrule
+    CD4021B & Taster einlesen & MODE1 (CPOL=0, CPHA=1) & \SI{500}{\kilo\hertz} & MSB-first \\
+    74HC595 & LEDs ansteuern & MODE0 (CPOL=0, CPHA=0) & \SI{1}{\mega\hertz} & MSB-first \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{lstlisting}[style=arduino,caption={SpiGuard garantiert saubere Transaktionen}]
+{
+    SpiGuard g(bus, settings);  // lock() + beginTransaction()
+    SPI.transfer(data);
+}  // Automatisch: endTransaction() + unlock()
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Bit-Adressierung}
+\label{subsec:architektur-bitadressierung}
+
+Die Hardware-Verdrahtung bestimmt das Bit-Mapping. Dank korrekter Verkabelung ist die Formel für beide Chips identisch:
+
+\begin{equation}
+  \text{byte}(id) = \lfloor (id - 1) / 8 \rfloor, \quad \text{bit}(id) = (id - 1) \mod 8
+\end{equation}
+
+\subsubsection{CD4021B (Taster)}
+
+BTN 1 liegt an PI-8 (Pin 1), BTN 8 an PI-1 (Pin 7):
+
+\begin{table}[H]
+  \centering
+  \caption{Bit-Mapping der Taster}
+  \label{tab:bit-mapping-btn}
+  \begin{tabularx}{0.8\textwidth}{@{}r l r r X@{}}
+    \toprule
+    \textbf{Taster-ID} & \textbf{CD4021B PI} & \textbf{Byte} & \textbf{Bit} & \textbf{Formel} \\
+    \midrule
+    1 & PI-8 & 0 & 0 & $(1-1) \mod 8 = 0$ \\
+    2 & PI-7 & 0 & 1 & \\
+    8 & PI-1 & 0 & 7 & \\
+    9 & PI-8 & 1 & 0 & \\
+    10 & PI-7 & 1 & 1 & \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{74HC595 (LEDs)}
+
+LED 1 liegt an QA, LED 8 an QH:
+
+\begin{table}[H]
+  \centering
+  \caption{Bit-Mapping der LEDs}
+  \label{tab:bit-mapping-led}
+  \begin{tabularx}{0.8\textwidth}{@{}r l r r X@{}}
+    \toprule
+    \textbf{LED-ID} & \textbf{74HC595 Q} & \textbf{Byte} & \textbf{Bit} & \textbf{Formel} \\
+    \midrule
+    1 & QA & 0 & 0 & $(1-1) \mod 8 = 0$ \\
+    2 & QB & 0 & 1 & \\
+    8 & QH & 0 & 7 & \\
+    9 & QA & 1 & 0 & \\
+    10 & QB & 1 & 1 & \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{lstlisting}[style=arduino,caption={Bit-Operationen in bitops.h}]
+// Identische Formel fuer beide Chips dank korrekter Verdrahtung
+static inline uint8_t btn_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t btn_bit(uint8_t id)  { return (id - 1) % 8; }
+
+static inline uint8_t led_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t led_bit(uint8_t id)  { return (id - 1) % 8; }
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{First-Bit-Problem (CD4021B)}
+\label{subsec:architektur-firstbit}
+
+Nach dem Parallel-Load liegt PI-1 (das MSB, also BTN 8) sofort am Q8-Ausgang – bevor der erste Clock kommt. SPI samplet aber erst nach der ersten Flanke. Das erste Bit geht verloren!
+
+Die Lösung: Wir lesen das erste Bit vor dem SPI-Transfer per \texttt{digitalRead()} und setzen es anschließend ein:
+
+\begin{lstlisting}[style=arduino,caption={First-Bit-Rescue im CD4021B-Treiber}]
+void Cd4021::readRaw(SpiBus& bus, uint8_t* out) {
+    // 1. Parallel Load
+    digitalWrite(PIN_BTN_PS, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_BTN_PS, LOW);
+    delayMicroseconds(2);
+
+    // 2. First Bit Rescue: PI-1 liegt bereits an Q8!
+    uint8_t firstBit = digitalRead(PIN_BTN_MISO);
+
+    // 3. SPI Transfer (restliche Bits)
+    SpiGuard g(bus, spi_);
+    SPI.transfer(out, BTN_BYTES);
+
+    // 4. First Bit einsetzen (MSB von Byte 0)
+    out[0] = (out[0] >> 1) | (firstBit << 7);
+}
+\end{lstlisting}
+
+\begin{warnbox}[Timing beachten]
+  Der Load-Puls muss mindestens \SI{2}{\micro\second} dauern (CMOS-Anforderung). Zwischen Load und Read darf keine zu lange Pause liegen, sonst driftet der Zustand.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Zeitbasiertes Debouncing}
+\label{subsec:architektur-debouncing}
+
+Mechanische Taster prellen – ein einzelner Druck erzeugt mehrere Flanken. Unser Debouncer arbeitet zeitbasiert: Jeder Taster hat einen eigenen Timer. Bei Änderung des Rohwerts wird der Timer zurückgesetzt. Erst wenn der Timer \SI{30}{\milli\second} abgelaufen ist und der Rohwert stabil bleibt, wird der entprellte Zustand übernommen.
+
+\begin{tipbox}[Vorteile des zeitbasierten Ansatzes]
+  Diese Methode ist unabhängig von der Abtastrate und erlaubt schnelle Tastenfolgen. Ein Counter-basierter Ansatz würde bei höherer Abtastrate längere Entprellzeiten erzeugen.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Selection-Logik}
+\label{subsec:architektur-selection}
+
+Die Selection-Logik folgt dem \textbf{Last Press Wins}-Prinzip: Wird ein neuer Taster gedrückt, überschreibt er die vorherige Auswahl sofort. Mit \texttt{LATCH\_SELECTION=true} bleibt die Auswahl nach Loslassen bestehen – die LED leuchtet weiter, bis ein neuer Taster gedrückt wird oder das Audio endet.
+
+% -----------------------------------------------------------------------------
+\subsection{Konfigurationsparameter}
+\label{subsec:architektur-config}
+
+Die wichtigsten Parameter finden sich in \filep{config.h}:
+
+\begin{table}[H]
+  \centering
+  \caption{Konfigurationsparameter der Firmware}
+  \label{tab:config-params}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Parameter} & \textbf{Wert} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{IO\_PERIOD\_MS} & 5 & Abtastrate des IO-Tasks (200 Hz) \\
+    \texttt{DEBOUNCE\_MS} & 30 & Entprellzeit pro Taster \\
+    \texttt{LATCH\_SELECTION} & true & Auswahl bleibt nach Loslassen \\
+    \texttt{PWM\_DUTY\_PERCENT} & 50 & LED-Helligkeit (0–100\%) \\
+    \texttt{LED\_REFRESH\_EVERY\_CYCLE} & true & Kompensiert SPI-Glitches \\
+    \texttt{SERIAL\_PROTOCOL\_ONLY} & true & Nur Protokoll, keine Debug-Logs \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Pin-Zuordnung}
+\label{subsec:architektur-pins}
+
+\begin{table}[H]
+  \centering
+  \caption{Pin-Zuordnung ESP32-S3 XIAO}
+  \label{tab:pin-zuordnung}
+  \begin{tabularx}{\textwidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{Pin} & \textbf{Funktion} & \textbf{Chip} & \textbf{Signal} \\
+    \midrule
+    \pin{D10} & MOSI & 74HC595 & SER (Data In) \\
+    \pin{D8} & SCK & Beide & SRCLK / CLK (shared) \\
+    \pin{D0} & RCK & 74HC595 & RCLK (Latch) \\
+    \pin{D2} & OE & 74HC595 & Output Enable (PWM) \\
+    \pin{D9} & MISO & CD4021B & Q8 (Data Out) \\
+    \pin{D1} & P/S & CD4021B & Parallel/Serial Load \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Skalierung auf 100 Buttons}
+\label{subsec:architektur-skalierung}
+
+Die Architektur ist für 100 Taster/LEDs vorbereitet. Was müssen wir ändern?
+
+\begin{enumerate}
+  \item \texttt{BTN\_COUNT} und \texttt{LED\_COUNT} auf 100 setzen
+  \item \texttt{BTN\_BYTES} und \texttt{LED\_BYTES} werden automatisch auf 13 berechnet
+  \item Zusätzliche Schieberegister in Daisy-Chain verkabeln
+  \item Die Logic-Schicht skaliert automatisch (Bit-Arrays)
+\end{enumerate}
+
+\begin{table}[H]
+  \centering
+  \caption{Skalierungsverhalten der SPI-Transfers}
+  \label{tab:skalierung-spi}
+  \begin{tabularx}{0.8\textwidth}{@{}l r r@{}}
+    \toprule
+    \textbf{Konfiguration} & \textbf{SPI-Transferzeit} & \textbf{Budget (\SI{5}{\milli\second})} \\
+    \midrule
+    10 Buttons & $\sim$\SI{40}{\micro\second} & 0,8\% \\
+    100 Buttons & $\sim$\SI{320}{\micro\second} & 6,4\% \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Reichlich Reserven]
+  Selbst mit 100 Tastern bleiben über 93\% des Timing-Budgets frei. Die Architektur ist nicht der limitierende Faktor – die Hardware-Verdrahtung und das Löten von 100 Tastern sind die eigentliche Herausforderung.
+\end{infobox}

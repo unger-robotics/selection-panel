@@ -1,0 +1,338 @@
+% =============================================================================
+% ROADMAP.tex – Implementierungsplan
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Roadmap – Implementierungsplan}
+\label{sec:roadmap}
+
+Phasen und Status. Details: siehe \Cref{sec:spec}, Tests: siehe \Cref{sec:runbook}.
+
+\begin{table}[H]
+  \centering
+  \caption{Roadmap-Metadaten}
+  \label{tab:roadmap-meta}
+  \begin{tabularx}{0.4\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Metadaten} & \textbf{Wert} \\
+    \midrule
+    Stand & 2026-01-08 \\
+    Version & 2.5.2 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Übersicht}
+\label{subsec:roadmap-uebersicht}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Phase 1: Infrastruktur        [x]
+Phase 2: Hardware-Prototyp    [x]
+Phase 3: ESP32 Firmware       [x]
+Phase 4: Raspberry Pi Server  [x]
+Phase 5: Web-Dashboard        [x]
+Phase 6: Integration & Test   [x] Prototyp (10x)
+Phase 7: Pi-Integration       [x] Serial + WebSocket
+Phase 8: Skalierung (100x)    <-- naechste Phase
+Phase 9: Produktivbetrieb     [ ]
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Phase 1–5: Abgeschlossen}
+\label{subsec:roadmap-phase1-5}
+
+\begin{table}[H]
+  \centering
+  \caption{Meilensteine Phase 1–5}
+  \label{tab:roadmap-phase1-5}
+  \begin{tabularx}{0.7\textwidth}{@{}c l c@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Meilenstein} & \textbf{Status} \\
+    \midrule
+    1 & Toolchain funktioniert & ✓ \\
+    2 & Taster → LED reagiert & ✓ \\
+    3 & \texttt{PRESS} → \texttt{LEDSET} funktioniert & ✓ \\
+    4 & WebSocket-Verbindung steht & ✓ \\
+    5 & Browser zeigt Bild + Audio & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Phase 6: Integration (Prototyp)}
+\label{subsec:roadmap-phase6}
+
+\subsubsection{Hardware Prototyp}
+
+\begin{table}[H]
+  \centering
+  \caption{Hardware-Aufgaben Phase 6}
+  \label{tab:roadmap-hw-phase6}
+  \begin{tabularx}{0.6\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    2× CD4021B kaskadiert & ✓ \\
+    2× 74HC595 kaskadiert & ✓ \\
+    10 Taster verdrahtet & ✓ \\
+    10 LEDs verdrahtet & ✓ \\
+    Bit-Mapping implementiert & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Software}
+
+\begin{table}[H]
+  \centering
+  \caption{Software-Aufgaben Phase 6}
+  \label{tab:roadmap-sw-phase6}
+  \begin{tabularx}{0.7\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    Firmware v2.5.2 (FreeRTOS, Hardware-SPI) & ✓ \\
+    Server v2.5.2 (asyncio, by-id Pfad) & ✓ \\
+    Dashboard v2.5.1 (Preloading) & ✓ \\
+    1-basierte Nummerierung & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Tests}
+
+\begin{table}[H]
+  \centering
+  \caption{Tests Phase 6}
+  \label{tab:roadmap-tests-phase6}
+  \begin{tabularx}{0.6\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Test} & \textbf{Status} \\
+    \midrule
+    Alle 10 Taster erkannt & ✓ \\
+    Zuordnung Taster → Medien & ✓ \\
+    Preempt (curl) & ✓ \\
+    Ende → LEDCLR & ✓ \\
+    WebSocket Broadcast & ✓ \\
+    LED-Latenz < \SI{1}{\milli\second} & ✓ \\
+    Dashboard-Latenz < \SI{50}{\milli\second} & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Meilenstein M6:} ✓ Prototyp mit 10 Tastern voll funktionsfähig.
+
+% -----------------------------------------------------------------------------
+\subsection{Phase 7: Pi-Integration}
+\label{subsec:roadmap-phase7}
+
+\subsubsection{Architektur}
+
+\begin{table}[H]
+  \centering
+  \caption{Architektur-Aufgaben Phase 7}
+  \label{tab:roadmap-arch-phase7}
+  \begin{tabularx}{0.7\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    ESP32 als reiner I/O-Controller & ✓ \\
+    Pi als Anwendungslogik-Host & ✓ \\
+    Serial-Protokoll dokumentiert & ✓ \\
+    WebSocket-Protokoll dokumentiert & ✓ \\
+    by-id Serial-Pfad (stabil) & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Firmware}
+
+\begin{table}[H]
+  \centering
+  \caption{Firmware-Aufgaben Phase 7}
+  \label{tab:roadmap-fw-phase7}
+  \begin{tabularx}{0.7\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    FreeRTOS Dual-Core & ✓ \\
+    Hardware-SPI (shared Bus) & ✓ \\
+    First-Bit-Rescue (CD4021B) & ✓ \\
+    SPI-Modi dokumentiert & ✓ \\
+    Zeitbasiertes Debouncing & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Server}
+
+\begin{table}[H]
+  \centering
+  \caption{Server-Aufgaben Phase 7}
+  \label{tab:roadmap-server-phase7}
+  \begin{tabularx}{0.6\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    aiohttp WebSocket & ✓ \\
+    Serial-Thread mit asyncio Bridge & ✓ \\
+    Medien-Validierung & ✓ \\
+    Health-Check Endpoint & ✓ \\
+    systemd-Service & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Meilenstein M7:} ✓ Pi-Integration mit Serial + WebSocket funktionsfähig.
+
+% -----------------------------------------------------------------------------
+\subsection{Phase 8: Skalierung (100×)}
+\label{subsec:roadmap-phase8}
+
+\begin{warnbox}[Nächste Phase]
+  Phase 8 ist die nächste geplante Entwicklungsphase.
+\end{warnbox}
+
+\subsubsection{Hardware}
+
+\begin{table}[H]
+  \centering
+  \caption{Hardware-Aufgaben Phase 8}
+  \label{tab:roadmap-hw-phase8}
+  \begin{tabularx}{0.6\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    13× CD4021B kaskadieren & ◯ \\
+    13× 74HC595 kaskadieren & ◯ \\
+    100 Taster verdrahten & ◯ \\
+    100 LEDs verdrahten & ◯ \\
+    PCB-Design (KiCad) & ◯ \\
+    Lineare Verdrahtung & ◯ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Software}
+
+\begin{table}[H]
+  \centering
+  \caption{Software-Aufgaben Phase 8}
+  \label{tab:roadmap-sw-phase8}
+  \begin{tabularx}{0.7\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    \texttt{PROTOTYPE\_MODE = False} & ◯ \\
+    \texttt{BTN\_COUNT = 100}, \texttt{LED\_COUNT = 100} & ◯ \\
+    100 Medien-Sets & ◯ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Meilenstein M8:} System mit 100 Tastern funktionsfähig.
+
+% -----------------------------------------------------------------------------
+\subsection{Phase 9: Produktivbetrieb}
+\label{subsec:roadmap-phase9}
+
+\begin{table}[H]
+  \centering
+  \caption{Aufgaben Phase 9}
+  \label{tab:roadmap-phase9}
+  \begin{tabularx}{0.6\textwidth}{@{}X c@{}}
+    \toprule
+    \textbf{Aufgabe} & \textbf{Status} \\
+    \midrule
+    systemd-Service aktiviert & ◯ \\
+    Reboot-Test & ◯ \\
+    Dauertest & ◯ \\
+    Gehäuse & ◯ \\
+    Dokumentation finalisiert & ◯ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Meilenstein M9:} System läuft produktiv.
+
+% -----------------------------------------------------------------------------
+\subsection{Gelöste Probleme}
+\label{subsec:roadmap-geloest}
+
+\begin{table}[H]
+  \centering
+  \caption{Gelöste Probleme}
+  \label{tab:roadmap-geloest}
+  \begin{tabularx}{\textwidth}{@{}l X l@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Lösung} & \textbf{Version} \\
+    \midrule
+    LED-Latenz durch Roundtrip & ESP32 setzt LED lokal (< \SI{1}{\milli\second}) & FW 2.5.2 \\
+    Dashboard-Latenz & Medien-Preloading + Cache & Dashboard 2.5.1 \\
+    Sequentielle Server-Aktionen & \texttt{asyncio.gather()} für Parallelität & Server 2.5.2 \\
+    iOS Audio-Unlock fehlgeschlagen & AudioContext API + Fallback & Dashboard 2.5.1 \\
+    ESP32-S3 USB-CDC fragmentiert & \texttt{Serial.flush()} nach jedem Event & FW 2.5.2 \\
+    pyserial funktioniert nicht & \texttt{os.open} + \texttt{stty} statt pyserial & Server 2.5.2 \\
+    CD4021B First-Bit-Problem & \texttt{digitalRead()} vor SPI & FW 2.5.2 \\
+    CD4021B Timing-Probleme & Längere Load-Pulse (\SI{2}{\micro\second}) & FW 2.5.2 \\
+    Serial-Pfad instabil & by-id Pfad verwenden & Server 2.5.2 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Zeitschätzung}
+\label{subsec:roadmap-zeit}
+
+\begin{table}[H]
+  \centering
+  \caption{Zeitschätzung nach Phasen}
+  \label{tab:roadmap-zeit}
+  \begin{tabularx}{0.5\textwidth}{@{}c c c@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Aufwand} & \textbf{Status} \\
+    \midrule
+    1–5 & 6–9 Tage & ✓ \\
+    6 & 3–4 Tage & ✓ \\
+    7 & 2–3 Tage & ✓ \\
+    8 & 2–3 Tage & ◯ \\
+    9 & 0,5 Tage & ◯ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Nächste Schritte}
+\label{subsec:roadmap-naechste}
+
+\begin{enumerate}
+  \item[$\square$] Schaltplan (KiCad)
+  \item[$\square$] Lineare Verdrahtung (kein Bit-Mapping nötig)
+  \item[$\square$] 100 Medien-Sets erstellen
+  \item[$\square$] End-to-End Tests (100×)
+  \item[$\square$] Gehäuse-Design
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{Versionen}
+\label{subsec:roadmap-versionen}
+
+\begin{table}[H]
+  \centering
+  \caption{Versionsübersicht}
+  \label{tab:roadmap-versionen}
+  \begin{tabularx}{0.7\textwidth}{@{}l c c@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Prototyp (aktuell)} & \textbf{Produktion (geplant)} \\
+    \midrule
+    Firmware & 2.5.2 & 3.0.0 \\
+    Server & 2.5.2 & 3.0.0 \\
+    Dashboard & 2.5.1 & 3.0.0 \\
+    Hardware & 2× ICs & 26× ICs \\
+    Taster & 10 & 100 \\
+    Medien & 001–010 & 001–100 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

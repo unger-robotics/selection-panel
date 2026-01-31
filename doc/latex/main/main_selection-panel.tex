@@ -1,0 +1,194 @@
+% =============================================================================
+% main.tex – Interaktives Auswahlpanel Dokumentation
+% =============================================================================
+% SSOT-Prinzip: Keine Redundanzen, alle Kapitel referenzieren SPEC
+% Farbschema: Arduino Teal + Raspberry Pi Red + GitHub Dark
+% Konsistent mit: praesentation.tex, schematic.css, cover-diagram.tex
+% =============================================================================
+\documentclass{techdoc}
+% \documentclass[print]{techdoc}
+% \documentclass[draft]{techdoc}
+
+% =============================================================================
+% METADATEN
+% =============================================================================
+\title{Interaktives Auswahlpanel}
+\subtitle{100× Taster/LED + 100× Bild/MP3}
+\tagline{„Drücken -- Leuchten -- Abspielen"}
+\scope{ESP32S3 • Raspberry Pi 5 • Web-Dashboard}
+\stack{CD4021BE \textbullet\ 74HC595 \textbullet\ PlatformIO \textbullet\ Python/aiohttp \textbullet\ WebSocket \textbullet\ HTML/JS \textbullet\ systemd}
+\version{2.5.3}
+\date{11.01.2026}
+\author{Jan Unger}
+\credits{Claude 4.5}
+\coverimage{cover-selection-panel.pdf}
+
+% Bilder liegen in ./images/ und ./covers/
+\graphicspath{{images/}{covers/}}
+
+\setheadertitle{Auswahlpanel}
+
+\hypersetup{
+  pdftitle={Interaktives Auswahlpanel},
+  pdfsubject={100× Taster/LED + 100× Bild/MP3},
+  pdfauthor={Jan Unger}
+}
+
+% =============================================================================
+% PROJEKT-SPEZIFISCHE ERWEITERUNGEN
+% =============================================================================
+
+% Euro als SI-Einheit (für \SI{...}{\EUR} in Tabellen)
+\DeclareSIUnit{\EUR}{\text{€}}
+
+% Zusätzliche SI-Einheit
+\DeclareSIUnit{\baud}{baud}
+
+% Text-Macros (falls nicht in techdoc.cls)
+\providecommand{\topic}[1]{\texttt{#1}}
+\providecommand{\filep}[1]{\texttt{#1}}
+\providecommand{\pin}[1]{\texttt{#1}}
+
+% =============================================================================
+% FARBDEFINITIONEN (falls nicht in techdoc.cls)
+% =============================================================================
+
+% Primärfarben
+\definecolor{ArduinoTeal}{RGB}{0,151,157}
+\definecolor{ArduinoDark}{RGB}{0,92,95}
+\definecolor{RaspberryRed}{RGB}{197,26,74}
+\definecolor{RaspberryPurple}{RGB}{117,38,74}
+
+% Statusfarben
+\definecolor{SuccessGreen}{RGB}{117,169,40}
+\definecolor{WarningOrange}{RGB}{217,119,6}
+
+% Hintergründe
+\definecolor{GitHubDark}{RGB}{13,17,23}
+\definecolor{SlateDark}{RGB}{30,41,51}
+\definecolor{SlateMedium}{RGB}{45,58,69}
+
+% Text
+\definecolor{LightText}{RGB}{230,237,243}
+\definecolor{MutedText}{RGB}{74,85,104}
+
+% Signalfarben
+\definecolor{SignalData}{RGB}{81,207,102}
+\definecolor{SignalClock}{RGB}{255,212,59}
+\definecolor{SignalLatch}{RGB}{77,171,247}
+
+% Code-Farben
+\definecolor{CodeBackground}{RGB}{248,250,252}
+\definecolor{CodeFrame}{RGB}{200,210,220}
+\definecolor{KeywordColor}{RGB}{0,92,95}
+\definecolor{CommentColor}{RGB}{74,85,104}
+\definecolor{StringColor}{RGB}{197,26,74}
+
+% Info-Box-Farben
+\definecolor{InfoBoxBg}{RGB}{230,245,250}
+\definecolor{InfoBoxFrame}{RGB}{0,151,157}
+\definecolor{WarnBoxBg}{RGB}{255,247,237}
+\definecolor{WarnBoxFrame}{RGB}{217,119,6}
+\definecolor{TipBoxBg}{RGB}{240,250,240}
+\definecolor{TipBoxFrame}{RGB}{117,169,40}
+
+% TikZ-Style für Abwärtskompatibilität (ROADMAP.tex)
+\tikzset{
+  CurrentBlue/.style={text=ArduinoTeal}
+}
+
+% Farb-Aliase für Abwärtskompatibilität
+\colorlet{MainColor}{ArduinoTeal}
+\colorlet{MainColorDark}{ArduinoDark}
+\colorlet{AccentColor}{RaspberryRed}
+\colorlet{DarkGray}{GitHubDark}
+\colorlet{CurrentBlue}{ArduinoTeal}
+\colorlet{arduinoblue}{ArduinoTeal}
+\colorlet{codebg}{CodeBackground}
+\colorlet{codeframe}{CodeFrame}
+\colorlet{keywordcolor}{KeywordColor}
+\colorlet{commentcolor}{CommentColor}
+\colorlet{stringcolor}{StringColor}
+\colorlet{infoboxbg}{InfoBoxBg}
+\colorlet{infoboxframe}{InfoBoxFrame}
+\colorlet{warnbg}{WarnBoxBg}
+\colorlet{warnframe}{WarnBoxFrame}
+\colorlet{tipbg}{TipBoxBg}
+\colorlet{tipframe}{TipBoxFrame}
+
+% Highlight-Befehle
+\providecommand{\highlight}[1]{\textcolor{ArduinoTeal}{\textbf{#1}}}
+\providecommand{\improvement}[1]{\textcolor{SuccessGreen}{\textbf{#1}}}
+\providecommand{\warning}[1]{\textcolor{WarningOrange}{\textbf{#1}}}
+\providecommand{\critical}[1]{\textcolor{RaspberryRed}{\textbf{#1}}}
+
+% JavaScript Listing-Style (falls nicht in techdoc.cls)
+\lstdefinestyle{javascript}{
+  language=Java,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{KeywordColor}\bfseries,
+  commentstyle=\color{CommentColor}\itshape,
+  stringstyle=\color{StringColor},
+  numbers=left, numberstyle=\tiny\color{MutedText},
+  frame=single, framesep=4pt, rulecolor=\color{CodeFrame},
+  backgroundcolor=\color{CodeBackground},
+  breaklines=true, breakatwhitespace=true, showstringspaces=false,
+  tabsize=2, captionpos=b,
+  xleftmargin=12pt, xrightmargin=4pt, aboveskip=1.2em, belowskip=1.2em,
+  morekeywords={const,let,async,await,function,return,if,else,for,while,
+                true,false,null,undefined,this,new,class,export,import,
+                document,window,console,fetch,Promise,setTimeout,
+                addEventListener,getElementById,querySelector}
+}
+
+% =============================================================================
+% DOKUMENT
+% =============================================================================
+\begin{document}
+
+\maketitlepage
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% =============================================================================
+% INHALT – Modulare Struktur (SSOT)
+% =============================================================================
+
+% --- Setup & Voraussetzungen ---
+\input{content/VORAUSSETZUNGEN.tex}
+\input{content/SSH.tex}
+
+% --- Hardware ---
+\input{content/HARDWARE.tex}
+\input{content/LOETEN.tex}
+
+% --- Systemarchitektur ---
+\input{content/SELECTION-PANEL-ARCHITEKTUR.tex}
+\input{content/SPEC.tex}
+\input{content/PROTOCOL.tex}
+
+% --- Firmware (ESP32-S3) ---
+\input{content/ARDUINO-CPP.tex}
+\input{content/FIRMWARE-CODE-GUIDE.tex}
+
+% --- Server & Dashboard (Raspberry Pi) ---
+\input{content/PI-INTEGRATION.tex}
+\input{content/PYTHON-CODE-GUIDE.tex}
+\input{content/JAVASCRIPT-CODE-GUIDE.tex}
+
+% --- Betrieb & Wartung ---
+\input{content/USB-PORT-VERWALTUNG.tex}
+\input{content/QUICKSTART.tex}
+\input{content/COMMANDS.tex}
+\input{content/RUNBOOK.tex}
+\input{content/ROADMAP.tex}
+\input{content/GIT.tex}
+
+% --- Anhang ---
+\appendix
+\input{content/GLOSSAR.tex}
+
+\end{document}

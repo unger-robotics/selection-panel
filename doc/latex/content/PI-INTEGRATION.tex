@@ -1,0 +1,432 @@
+% =============================================================================
+% PI-INTEGRATION.tex – Raspberry Pi 5 Integration (Phase 7)
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Raspberry Pi Integration}
+\label{sec:pi-integration}
+
+In Phase 7 wird der ESP32-S3 zum reinen I/O-Controller. Der Raspberry Pi 5 übernimmt die Anwendungslogik: Er empfängt Taster-Events über Serial, sendet sie per WebSocket an das Web-Dashboard und steuert bei Bedarf die LEDs. Wie funktioniert diese Arbeitsteilung?
+
+% -----------------------------------------------------------------------------
+\subsection{Systemübersicht}
+\label{subsec:pi-systemuebersicht}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum width=3cm, minimum height=1.2cm, align=center, font=\small},
+    bigbox/.style={draw, rounded corners, minimum width=11cm, minimum height=2cm, align=center},
+    arrow/.style={->, >=Stealth, thick},
+    label/.style={font=\tiny, align=center}
+  ]
+    % Raspberry Pi Box
+    \node[bigbox, fill=InfoBoxBg] (pi) at (0,3) {
+      \textbf{Raspberry Pi 5}\\
+      \small server.py (aiohttp) – Serial-Thread ↔ Asyncio Event Loop
+    };
+
+    % Endpoints
+    \node[box, fill=CodeBackground] (static) at (-4,0.5) {\texttt{/static/}\\app.js, CSS};
+    \node[box, fill=CodeBackground] (ws) at (0,0.5) {\texttt{/ws}\\WebSocket};
+    \node[box, fill=CodeBackground] (media) at (4,0.5) {\texttt{/media/}\\001.jpg/.mp3};
+
+    % ESP32
+    \node[bigbox, fill=TipBoxBg, minimum height=1.5cm] (esp) at (0,-2) {
+      \textbf{ESP32-S3 (XIAO)}\\
+      \small PRESS/RELEASE Events → Serial TX | LED-Steuerung ← Serial RX
+    };
+
+    % Verbindungen
+    \draw[arrow] (pi) -- (static);
+    \draw[arrow] (pi) -- (ws);
+    \draw[arrow] (pi) -- (media);
+    \draw[arrow, <->] (pi) -- node[right, font=\tiny] {USB-CDC @ \SI{115200}{\baud}} (esp);
+  \end{tikzpicture}
+  \caption{Systemarchitektur der Pi-Integration}
+  \label{fig:pi-systemarchitektur}
+\end{figure}
+
+\begin{infobox}[Lokale LED-Steuerung]
+  Mit \texttt{ESP32\_SETS\_LED\_LOCALLY = true} setzt der ESP32 die LED bei Tastendruck selbst. Der Server muss dann nur noch \texttt{LEDCLR} nach Audio-Ende senden. Das reduziert die Latenz auf unter \SI{5}{\milli\second}.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial-Verbindung}
+\label{subsec:pi-serial}
+
+\subsubsection{Stabiler Device-Pfad (by-id)}
+
+Der ESP32-S3 erscheint als USB-CDC-Gerät. Der Pfad \filep{/dev/ttyACM0} kann sich nach einem Reboot ändern – ein klassisches Problem. Die Lösung: Wir verwenden den stabilen by-id-Pfad.
+
+\begin{lstlisting}[style=shell]
+# Stabilen Pfad ermitteln
+ls -la /dev/serial/by-id/
+# Ausgabe: usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00
+
+# Dieser Pfad bleibt stabil
+SERIAL_PORT="/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
+\end{lstlisting}
+
+\subsubsection{Berechtigungen}
+
+\begin{lstlisting}[style=shell]
+# Benutzer zur dialout-Gruppe hinzufuegen
+sudo usermod -aG dialout $USER
+# Ausloggen und wieder einloggen!
+
+# Verbindung testen
+screen $SERIAL_PORT 115200
+# Erwartete Ausgabe:
+# READY
+# FW SelectionPanel v2.5.2
+\end{lstlisting}
+
+\begin{warnbox}[Neu einloggen erforderlich]
+  Gruppenmitgliedschaften werden erst nach einem neuen Login aktiv. Ein einfaches \texttt{exit} und erneutes \texttt{ssh rover} genügt.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Server-Architektur}
+\label{subsec:pi-server-architektur}
+
+Der Python-Server verwendet \textbf{aiohttp} für asynchrone HTTP/WebSocket-Verarbeitung. \Cref{tab:pi-komponenten} zeigt die Komponenten.
+
+\begin{table}[H]
+  \centering
+  \caption{Server-Komponenten und ihre Technologien}
+  \label{tab:pi-komponenten}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Technologie} & \textbf{Funktion} \\
+    \midrule
+    HTTP-Server & aiohttp & Statische Dateien, API-Endpoints \\
+    WebSocket & aiohttp & Echtzeit-Kommunikation mit Browser \\
+    Serial-Reader & Threading & Liest ESP32-Events im Hintergrund \\
+    Media-Validator & Startup & Prüft ob alle Medien vorhanden \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{HTTP-Endpoints}
+
+\begin{table}[H]
+  \centering
+  \caption{HTTP-Endpoints des Servers}
+  \label{tab:pi-endpoints}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Endpoint} & \textbf{Methode} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{/} & GET & Web-Dashboard (index.html) \\
+    \texttt{/ws} & WebSocket & Echtzeit-Events \\
+    \texttt{/static/} & GET & JavaScript, CSS, Favicon \\
+    \texttt{/media/} & GET & Bilder und Audio (001.jpg, 001.mp3) \\
+    \texttt{/status} & GET & Server-Status als JSON \\
+    \texttt{/health} & GET & Health-Check (für Monitoring) \\
+    \texttt{/test/play/\{id\}} & GET & Simuliert Tastendruck \\
+    \texttt{/test/stop} & GET & Stoppt Wiedergabe \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Konfiguration}
+
+\begin{lstlisting}[style=python,caption={Wichtige Einstellungen in server.py}]
+VERSION = "2.5.2"
+
+# Build-Modus
+PROTOTYPE_MODE = True   # True = 10 Medien, False = 100 Medien
+NUM_MEDIA = 10 if PROTOTYPE_MODE else 100
+
+# Serial-Port (stabiler by-id Pfad!)
+SERIAL_PORT = "/dev/serial/by-id/usb-Espressif_USB_JTAG_..."
+SERIAL_BAUD = 115200
+
+# HTTP-Server
+HTTP_HOST = "0.0.0.0"
+HTTP_PORT = 8080
+
+# ESP32 setzt LED selbst bei Tastendruck
+ESP32_SETS_LED_LOCALLY = True
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Protokolle}
+\label{subsec:pi-protokolle}
+
+\subsubsection{WebSocket-Protokoll (Server ↔ Browser)}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten}
+  \label{tab:pi-websocket}
+  \begin{tabularx}{\textwidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{Richtung} & \textbf{Type} & \textbf{Beispiel} & \textbf{Beschreibung} \\
+    \midrule
+    Server → Browser & play & \texttt{\{"type":"play","id":3\}} & Wiedergabe starten \\
+    Server → Browser & stop & \texttt{\{"type":"stop"\}} & Wiedergabe stoppen \\
+    Browser → Server & ended & \texttt{\{"type":"ended","id":3\}} & Audio beendet \\
+    Browser → Server & ping & \texttt{\{"type":"ping"\}} & Heartbeat \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Serial-Protokoll (ESP32 ↔ Pi)}
+
+\begin{table}[H]
+  \centering
+  \caption{Serial-Nachrichten zwischen ESP32 und Pi}
+  \label{tab:pi-serial-protokoll}
+  \begin{tabularx}{\textwidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{Richtung} & \textbf{Nachricht} & \textbf{Beispiel} & \textbf{Bedeutung} \\
+    \midrule
+    ESP32 → Pi & READY & \texttt{READY} & ESP32 bereit \\
+    ESP32 → Pi & FW & \texttt{FW SelectionPanel v2.5.2} & Firmware-Version \\
+    ESP32 → Pi & PRESS & \texttt{PRESS 001} & Taster gedrückt \\
+    ESP32 → Pi & RELEASE & \texttt{RELEASE 001} & Taster losgelassen \\
+    Pi → ESP32 & LEDSET & \texttt{LEDSET 001} & One-Hot LED (optional) \\
+    Pi → ESP32 & LEDCLR & \texttt{LEDCLR} & Alle LEDs aus \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[LED-Steuerung]
+  Mit \texttt{ESP32\_SETS\_LED\_LOCALLY = true} setzt der ESP32 die LED bei Tastendruck selbst. Der Server sendet dann nur \texttt{LEDCLR} nach Audio-Ende.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Datenfluss}
+\label{subsec:pi-datenfluss}
+
+Was passiert, wenn wir Taster 3 drücken? Der Datenfluss durchläuft mehrere Stationen:
+
+\begin{enumerate}
+  \item \textbf{ESP32:} Entprellt den Taster, schaltet LED 3 an, sendet \texttt{PRESS 003}
+  \item \textbf{Serial-Thread:} Empfängt die Nachricht, gibt sie an den Event Loop
+  \item \textbf{Event Loop:} Broadcastet \texttt{\{"type":"play","id":3\}} an alle WebSocket-Clients
+  \item \textbf{Browser:} Zeigt Bild 003.jpg, spielt 003.mp3 ab
+  \item \textbf{Browser:} Sendet nach Audio-Ende \texttt{\{"type":"ended","id":3\}}
+  \item \textbf{Server:} Sendet \texttt{LEDCLR} an ESP32 (falls ID noch aktuell)
+  \item \textbf{ESP32:} Schaltet alle LEDs aus
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{Web-Dashboard}
+\label{subsec:pi-dashboard}
+
+Das Dashboard (\filep{index.html} + \filep{app.js}) bietet folgende Features:
+
+\begin{itemize}
+  \item \textbf{Audio-Unlock:} Button zum Entsperren der Browser-Autoplay-Policy
+  \item \textbf{Medien-Preload:} Lädt alle Bilder/Audio nach Unlock vor
+  \item \textbf{Echtzeit-Anzeige:} Aktuelles Bild + Audio-Fortschritt
+  \item \textbf{Keyboard-Shortcuts:} Space = Play/Pause, Ctrl+D = Debug
+  \item \textbf{Debug-Panel:} Zeigt alle Events (ausklappbar)
+\end{itemize}
+
+\subsubsection{Zugriff}
+
+\begin{lstlisting}[style=shell]
+# Server starten
+cd /home/pi/selection-panel
+python3 server.py
+
+# Browser oeffnen
+# Lokal:   http://localhost:8080/
+# LAN:     http://rover:8080/
+# IP:      http://192.168.1.24:8080/
+\end{lstlisting}
+
+\subsubsection{Status-API}
+
+\begin{lstlisting}[style=shell]
+curl http://rover:8080/status | jq
+\end{lstlisting}
+
+\begin{lstlisting}[style=json,caption={Beispiel-Antwort von /status}]
+{
+  "version": "2.5.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": null,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "serial_port": "/dev/serial/by-id/...",
+  "media_missing": 0,
+  "esp32_local_led": true
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{USB-Port-Verwaltung (AMR-Koexistenz)}
+\label{subsec:pi-usb-verwaltung}
+
+Auf dem Pi läuft auch das AMR-Projekt, das denselben ESP32-Port nutzen kann. Ein \textbf{flock-basiertes Locking} verhindert Konflikte.
+
+\subsubsection{Lock-Mechanismus}
+
+\begin{lstlisting}[style=shell]
+# Lock-Datei
+/var/lock/esp32-serial.lock
+
+# Selection Panel: Non-blocking (startet nicht wenn belegt)
+flock -n /var/lock/esp32-serial.lock python3 server.py
+
+# AMR Agent: Blocking (wartet bis frei)
+flock /var/lock/esp32-serial.lock micro_ros_agent ...
+\end{lstlisting}
+
+\subsubsection{Schneller Wechsel}
+
+\begin{lstlisting}[style=shell]
+# --> Selection Panel Modus
+sudo systemctl stop selection-panel.service  # Falls AMR laeuft
+sudo systemctl start selection-panel.service
+sudo journalctl -u selection-panel.service -f
+
+# --> AMR Modus
+sudo systemctl stop selection-panel.service
+cd /home/pi/amr/docker
+sudo docker compose -p docker up -d microros_agent
+\end{lstlisting}
+
+\subsubsection{Kontrolle}
+
+\begin{lstlisting}[style=shell]
+# Wer haelt den USB-Port?
+sudo fuser -v /dev/ttyACM0
+
+# Wer haelt den Lock?
+sudo lslocks | grep esp32-serial
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{systemd-Service}
+\label{subsec:pi-systemd}
+
+\subsubsection{Service-Datei}
+
+\begin{lstlisting}[style=shell,numbers=none,caption={/etc/systemd/system/selection-panel.service}]
+[Unit]
+Description=Selection Panel Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/selection-panel
+# flock -n: Startet nur wenn Lock frei
+ExecStart=/usr/bin/flock -n /var/lock/esp32-serial.lock /usr/bin/python3 server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+\end{lstlisting}
+
+\subsubsection{Aktivierung}
+
+\begin{lstlisting}[style=shell]
+# Service registrieren
+sudo systemctl daemon-reload
+
+# Manueller Start
+sudo systemctl start selection-panel.service
+
+# Autostart aktivieren
+sudo systemctl enable selection-panel.service
+
+# Status pruefen
+sudo systemctl status selection-panel.service
+
+# Logs verfolgen
+journalctl -u selection-panel.service -f
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien-Struktur}
+\label{subsec:pi-medien}
+
+\begin{lstlisting}[style=shell,numbers=none]
+media/
+|-- 001.jpg    # Bild fuer Taster 1
+|-- 001.mp3    # Audio fuer Taster 1
+|-- 002.jpg
+|-- 002.mp3
+|-- ...
+|-- 010.jpg
++-- 010.mp3
+\end{lstlisting}
+
+\subsubsection{Validierung beim Start}
+
+Der Server prüft beim Start, ob alle erwarteten Medien vorhanden sind:
+
+\begin{lstlisting}[style=shell,numbers=none]
+2026-01-08 [INFO] Medien-Validierung: 10/10 vollstaendig
+
+# Oder bei fehlenden Dateien:
+2026-01-08 [WARNING] Fehlende Medien: 2 Dateien
+2026-01-08 [WARNING]   - 005.jpg
+2026-01-08 [WARNING]   - 005.mp3
+\end{lstlisting}
+
+\subsubsection{Test-Medien generieren}
+
+\begin{lstlisting}[style=shell]
+cd /home/pi/selection-panel
+./scripts/generate_test_media.sh
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Troubleshooting}
+\label{subsec:pi-troubleshooting}
+
+\begin{table}[H]
+  \centering
+  \caption{Häufige Probleme und Lösungen}
+  \label{tab:pi-troubleshooting}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Lösung} \\
+    \midrule
+    ESP32 nicht erkannt & \texttt{lsusb | grep Espressif}, \texttt{ls /dev/serial/by-id/} \\
+    Keine READY-Nachricht & \texttt{screen /dev/ttyACM0 115200}, ESP32 per Reset neu starten \\
+    WebSocket verbindet nicht & \texttt{sudo systemctl status selection-panel.service}, Port 8080 prüfen \\
+    Audio spielt nicht & „Sound aktivieren" Button klicken, Browser-Konsole prüfen \\
+    Port-Konflikt mit AMR & \texttt{sudo fuser -v /dev/ttyACM0}, Selection Panel stoppen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Latenz-Analyse}
+\label{subsec:pi-latenz}
+
+\begin{table}[H]
+  \centering
+  \caption{Latenz-Analyse der Signalkette}
+  \label{tab:pi-latenz}
+  \begin{tabularx}{\textwidth}{@{}l r X@{}}
+    \toprule
+    \textbf{Station} & \textbf{Latenz} & \textbf{Beschreibung} \\
+    \midrule
+    Taster → ESP32 (Debounce) & \SI{30}{\milli\second} & Entprellzeit \\
+    ESP32 → Serial TX & < \SI{1}{\milli\second} & USB-CDC \\
+    Serial → Server & < \SI{1}{\milli\second} & Python-Thread \\
+    Server → WebSocket & < \SI{1}{\milli\second} & aiohttp \\
+    Browser → Audio Start & \SI{5}{\milli\second}–\SI{50}{\milli\second} & Gecached: $\sim$\SI{5}{\milli\second} \\
+    \midrule
+    \textbf{Gesamt (Preloaded)} & \textbf{$\sim$\SI{40}{\milli\second}} & Mit Medien-Cache \\
+    \textbf{Gesamt (Nicht gecached)} & \textbf{$\sim$\SI{200}{\milli\second}} & Ohne Preloading \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Medien-Preloading]
+  Das Preloading im Browser reduziert die Latenz erheblich. Nach dem Klick auf „Sound aktivieren" werden alle Medien vorgeladen – danach startet die Wiedergabe in unter \SI{50}{\milli\second}.
+\end{infobox}

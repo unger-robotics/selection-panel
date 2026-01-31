@@ -1,0 +1,266 @@
+% =============================================================================
+% PYTHON-CODE-GUIDE.tex – Server-Architektur und Best Practices
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Python-Code-Guide}
+\label{sec:python-code-guide}
+
+Wie ist der Server aufgebaut? Dieser Guide erklärt die Architektur von \filep{server.py} und die Designentscheidungen dahinter. Wir folgen dabei dem Prinzip: Jede Komponente hat \textit{eine} Hauptverantwortung mit klaren Schnittstellen.
+
+% -----------------------------------------------------------------------------
+\subsection{Architektur in einem Satz}
+\label{subsec:python-architektur}
+
+Ein \textbf{aiohttp-Server} bridged \textbf{ESP32-Serial → asyncio} und broadcastet Events per \textbf{WebSocket} an Browser-Clients. Bei jedem Tastendruck gilt \textbf{„Umschalten gewinnt"} (Preempt) und \textbf{One-Hot-LED}.
+
+% -----------------------------------------------------------------------------
+\subsection{Schichten und Verantwortlichkeiten}
+\label{subsec:python-schichten}
+
+Die Architektur folgt einer klaren Schichtentrennung. \Cref{tab:python-schichten} zeigt die Komponenten und ihre Aufgaben.
+
+\begin{table}[H]
+  \centering
+  \caption{Server-Schichten und ihre Verantwortlichkeiten}
+  \label{tab:python-schichten}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Schicht} & \textbf{Verantwortung} \\
+    \midrule
+    Konfiguration & Ports, Pfade, Mode, Timeouts (\texttt{FRAGMENT\_TIMEOUT\_MS = 50}, Reconnect \SI{5}{\second}) \\
+    Zustand & \texttt{AppState} hält \texttt{current\_id}, WebSocket-Clients, Serial-FD, Media-Status \\
+    Serial-Pfad & \texttt{serial\_reader\_task()} liest Bytes im Thread, bildet Zeilen, übergibt an Event-Loop \\
+    Event-Logik & \texttt{handle\_button\_press()} setzt \texttt{current\_id}, sendet \texttt{stop} + \texttt{play} \\
+    HTTP/WebSocket & Routes für \texttt{/ws}, \texttt{/status}, \texttt{/health}, \texttt{/test/*}, Static/Media-Serving \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[Erweiterung nach Verantwortlichkeit]
+  Neue Funktionalität immer dort hinzufügen, wo die Verantwortung liegt:
+  \begin{itemize}
+    \item Neues Serial-Kommando → \texttt{handle\_serial\_line()}
+    \item Neue WebSocket-Message → \texttt{handle\_ws\_message()}
+    \item Neue HTTP-Route → \texttt{create\_app()} + eigener Handler
+  \end{itemize}
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{asyncio-Grundmuster}
+\label{subsec:python-asyncio}
+
+Die goldene Regel: Im Event-Loop keine Blocker. Kein \texttt{time.sleep()}, kein blocking IO. Blockende Operationen gehören in einen Thread oder Process – die Ergebnisse kommen per Callback zurück in den Loop.
+
+\subsubsection{Umsetzung im Code}
+
+\begin{itemize}
+  \item Serial-IO läuft bewusst im Thread (poll + nonblocking FD)
+  \item Der Event-Loop übernimmt nur: Parsing-Resultate verarbeiten, broadcasten, optional Serial-TX
+\end{itemize}
+
+\subsubsection{Praxis-Patterns}
+
+\begin{lstlisting}[style=python,caption={Parallele Sends mit asyncio.gather()}]
+# Broadcast an alle WebSocket-Clients
+await asyncio.gather(
+    *[ws.send_json(msg) for ws in state.ws_clients],
+    return_exceptions=True  # Fehlerhafte Clients nicht abbrechen
+)
+\end{lstlisting}
+
+\begin{infobox}[Resilientes Broadcasting]
+  Mit \texttt{return\_exceptions=True} sammeln wir fehlerhafte Clients und entfernen sie anschließend aus \texttt{ws\_clients}. So bricht ein disconnected Client nicht den gesamten Broadcast ab.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial-Parsing: Fragmentierung behandeln}
+\label{subsec:python-serial-parsing}
+
+USB-CDC kann Nachrichten fragmentieren – \texttt{PRESS} und \texttt{003} kommen getrennt an. Wie gehen wir damit um?
+
+\subsubsection{Das Problem}
+
+\begin{table}[H]
+  \centering
+  \caption{Beobachtung und Lösung bei Serial-Fragmentierung}
+  \label{tab:python-fragmentierung}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Aspekt} & \textbf{Beschreibung} \\
+    \midrule
+    Beobachtung & USB-CDC kann \texttt{PRESS} und \texttt{003} getrennt liefern \\
+    Daten & Pending-Fragment + Timeout-Vervollständigung (\SI{50}{\milli\second}) \\
+    Regel & Bytes puffern → Zeilen bilden → Fragmente kombinieren → erst dann Event erzeugen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Best Practice für neue Befehle}
+
+Wenn wir neue Serial-Kommandos hinzufügen, verwenden wir \textbf{eindeutige Prefixe} (z.\,B. \texttt{SENSOR}, \texttt{ACK}). So werden Fragmente nicht versehentlich als Zahlen-ID interpretiert. Die Funktion \texttt{parse\_button\_id()} bleibt strikt: nur \texttt{isdigit()}, Range-Check.
+
+% -----------------------------------------------------------------------------
+\subsection{Preempt und One-Hot: Race-Conditions kontrollieren}
+\label{subsec:python-preempt}
+
+Bei konkurrierenden Events brauchen wir eine \textbf{monotone Wahrheit}. In unserem Fall ist das \texttt{state.current\_id}. Alles, was später reinkommt, muss gegen diese Wahrheit geprüft werden.
+
+\subsubsection{Umsetzung im Code}
+
+\begin{itemize}
+  \item \textbf{Preempt:} Neuer Tastendruck setzt sofort \texttt{state.current\_id} und sendet \texttt{stop} + \texttt{play}
+  \item \textbf{Playback-Ende:} \texttt{handle\_playback\_ended()} löscht LEDs nur, wenn \texttt{ended\_id == current\_id}
+\end{itemize}
+
+\begin{lstlisting}[style=python,caption={Race-Condition-Schutz beim Playback-Ende}]
+async def handle_playback_ended(ended_id: int) -> None:
+    # Nur LEDs loeschen, wenn keine neue Auswahl aktiv
+    if ended_id == state.current_id:
+        state.current_id = None
+        await send_serial("LEDCLR")
+    # Sonst: ignorieren (neuer Taster hat bereits uebernommen)
+\end{lstlisting}
+
+\begin{warnbox}[Erweiterung mit Sequenznummern]
+  Für robustere Zuordnung bei Multi-Tab oder hoher Latenz: Ergänze eine laufende Sequenznummer (\texttt{event\_seq += 1}) und sende sie mit \texttt{play}. Der Browser kann \texttt{ended} dann eindeutig zuordnen.
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien-Validierung}
+\label{subsec:python-medien}
+
+Teure Validierung früh (Startup), schnelle Checks zur Laufzeit – das ist die Faustregel.
+
+\begin{table}[H]
+  \centering
+  \caption{Validierungsstrategie für Medien}
+  \label{tab:python-validierung}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Zeitpunkt} & \textbf{Funktion} & \textbf{Prüfung} \\
+    \midrule
+    Startup & \texttt{validate\_media()} & Prüft pro ID \texttt{.jpg} und \texttt{.mp3}, zählt, loggt fehlende \\
+    Runtime & \texttt{check\_media\_exists()} & Liefert Status für eine ID \\
+    Health & \texttt{/health} & „degraded" wenn Serial down oder Medien fehlen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{tipbox}[Fail Fast für Produktion]
+  Für Produktionsbetrieb: Fehlende Medien optional als harte Startbedingung (Exitcode ≠ 0), wenn „fail fast" gewünscht ist.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{Code-Qualität: Leitplanken}
+\label{subsec:python-qualitaet}
+
+Diese Regeln zahlen sich in der Praxis aus:
+
+\begin{enumerate}
+  \item \textbf{Typen durchziehen:} \texttt{Optional[int]}, Return-Types konsequent nutzen – auch für WebSocket-Payload-Schemas
+  \item \textbf{Logging statt Print:} Strukturiertes Logging mit \texttt{LOG\_FORMAT} und Levels. Für Debug-Phasen: gezielte \texttt{logging.debug} in Parser/State-Übergängen
+  \item \textbf{Konstanten zentral:} Mode und Anzahl Medien über \texttt{PROTOTYPE\_MODE} und \texttt{NUM\_MEDIA}
+  \item \textbf{Schnittstellen schmal halten:} \texttt{handle\_button\_press(button\_id)} ist der zentrale Eingang für „User-Intent"
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\subsection{Protokoll-Übersicht}
+\label{subsec:python-protokoll}
+
+\subsubsection{Serial-Protokoll (ESP32 ↔ Pi)}
+
+\begin{table}[H]
+  \centering
+  \caption{Serial-Nachrichten zwischen ESP32 und Pi}
+  \label{tab:python-serial-protokoll}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Richtung} & \textbf{Nachricht} & \textbf{Bedeutung} \\
+    \midrule
+    ESP32 → Pi & \texttt{READY} & ESP32 bereit \\
+    ESP32 → Pi & \texttt{FW SelectionPanel v2.5.2} & Firmware-Version \\
+    ESP32 → Pi & \texttt{PRESS 001} & Taster 1 gedrückt \\
+    ESP32 → Pi & \texttt{RELEASE 001} & Taster 1 losgelassen \\
+    ESP32 → Pi & \texttt{PONG} & Antwort auf PING \\
+    Pi → ESP32 & \texttt{LEDSET 001} & LED 1 an (One-Hot) \\
+    Pi → ESP32 & \texttt{LEDCLR} & Alle LEDs aus \\
+    Pi → ESP32 & \texttt{PING} & Verbindungstest \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{WebSocket-Protokoll (Server ↔ Browser)}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten}
+  \label{tab:python-websocket-protokoll}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Richtung} & \textbf{Message} & \textbf{Beschreibung} \\
+    \midrule
+    Server → Browser & \texttt{\{"type":"play","id":n\}} & Wiedergabe starten \\
+    Server → Browser & \texttt{\{"type":"stop"\}} & Wiedergabe stoppen \\
+    Browser → Server & \texttt{\{"type":"ended","id":n\}} & Audio beendet \\
+    Browser → Server & \texttt{\{"type":"ping"\}} & Heartbeat \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{HTTP-Endpoints}
+
+\begin{table}[H]
+  \centering
+  \caption{HTTP-Endpoints des Servers}
+  \label{tab:python-http-endpoints}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Endpoint} & \textbf{Methode} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{/} & GET & Web-Dashboard \\
+    \texttt{/ws} & WebSocket & Echtzeit-Events \\
+    \texttt{/static/} & GET & JavaScript, CSS \\
+    \texttt{/media/} & GET & Bilder und Audio \\
+    \texttt{/status} & GET & Server-Status (JSON) \\
+    \texttt{/health} & GET & Health-Check (200/503) \\
+    \texttt{/test/play/\{id\}} & GET & Tastendruck simulieren \\
+    \texttt{/test/stop} & GET & Wiedergabe stoppen \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Glossar}
+\label{subsec:python-glossar}
+
+\begin{table}[H]
+  \centering
+  \caption{Begriffe aus der Server-Entwicklung}
+  \label{tab:python-glossar}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Begriff} & \textbf{Erklärung} \\
+    \midrule
+    aiohttp & Python-Webframework für HTTP-Server und WebSockets auf asyncio-Basis \\
+    async/await & Syntax für asynchrone Funktionen (Coroutines), nicht-blockierend \\
+    asyncio & Standardbibliothek für kooperatives Multitasking (Event-Loop, Tasks) \\
+    Broadcast & Senden derselben Nachricht an mehrere Empfänger \\
+    Coroutine & Asynchrone Funktion, die pausiert und fortgesetzt werden kann \\
+    Daemon-Thread & Thread, der das Programm nicht am Beenden hindert \\
+    Event-Loop & Zentrale Schleife, die Coroutines plant und IO-Ereignisse verarbeitet \\
+    File Descriptor & Integer-Handle einer geöffneten OS-Ressource (Datei, Serial) \\
+    Fragmentierung & Aufteilung logisch zusammengehöriger Daten in mehrere Chunks \\
+    gather & asyncio-Funktion für parallele Ausführung mehrerer Awaitables \\
+    Health-Check & Endpoint für Monitoring/Orchestrierung (gesund/degraded) \\
+    non-blocking IO & Lese/Schreiboperationen blockieren nicht, liefern sofort Ergebnis \\
+    One-Hot & Kodierung, bei der genau ein Element aktiv ist \\
+    poll & Systemcall zum Warten auf IO-Events mehrerer FDs \\
+    Preempt & Neue Aktion verdrängt sofort die laufende \\
+    Race-Condition & Timing-abhängiger Fehler bei konkurrierenden Abläufen \\
+    Reconnect-Loop & Wiederholtes Verbinden nach Fehler, meist mit Backoff \\
+    WebSocket & Dauerhafte bidirektionale Verbindung für Echtzeit-Events \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

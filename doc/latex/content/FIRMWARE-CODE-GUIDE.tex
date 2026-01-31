@@ -1,0 +1,399 @@
+% =============================================================================
+% FIRMWARE-CODE-GUIDE.tex – Firmware-Architektur und Modul-Referenz
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Firmware Code Guide}
+\label{sec:firmware-code-guide}
+
+Wie ist die Firmware des Selection Panels aufgebaut? Dieser Guide dokumentiert die Architektur, die Module und die Designentscheidungen der ESP32-S3-Firmware.
+
+% -----------------------------------------------------------------------------
+\subsection{Projektstruktur}
+\label{subsec:fw-projektstruktur}
+
+\begin{lstlisting}[style=shell,numbers=none]
+firmware/
+|-- include/
+|   |-- bitops.h        # Bit-Adressierung fuer Taster/LEDs
+|   |-- config.h        # Zentrale Konfiguration
+|   +-- types.h         # Gemeinsame Datentypen
+|-- src/
+|   |-- main.cpp        # Entry Point
+|   |-- app/
+|   |   |-- io_task.cpp/.h      # I/O-Verarbeitung
+|   |   +-- serial_task.cpp/.h  # Protokoll-Handler
+|   |-- drivers/
+|   |   |-- cd4021.cpp/.h       # Taster-Schieberegister
+|   |   +-- hc595.cpp/.h        # LED-Schieberegister
+|   |-- hal/
+|   |   +-- spi_bus.cpp/.h      # SPI-Abstraktion
+|   +-- logic/
+|       |-- debounce.cpp/.h     # Entprellung
+|       +-- selection.cpp/.h    # Auswahl-Logik
++-- platformio.ini
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Schichtenmodell}
+\label{subsec:fw-schichtenmodell}
+
+Die Firmware folgt einem strikten Schichtenmodell. Abhängigkeiten zeigen nur nach unten – eine Schicht kennt nur die darunterliegende.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    layer/.style={draw, rounded corners, minimum width=10cm, minimum height=1.2cm, align=center, font=\small},
+    arrow/.style={->, >=Stealth, thick}
+  ]
+    % Layers
+    \node[layer, fill=InfoBoxBg] (main) at (0,6) {\textbf{main.cpp}\\Queue erstellen, Tasks starten};
+    \node[layer, fill=TipBoxBg!50] (app) at (0,4.5) {\textbf{app/}\\io\_task.cpp \quad serial\_task.cpp};
+    \node[layer, fill=CodeBackground] (logic) at (0,3) {\textbf{logic/}\\debounce.cpp \quad selection.cpp};
+    \node[layer, fill=WarnBoxBg!30] (drivers) at (0,1.5) {\textbf{drivers/}\\cd4021.cpp \quad hc595.cpp};
+    \node[layer, fill=gray!20] (hal) at (0,0) {\textbf{hal/}\\spi\_bus.cpp (Mutex-geschützt)};
+
+    % Arrows
+    \draw[arrow] (main) -- (app);
+    \draw[arrow] (app) -- (logic);
+    \draw[arrow] (logic) -- (drivers);
+    \draw[arrow] (drivers) -- (hal);
+  \end{tikzpicture}
+  \caption{Schichtenmodell der Firmware}
+  \label{fig:fw-schichtenmodell}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Modul-Referenz}
+\label{subsec:fw-module}
+
+\subsubsection{config.h – Zentrale Konfiguration}
+
+Alle Hardware- und Timing-Parameter an einer Stelle:
+
+\begin{lstlisting}[style=arduino,caption={Zentrale Konfiguration in config.h}]
+// Anzahl der Ein-/Ausgaenge
+constexpr uint8_t BTN_COUNT = 10;
+constexpr uint8_t LED_COUNT = 10;
+
+// Bytes fuer Bit-Arrays (aufrunden: 10 Bits -> 2 Bytes)
+constexpr size_t BTN_BYTES = (BTN_COUNT + 7) / 8;
+constexpr size_t LED_BYTES = (LED_COUNT + 7) / 8;
+
+// Pin-Zuordnung (gemeinsamer SPI-Bus)
+constexpr int PIN_SCK      = D8;   // SPI-Takt (shared)
+constexpr int PIN_BTN_PS   = D1;   // CD4021B: Parallel/Serial Select
+constexpr int PIN_BTN_MISO = D9;   // CD4021B: Daten (Q8)
+constexpr int PIN_LED_MOSI = D10;  // 74HC595: Daten (SER)
+constexpr int PIN_LED_RCK  = D0;   // 74HC595: Latch (RCLK)
+constexpr int PIN_LED_OE   = D2;   // 74HC595: Output Enable (PWM)
+
+// Timing
+constexpr uint32_t IO_PERIOD_MS = 5;   // 200 Hz Abtastrate
+constexpr uint32_t DEBOUNCE_MS = 30;   // Entprellzeit
+
+// SPI-Einstellungen
+constexpr uint32_t SPI_HZ_BTN = 500000UL;  // 500 kHz (CD4021B)
+constexpr uint32_t SPI_HZ_LED = 1000000UL; // 1 MHz (74HC595)
+constexpr uint8_t SPI_MODE_BTN = SPI_MODE1; // CPOL=0, CPHA=1
+constexpr uint8_t SPI_MODE_LED = SPI_MODE0; // CPOL=0, CPHA=0
+\end{lstlisting}
+
+\subsubsection{bitops.h – Bit-Adressierung}
+
+Dieses Modul abstrahiert die Hardware-Verdrahtung der Schieberegister.
+
+\begin{lstlisting}[style=arduino,caption={Bit-Adressierung für Taster und LEDs}]
+// CD4021B Button Bit-Mapping
+// Hardware-Verdrahtung: BTN 1 -> PI-8 (Pin 1), BTN 8 -> PI-1 (Pin 7)
+// Formel: btn_bit(id) = (id - 1) % 8
+static inline uint8_t btn_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t btn_bit(uint8_t id)  { return (id - 1) % 8; }
+
+// 74HC595 LED Bit-Mapping
+// Hardware-Verdrahtung: LED 1 -> QA (Bit 0), LED 8 -> QH (Bit 7)
+static inline uint8_t led_byte(uint8_t id) { return (id - 1) / 8; }
+static inline uint8_t led_bit(uint8_t id)  { return (id - 1) % 8; }
+
+// Active-Low Hilfsfunktionen (Taster: 0 = gedrueckt, Pull-up!)
+static inline bool activeLow_pressed(const uint8_t* arr, uint8_t id) {
+    return !((arr[btn_byte(id)] >> btn_bit(id)) & 1);
+}
+
+// LED-Hilfsfunktionen
+static inline void led_set(uint8_t* arr, uint8_t id, bool on) {
+    uint8_t mask = 1 << led_bit(id);
+    if (on) arr[led_byte(id)] |= mask;
+    else    arr[led_byte(id)] &= ~mask;
+}
+\end{lstlisting}
+
+\subsubsection{types.h – Gemeinsame Datentypen}
+
+\begin{lstlisting}[style=arduino,caption={LogEvent-Struktur für die Queue}]
+struct LogEvent {
+    uint32_t ms;                // Zeitstempel
+    uint8_t raw[BTN_BYTES];     // Rohzustand der Taster
+    uint8_t deb[BTN_BYTES];     // Entprellter Zustand
+    uint8_t led[LED_BYTES];     // LED-Ausgabezustand
+    uint8_t activeId;           // Aktive Auswahl (0 = keine, 1-10 = ID)
+    bool rawChanged;            // Flag: Raw hat sich geaendert
+    bool debChanged;            // Flag: Debounced hat sich geaendert
+    bool activeChanged;         // Flag: Auswahl hat sich geaendert
+};
+\end{lstlisting}
+
+\subsubsection{spi\_bus.h – HAL-Schicht}
+
+\begin{lstlisting}[style=arduino,caption={Mutex-geschützte SPI-Abstraktion}]
+class SpiBus {
+public:
+    void begin(int sck, int miso, int mosi);
+    void lock();    // Mutex nehmen
+    void unlock();  // Mutex freigeben
+private:
+    SemaphoreHandle_t mtx_;
+};
+
+// RAII Guard fuer automatisches Cleanup
+class SpiGuard {
+public:
+    SpiGuard(SpiBus& bus, const SPISettings& settings);
+    ~SpiGuard();  // Automatisch: endTransaction() + unlock()
+};
+\end{lstlisting}
+
+\subsubsection{cd4021.h – Taster-Treiber}
+
+\begin{lstlisting}[style=arduino,caption={CD4021B-Treiber mit First-Bit-Rescue}]
+void Cd4021::readRaw(SpiBus& bus, uint8_t* out) {
+    // 1. Parallel Load
+    digitalWrite(PIN_BTN_PS, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(PIN_BTN_PS, LOW);
+    delayMicroseconds(2);
+
+    // 2. First Bit Rescue: PI-1 liegt bereits an Q8!
+    uint8_t firstBit = digitalRead(PIN_BTN_MISO);
+
+    // 3. SPI Transfer (restliche Bits)
+    SpiGuard g(bus, spi_);
+    SPI.transfer(out, BTN_BYTES);
+
+    // 4. First Bit einsetzen (MSB von Byte 0)
+    out[0] = (out[0] >> 1) | (firstBit << 7);
+}
+\end{lstlisting}
+
+\begin{infobox}[First-Bit-Problem]
+  Nach dem Parallel-Load (P/S HIGH→LOW) liegt das erste Bit (PI-1) bereits an Q8 an – bevor der erste Clock kommt. Die Lösung: \texttt{digitalRead()} vor dem SPI-Transfer.
+\end{infobox}
+
+\subsubsection{debounce.h – Entprellung}
+
+Der Algorithmus ist zeitbasiert:
+
+\begin{enumerate}
+  \item Bei Rohwert-Änderung: Timer zurücksetzen
+  \item Wenn Timer $\geq$ \SI{30}{\milli\second} UND Rohwert $\neq$ entprellt: übernehmen
+\end{enumerate}
+
+\begin{lstlisting}[style=arduino,caption={Debouncer-Klasse}]
+class Debouncer {
+public:
+    void init();
+    bool update(uint32_t nowMs, const uint8_t* raw, uint8_t* deb);
+private:
+    uint8_t rawPrev_[BTN_BYTES];
+    uint32_t lastChange_[BTN_COUNT];  // Timer pro Taster
+};
+\end{lstlisting}
+
+\subsubsection{selection.h – Auswahl-Logik}
+
+Prinzip: „Last Press Wins" – der zuletzt gedrückte Taster wird aktiv.
+
+\begin{lstlisting}[style=arduino,caption={Selection-Klasse}]
+class Selection {
+public:
+    void init();
+    bool update(const uint8_t* debNow, uint8_t& activeId);
+private:
+    uint8_t debPrev_[BTN_BYTES];
+};
+\end{lstlisting}
+
+\begin{tipbox}[Latch-Modus]
+  Mit \texttt{LATCH\_SELECTION = true} bleibt die Auswahl nach Loslassen bestehen.
+\end{tipbox}
+
+% -----------------------------------------------------------------------------
+\subsection{FreeRTOS-Konfiguration}
+\label{subsec:fw-freertos}
+
+\begin{table}[H]
+  \centering
+  \caption{FreeRTOS Tasks}
+  \label{tab:fw-tasks}
+  \begin{tabularx}{\textwidth}{@{}l r r r X@{}}
+    \toprule
+    \textbf{Task} & \textbf{Core} & \textbf{Priorität} & \textbf{Periode} & \textbf{Funktion} \\
+    \midrule
+    io\_task & 1 & 5 & \SI{5}{\milli\second} & Hardware-I/O (Taster, LEDs) \\
+    serial\_task & 1 & 2 & Event-driven & Protokoll-Handler \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Core 0 bleibt für WiFi/BLE reserviert (falls später benötigt).
+
+% -----------------------------------------------------------------------------
+\subsection{Datenfluss im Detail}
+\label{subsec:fw-datenfluss}
+
+Was passiert in jedem I/O-Zyklus? Schauen wir uns die Hauptschleife an:
+
+\begin{lstlisting}[style=arduino,caption={I/O-Task Hauptschleife (vereinfacht)}]
+void io_loop() {
+    TickType_t lastWake = xTaskGetTickCount();
+
+    while (true) {
+        uint32_t now = millis();
+
+        // 1. Taster einlesen
+        cd4021.readRaw(bus, raw);
+        bool rawChg = memcmp(raw, rawPrev, BTN_BYTES) != 0;
+
+        // 2. Entprellen
+        bool debChg = debouncer.update(now, raw, deb);
+
+        // 3. Auswahl aktualisieren
+        bool selChg = selection.update(deb, activeId);
+
+        // 4. LEDs setzen (activeId -> One-Hot)
+        memset(led, 0, LED_BYTES);
+        if (activeId > 0) led_set(led, activeId, true);
+        hc595.write(bus, led);
+
+        // 5. Bei Aenderung: Event senden
+        if (debChg || selChg) {
+            LogEvent ev = {now, raw, deb, led, activeId, ...};
+            xQueueSend(queue, &ev, 0);
+        }
+
+        // 6. Auf naechsten Zyklus warten
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(IO_PERIOD_MS));
+    }
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Design-Entscheidungen}
+\label{subsec:fw-design}
+
+\subsubsection{Warum Queue statt direktem Serial-Aufruf?}
+
+Die Queue entkoppelt I/O von Serial-Ausgabe:
+
+\begin{itemize}
+  \item io\_task blockiert nie (\SI{5}{\milli\second} Deadline)
+  \item serial\_task kann langsam sein (USB-Puffer voll)
+  \item Atomare Snapshots (keine Race-Conditions)
+\end{itemize}
+
+\subsubsection{Warum SpiGuard (RAII)?}
+
+Garantiert korrektes Cleanup auch bei frühem Return:
+
+\begin{lstlisting}[style=arduino,caption={RAII-Pattern für SPI}]
+{
+    SpiGuard g(bus, settings);
+    if (error) return;  // endTransaction() + unlock() trotzdem!
+    SPI.transfer(data);
+}
+\end{lstlisting}
+
+\subsubsection{Warum zeitbasiertes Debouncing?}
+
+\begin{itemize}
+  \item Unabhängig von Abtastrate
+  \item Jeder Taster hat eigenen Timer
+  \item Schnelle Tastenfolgen möglich
+\end{itemize}
+
+\subsubsection{Warum LED\_REFRESH\_EVERY\_CYCLE?}
+
+Beim CD4021B-Read werden Nullen durch den 74HC595 getaktet (gemeinsamer SCK). Ein glitchender Latch-Pin könnte LEDs kurz ausschalten. Der Refresh nach jedem Zyklus kompensiert dies.
+
+% -----------------------------------------------------------------------------
+\subsection{Skalierung auf 100 Buttons}
+\label{subsec:fw-skalierung}
+
+Die Architektur skaliert durch Änderung zweier Konstanten:
+
+\begin{lstlisting}[style=arduino,caption={Skalierung auf 100 Buttons}]
+constexpr uint8_t BTN_COUNT = 100;
+constexpr uint8_t LED_COUNT = 100;
+// BTN_BYTES und LED_BYTES werden automatisch auf 13 berechnet
+\end{lstlisting}
+
+Alle Schleifen und Bit-Arrays passen sich automatisch an. Die SPI-Transferzeit steigt von $\sim$\SI{40}{\micro\second} auf $\sim$\SI{320}{\micro\second} – weit unter dem \SI{5}{\milli\second}-Budget.
+
+% -----------------------------------------------------------------------------
+\subsection{Build und Upload}
+\label{subsec:fw-build}
+
+\begin{lstlisting}[style=shell]
+# PlatformIO
+cd firmware
+pio run -t upload
+pio device monitor
+
+# Serial-Ausgabe
+# READY
+# FW SelectionPanel v2.5.2
+# PRESS 001
+# RELEASE 001
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Debugging}
+\label{subsec:fw-debugging}
+
+\subsubsection{Log-Level aktivieren}
+
+In \filep{config.h}:
+
+\begin{lstlisting}[style=arduino,caption={Debug-Optionen}]
+constexpr bool LOG_VERBOSE_PER_ID = true;   // Details pro Taster
+constexpr bool LOG_ON_RAW_CHANGE = true;    // Rohwert-Aenderungen
+constexpr bool SERIAL_PROTOCOL_ONLY = false; // Debug-Ausgabe erlauben
+\end{lstlisting}
+
+\subsubsection{Bit-Mapping verifizieren}
+
+\begin{lstlisting}[style=shell]
+# STATUS-Befehl zeigt Bit-Arrays:
+echo "STATUS" > /dev/serial/by-id/usb-Espressif*
+
+# Ausgabe:
+# LEDS 0000000001    <-- LED 1 an (Bit 0)
+# BTNS 1111111110    <-- BTN 1 gedrueckt (Active-Low: Bit 0 = 0)
+\end{lstlisting}
+
+\begin{table}[H]
+  \centering
+  \caption{Serial-Protokoll für Debugging}
+  \label{tab:fw-debug-protokoll}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Befehl} & \textbf{Antwort} & \textbf{Beschreibung} \\
+    \midrule
+    \texttt{STATUS} & \texttt{LEDS .../BTNS ...} & Bit-Arrays anzeigen \\
+    \texttt{PING} & \texttt{PONG} & Verbindungstest \\
+    \texttt{LEDSET 005} & \texttt{OK} & LED 5 setzen (One-Hot) \\
+    \texttt{LEDCLR} & \texttt{OK} & Alle LEDs aus \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

@@ -121,7 +121,7 @@
 <div class="main-container">
 <h1 id="selection-panel-raspberry-pi-integration-phase-7">Selection
 Panel: Raspberry Pi Integration (Phase 7)</h1>
-<p>Version 2.5.2 | Raspberry Pi 5 + ESP32-S3 | Stand: 2026-01-08</p>
+<p>Version 2.5.3 | Raspberry Pi 5 + ESP32-S3 | Stand: 2026-01-31</p>
 <h2 id="übersicht">Übersicht</h2>
 <p>In Phase 7 wird der ESP32-S3 zum reinen I/O-Controller. Der Raspberry
 Pi 5 übernimmt die Anwendungslogik: Er empfängt Taster-Events über
@@ -182,7 +182,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># → FW SelectionPanel v2.5.2</span></span></code></pre></div>
 <h2 id="server-architektur">Server-Architektur</h2>
 <h3 id="komponenten">Komponenten</h3>
-<p>Der Python-Server (<code>server.py</code>) verwendet
+<p>Der Python-Server (<code>server/server.py</code>) verwendet
 <strong>aiohttp</strong> für asynchrone HTTP/WebSocket-Verarbeitung:</p>
 <table class="table table-compact">
 <thead>
@@ -269,9 +269,9 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="
 </table>
 <h3 id="konfiguration">Konfiguration</h3>
 <div class="sourceCode" id="cb4"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># server.py - Wichtige Einstellungen</span></span>
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># server/server.py - Wichtige Einstellungen</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>VERSION <span class="op">=</span> <span class="st">&quot;2.5.2&quot;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>VERSION <span class="op">=</span> <span class="st">&quot;2.5.3&quot;</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Build-Modus</span></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>PROTOTYPE_MODE <span class="op">=</span> <span class="va">True</span>   <span class="co"># True = 10 Medien, False = 100 Medien</span></span>
@@ -450,7 +450,7 @@ Debug</li>
 <h3 id="zugriff">Zugriff</h3>
 <div class="sourceCode" id="cb8"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Server starten</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/pi/selection-panel</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/pi/selection-panel/server</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> server.py</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Browser öffnen</span></span>
@@ -517,9 +517,9 @@ class="sourceCode ini"><code class="sourceCode ini"><span id="cb13-1"><a href="#
 <span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="kw">[Service]</span></span>
 <span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="dt">Type</span><span class="ot">=</span><span class="st">simple</span></span>
 <span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="dt">User</span><span class="ot">=</span><span class="st">pi</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="dt">WorkingDirectory</span><span class="ot">=</span><span class="st">/home/pi/selection-panel</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="dt">WorkingDirectory</span><span class="ot">=</span><span class="st">/home/pi/selection-panel/server</span></span>
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co"># flock -n: Startet nur wenn Lock frei</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="dt">ExecStart</span><span class="ot">=</span><span class="st">/usr/bin/flock -n /var/lock/esp32-serial.lock /usr/bin/python3 server.py</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="dt">ExecStart</span><span class="ot">=</span><span class="st">/usr/bin/flock -n /var/lock/esp32-serial.lock /home/pi/selection-panel/venv/bin/python /home/pi/selection-panel/server/server.py</span></span>
 <span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Restart</span><span class="ot">=</span><span class="st">on-failure</span></span>
 <span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="dt">RestartSec</span><span class="ot">=</span><span class="dv">5</span></span>
 <span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
@@ -542,7 +542,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href=
 <span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Logs verfolgen</span></span>
 <span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="ex">journalctl</span> <span class="at">-u</span> selection-panel.service <span class="at">-f</span></span></code></pre></div>
 <h2 id="medien-struktur">Medien-Struktur</h2>
-<pre><code>media/
+<pre><code>server/media/
 ├── 001.jpg    # Bild für Taster 1
 ├── 001.mp3    # Audio für Taster 1
 ├── 002.jpg
@@ -650,7 +650,7 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href=
 </table>
 <p>Das Medien-Preloading im Browser reduziert die Latenz erheblich.</p>
 <hr />
-<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+<p><em>Stand: 2026-01-31 | Version 2.5.3</em></p>
 </div>
 </body>
 </html>

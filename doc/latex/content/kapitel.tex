@@ -1,0 +1,83 @@
+% =============================================================================
+% content/kapitel.tex – Beispiel-Inhalt
+% =============================================================================
+
+\section{Einleitung}
+
+Beispieltext für die Dokumentation. Dieser Abschnitt demonstriert die verfügbaren Elemente, \zB Boxen, Code und Tabellen.\todo{Einleitung erweitern}
+
+\subsection{Text-Hervorhebungen}
+
+Inline-Code: \code{funktionsName()}. 
+Wichtige Begriffe \highlight{hervorheben}, \warning{Warnungen} oder \critical{kritische Hinweise} markieren.
+
+Abkürzungen: \zB \dhei \ua \bzw \ggf \evtl
+
+\subsection{Info-Boxen}
+
+\begin{infobox}[Hinweis]
+  Allgemeine Information mit \code{cleveref}: Siehe \cref{tab:beispiel}.
+\end{infobox}
+
+\begin{warnbox}[Achtung]
+  Warnhinweis – wichtig bei Spannungspegeln.
+\end{warnbox}
+
+\begin{tipbox}[Tipp]
+  Best Practice für bessere Performance.
+\end{tipbox}
+
+\section{Code-Beispiele}
+
+Code wird in \code{footnotesize} ohne automatischen Zeilenumbruch dargestellt.
+Für lange Ausgaben gibt es den Style \code{wrap}.
+
+\begin{lstlisting}[style=arduino, caption={Arduino/C++ Beispiel}]
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(1000);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=python, caption={Python Beispiel}]
+async def main():
+    await asyncio.sleep(1)
+    return True
+\end{lstlisting}
+
+\begin{lstlisting}[style=shell, caption={Shell Beispiel}]
+sudo apt update && sudo apt upgrade -y
+\end{lstlisting}
+
+\begin{lstlisting}[style=json, caption={JSON Beispiel}]
+{
+  "name": "sensor",
+  "value": 42,
+  "active": true
+}
+\end{lstlisting}
+
+\section{Tabellen}
+
+\begin{table}[H]
+  \centering
+  \caption{Beispiel-Tabelle}
+  \label{tab:beispiel}
+  \begin{tabular}{lll}
+    \toprule
+    Spalte A & Spalte B & Spalte C \\
+    \midrule
+    Wert 1   & Wert 2   & Wert 3 \\
+    Wert 4   & Wert 5   & Wert 6 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Einheiten}
+
+Spannung: \SI{3.3}{\volt}, Strom: \SI{20}{\milli\ampere}, Frequenz: \SI{10}{\mega\hertz}, Widerstand: \SI{4.7}{\kilo\ohm}.

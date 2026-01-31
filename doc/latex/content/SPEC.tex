@@ -1,0 +1,467 @@
+% =============================================================================
+% SPEC.tex – Spezifikation Auswahlpanel (Single Source of Truth)
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Spezifikation (SPEC)}
+\label{sec:spec}
+
+Dieses Kapitel bildet die \textbf{Single Source of Truth} für Protokolle, Pinbelegung und Policies des Auswahlpanels. Wenn wir uns fragen, wie etwas funktionieren soll, finden wir hier die verbindliche Antwort.
+
+\begin{table}[H]
+  \centering
+  \caption{Metadaten der Spezifikation}
+  \label{tab:spec-meta}
+  \begin{tabularx}{0.5\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Metadaten} & \textbf{Wert} \\
+    \midrule
+    Version & 2.5.2 \\
+    Datum & 2026-01-08 \\
+    Status & ✓ Prototyp funktionsfähig (10×) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Glossar}
+\label{subsec:spec-glossar}
+
+Bevor wir in die Details einsteigen, klären wir die wichtigsten Begriffe. \Cref{tab:spec-glossar} dient als Nachschlagewerk.
+
+\begin{table}[H]
+  \centering
+  \caption{Begriffsdefinitionen}
+  \label{tab:spec-glossar}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Begriff} & \textbf{Erklärung} \\
+    \midrule
+    One-hot & Genau ein Bit ist aktiv, alle anderen sind aus \\
+    Preempt & Neue Aktion unterbricht sofort die laufende \\
+    Race-Condition & Timing-Problem, wenn zwei Ereignisse fast gleichzeitig auftreten \\
+    FreeRTOS & Echtzeit-Betriebssystem für Mikrocontroller \\
+    Mutex & Sperre, die gleichzeitigen Zugriff auf Ressourcen verhindert \\
+    CMOS & Chip-Technologie – Eingänge nie unbeschaltet lassen \\
+    Pull-Up & Widerstand zieht Signal auf HIGH, Taster zieht auf LOW \\
+    Kaskadierung & ICs in Reihe schalten, um mehr Ein-/Ausgänge zu erhalten \\
+    DIP-16 & IC-Gehäuse mit 16 Pins in zwei Reihen \\
+    USB-CDC & USB Communications Device Class (virtueller COM-Port) \\
+    1-basiert & Nummerierung beginnt bei 1 (nicht 0) \\
+    Preloading & Medien vorladen bevor sie benötigt werden \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Policy}
+\label{subsec:spec-policy}
+
+Zwei zentrale Regeln bestimmen das Verhalten des Systems: One-hot LED und Preempt.
+
+\subsubsection{One-hot LED}
+
+Zu jedem Zeitpunkt leuchtet \textbf{maximal eine LED}. Diese Einschränkung hat einen praktischen Grund: Der Maximalstrom beträgt so nur $1 \times \SI{20}{\milli\ampere}$ statt $100 \times \SI{20}{\milli\ampere} = \SI{2}{\ampere}$.
+
+\begin{table}[H]
+  \centering
+  \caption{LED-Befehle im One-hot-Modus}
+  \label{tab:spec-onehot}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Befehl} & \textbf{Wirkung} \\
+    \midrule
+    \texttt{LEDSET n} & LED \textit{n} an, alle anderen aus \\
+    \texttt{LEDCLR} & Alle LEDs aus \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Preempt („Umschalten gewinnt")}
+
+Jeder neue Tastendruck unterbricht sofort die aktuelle Wiedergabe. Der Ablauf mit ESP32 v2.5.2 (lokale LED-Steuerung):
+
+\begin{enumerate}
+  \item ESP32 setzt LED sofort (< \SI{1}{\milli\second})
+  \item ESP32 → Pi: \texttt{PRESS 005}
+  \item Pi → Browser: \texttt{\{"type":"stop"\}} + \texttt{\{"type":"play","id":5\}} (parallel)
+  \item Browser spielt aus Cache (< \SI{50}{\milli\second})
+\end{enumerate}
+
+\begin{infobox}[Race-Condition-Schutz]
+  Nach Audio-Ende meldet der Browser \texttt{\{"type":"ended","id":5\}}. Der Pi sendet \texttt{LEDCLR} \textbf{nur wenn} \texttt{id == current\_id}. So bleibt die LED an, falls zwischenzeitlich ein neuer Taster gedrückt wurde.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Nummerierung (1-basiert)}
+\label{subsec:spec-nummerierung}
+
+\textbf{Alle IDs sind 1-basiert} (001–100), nicht 0-basiert (000–099). Diese Konvention zieht sich durch alle Schichten – keine Konvertierung nötig.
+
+\begin{table}[H]
+  \centering
+  \caption{Durchgängig 1-basierte Nummerierung}
+  \label{tab:spec-nummerierung}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Schicht} & \textbf{Format} & \textbf{Beispiel} \\
+    \midrule
+    Taster (physisch) & 1–100 & Taster 1, Taster 10 \\
+    Serial-Protokoll & 001–100 & \texttt{PRESS 001}, \texttt{LEDSET 010} \\
+    WebSocket & 1–100 & \texttt{\{"type":"play","id":1\}} \\
+    Medien-Dateien & 001–100 & \filep{001.jpg}, \filep{010.mp3} \\
+    Dashboard-Anzeige & 001–100 & „001", „010" \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Pinbelegung ESP32-S3 XIAO}
+\label{subsec:spec-pinbelegung}
+
+\Cref{tab:spec-pins} zeigt die Verbindungen zwischen ESP32 und den Schieberegistern.
+
+\begin{table}[H]
+  \centering
+  \caption{ESP32-S3 XIAO Pinbelegung}
+  \label{tab:spec-pins}
+  \begin{tabularx}{\textwidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{Signal} & \textbf{Pin} & \textbf{Ziel-IC} & \textbf{Funktion} \\
+    \midrule
+    MOSI & \pin{D10} & 74HC595 Pin 14 (SER) & Serielle Daten für LEDs \\
+    SCK & \pin{D8} & 74HC595 Pin 11 + CD4021B Pin 10 & Gemeinsamer SPI-Takt \\
+    RCK & \pin{D0} & 74HC595 Pin 12 (RCLK) & LED-Latch (Ausgabe freigeben) \\
+    OE & \pin{D2} & 74HC595 Pin 13 (OE) & Output Enable (PWM für Helligkeit) \\
+    MISO & \pin{D9} & CD4021B Pin 3 (Q8) & Serielle Daten von Tastern \\
+    P/S & \pin{D1} & CD4021B Pin 9 (P/S) & Parallel Load (HIGH = Load) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{warnbox}[SPI-Modi beachten]
+  Die beiden ICs verwenden unterschiedliche SPI-Modi:
+  \begin{itemize}
+    \item \textbf{74HC595:} MODE0 (CPOL=0, CPHA=0) @ \SI{1}{\mega\hertz}
+    \item \textbf{CD4021B:} MODE1 (CPOL=0, CPHA=1) @ \SI{500}{\kilo\hertz}
+  \end{itemize}
+\end{warnbox}
+
+% -----------------------------------------------------------------------------
+\subsection{CD4021B vs. 74HC165}
+\label{subsec:spec-cd4021b}
+
+Warum nutzen wir den CD4021B statt des häufiger verwendeten 74HC165? \Cref{tab:spec-ic-vergleich} zeigt die Unterschiede.
+
+\begin{table}[H]
+  \centering
+  \caption{Vergleich der Eingabe-Schieberegister}
+  \label{tab:spec-ic-vergleich}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    \textbf{Aspekt} & \textbf{74HC165} & \textbf{CD4021B} \\
+    \midrule
+    Load-Signal & LOW-aktiv & \textbf{HIGH-aktiv} \\
+    Shift-Signal & HIGH-aktiv & LOW-aktiv \\
+    DIP-Verfügbarkeit & Schwer & Gut \\
+    Load-Puls & \SI{1}{\micro\second} & \textbf{\SI{2}{\micro\second}} (CMOS) \\
+    Clock-Puls & \SI{1}{\micro\second} & \SI{1}{\micro\second} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Firmware-Anpassung]
+  Die invertierte Load-Logik und längeren Pulse des CD4021B sind in der Firmware berücksichtigt. Bei einem Wechsel zum 74HC165 müssten diese Parameter angepasst werden.
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Verdrahtungsregeln}
+\label{subsec:spec-verdrahtung}
+
+CMOS-ICs vertragen keine offenen Eingänge – das führt zu undefiniertem Verhalten und erhöhtem Stromverbrauch. \Cref{tab:spec-verdrahtung} fasst die wichtigsten Regeln zusammen.
+
+\begin{table}[H]
+  \centering
+  \caption{Verdrahtungsregeln für die Schieberegister}
+  \label{tab:spec-verdrahtung}
+  \begin{tabularx}{\textwidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{IC} & \textbf{Pin} & \textbf{Regel} & \textbf{Grund} \\
+    \midrule
+    CD4021B (letzter) & Pin 11 (DS) & → VCC & CMOS-Eingänge nie floaten \\
+    74HC595 (letzter) & Pin 9 (QH') & offen OK & Ausgang treibt aktiv \\
+    74HC595 (alle) & Pin 10 (SRCLR) & → VCC & Clear deaktiviert \\
+    74HC595 (alle) & Pin 13 (OE) & → \pin{D2} oder GND & Outputs aktiviert/PWM \\
+    Alle ICs & VCC/VDD & \SI{100}{\nano\farad} → GND & Abblockkondensator \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Bit-Mapping}
+
+Die Hardware-Verdrahtung bestimmt, welcher Taster welchem Bit entspricht.
+
+\textbf{CD4021B (Eingabe):} BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1 (Pin 7)
+
+\begin{equation}
+  \text{btn\_bit}(id) = (id - 1) \mod 8
+\end{equation}
+
+\textbf{74HC595 (Ausgabe):} LED 1 → QA, LED 8 → QH
+
+\begin{equation}
+  \text{led\_bit}(id) = (id - 1) \mod 8
+\end{equation}
+
+% -----------------------------------------------------------------------------
+\subsection{Serial-Protokoll (ESP32 ↔ Pi)}
+\label{subsec:spec-serial}
+
+Die Kommunikation erfolgt mit \SI{115200}{\baud}, ASCII-kodiert und Newline-terminiert (\texttt{\textbackslash n}).
+
+\begin{tipbox}[Stabiler Device-Pfad]
+  Statt \filep{/dev/ttyACM0} (kann sich ändern) verwenden wir:\\
+  \filep{/dev/serial/by-id/usb-Espressif*}
+\end{tipbox}
+
+\subsubsection{ESP32 → Pi}
+
+\begin{table}[H]
+  \centering
+  \caption{Nachrichten vom ESP32 zum Pi}
+  \label{tab:spec-serial-esp-pi}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Nachricht} & \textbf{Bedeutung} \\
+    \midrule
+    \texttt{READY} & Controller bereit \\
+    \texttt{FW SelectionPanel v2.5.2} & Firmware-Version \\
+    \texttt{PRESS 001} & Taster 1 gedrückt (001–100) \\
+    \texttt{RELEASE 001} & Taster 1 losgelassen \\
+    \texttt{OK} & Befehl erfolgreich \\
+    \texttt{PONG} & Antwort auf PING \\
+    \texttt{ERROR msg} & Fehlermeldung \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Pi → ESP32}
+
+\begin{table}[H]
+  \centering
+  \caption{Befehle vom Pi zum ESP32}
+  \label{tab:spec-serial-pi-esp}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Befehl} & \textbf{Funktion} \\
+    \midrule
+    \texttt{LEDSET 001} & LED 1 ein (one-hot) \\
+    \texttt{LEDON 001} & LED 1 ein (additiv) \\
+    \texttt{LEDOFF 001} & LED 1 aus \\
+    \texttt{LEDCLR} & Alle LEDs aus \\
+    \texttt{LEDALL} & Alle LEDs ein \\
+    \texttt{PING} & Verbindungstest → PONG \\
+    \texttt{STATUS} & Zustand abfragen \\
+    \texttt{VERSION} & Firmware-Version \\
+    \texttt{HELP} & Befehlsliste \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{STATUS-Ausgabe (v2.5.2)}
+
+\begin{lstlisting}[style=shell,numbers=none]
+STATUS active=5 leds=0x10
+LEDS 0000100000      # Bit-Vektor (MSB links)
+BTNS 1111111111      # Bit-Vektor (Active-Low: 1 = losgelassen)
+\end{lstlisting}
+
+\subsubsection{USB-CDC Besonderheit}
+
+Der ESP32-S3 XIAO nutzt USB-CDC statt UART. Ohne explizites \texttt{flush()} fragmentieren die Nachrichten:
+
+\begin{lstlisting}[style=arduino,caption={Serial.flush() verhindert Fragmentierung}]
+Serial.println(buffer);
+Serial.flush();  // Wichtig bei USB-CDC!
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{WebSocket-Protokoll (Pi ↔ Browser)}
+\label{subsec:spec-websocket}
+
+Endpoint: \texttt{ws://rover:8080/ws}
+
+\begin{table}[H]
+  \centering
+  \caption{WebSocket-Nachrichten}
+  \label{tab:spec-websocket}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Richtung} & \textbf{Nachricht} & \textbf{Bedeutung} \\
+    \midrule
+    Pi → Browser & \texttt{\{"type":"stop"\}} & Wiedergabe stoppen \\
+    Pi → Browser & \texttt{\{"type":"play","id":5\}} & Medien 5 abspielen \\
+    Browser → Pi & \texttt{\{"type":"ended","id":5\}} & Audio 5 beendet \\
+    Browser → Pi & \texttt{\{"type":"ping"\}} & Heartbeat \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{HTTP-Endpoints}
+\label{subsec:spec-http}
+
+\begin{table}[H]
+  \centering
+  \caption{HTTP-Endpoints des Servers}
+  \label{tab:spec-http}
+  \begin{tabularx}{\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Pfad} & \textbf{Funktion} \\
+    \midrule
+    \texttt{/} & Dashboard (index.html) \\
+    \texttt{/ws} & WebSocket-Verbindung \\
+    \texttt{/static/*} & CSS, JavaScript \\
+    \texttt{/media/*} & Bilder und Audio \\
+    \texttt{/test/play/\{id\}} & Wiedergabe simulieren (1-basiert) \\
+    \texttt{/test/stop} & Wiedergabe stoppen \\
+    \texttt{/status} & Server-Status (JSON) \\
+    \texttt{/health} & Health-Check (200/503) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsubsection{Status-Response (v2.5.2)}
+
+\begin{lstlisting}[style=json]
+{
+  "version": "2.5.2",
+  "mode": "prototype",
+  "num_media": 10,
+  "current_button": 5,
+  "ws_clients": 1,
+  "serial_connected": true,
+  "serial_port": "/dev/serial/by-id/usb-Espressif...",
+  "media_missing": 0,
+  "esp32_local_led": true
+}
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Medien-Konvention}
+\label{subsec:spec-medien}
+
+\begin{table}[H]
+  \centering
+  \caption{Zuordnung von IDs zu Mediendateien}
+  \label{tab:spec-medien}
+  \begin{tabularx}{0.7\textwidth}{@{}r l l@{}}
+    \toprule
+    \textbf{ID} & \textbf{Bild} & \textbf{Audio} \\
+    \midrule
+    1 & \filep{media/001.jpg} & \filep{media/001.mp3} \\
+    5 & \filep{media/005.jpg} & \filep{media/005.mp3} \\
+    10 & \filep{media/010.jpg} & \filep{media/010.mp3} \\
+    100 & \filep{media/100.jpg} & \filep{media/100.mp3} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{infobox}[Dateinamen-Konvention]
+  IDs: 1–100 (1-basiert), Dateien: 001–100 (zero-padded, 3 Stellen).
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{Latenz-Budget}
+\label{subsec:spec-latenz}
+
+Wie schnell reagiert das System auf einen Tastendruck? \Cref{tab:spec-latenz} schlüsselt die einzelnen Komponenten auf.
+
+\begin{table}[H]
+  \centering
+  \caption{Latenz-Budget vom Tastendruck bis zur Wiedergabe}
+  \label{tab:spec-latenz}
+  \begin{tabularx}{\textwidth}{@{}l r X@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Latenz} & \textbf{Beschreibung} \\
+    \midrule
+    ESP32 LED & < \SI{1}{\milli\second} & Lokale Steuerung (v2.5.2) \\
+    Serial & $\sim$\SI{5}{\milli\second} & USB-CDC Übertragung \\
+    Server & $\sim$\SI{1}{\milli\second} & asyncio.gather \\
+    WebSocket & $\sim$\SI{5}{\milli\second} & Netzwerk \\
+    Dashboard & < \SI{50}{\milli\second} & Aus Cache (Preloading) \\
+    \midrule
+    \textbf{Gesamt} & \textbf{< \SI{70}{\milli\second}} & Tastendruck → Wiedergabe \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Akzeptanztests}
+\label{subsec:spec-tests}
+
+\begin{table}[H]
+  \centering
+  \caption{Akzeptanztests für den Prototyp}
+  \label{tab:spec-tests}
+  \begin{tabularx}{\textwidth}{@{}l X c@{}}
+    \toprule
+    \textbf{Test} & \textbf{Erwartung} & \textbf{Status} \\
+    \midrule
+    Preempt & Neuer Taster unterbricht sofort & ✓ \\
+    One-hot & Nur eine LED leuchtet & ✓ \\
+    Ende & Nach Audio: alle LEDs aus & ✓ \\
+    Race & LED bleibt an wenn neue ID aktiv & ✓ \\
+    Debounce & Nur ein Event pro Tastendruck & ✓ \\
+    Zuordnung & Taster 1 → Medien 001 & ✓ \\
+    Alle Taster & 10/10 erkannt (Prototyp) & ✓ \\
+    LED-Latenz & < \SI{1}{\milli\second} & ✓ \\
+    Dashboard-Latenz & < \SI{50}{\milli\second} & ✓ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Versionen}
+\label{subsec:spec-versionen}
+
+\begin{table}[H]
+  \centering
+  \caption{Aktuelle Komponenten-Versionen}
+  \label{tab:spec-versionen}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Komponente} & \textbf{Version} & \textbf{Änderung} \\
+    \midrule
+    Firmware & 2.5.2 & FreeRTOS, Hardware-SPI, First-Bit-Rescue \\
+    Server & 2.5.2 & by-id Pfad, asyncio, ESP32\_SETS\_LED\_LOCALLY \\
+    Dashboard & 2.5.1 & Preloading, Cache, Audio-Unlock \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Bekannte Einschränkungen}
+\label{subsec:spec-einschraenkungen}
+
+\Cref{tab:spec-einschraenkungen} dokumentiert bekannte Probleme und deren Lösungen.
+
+\begin{table}[H]
+  \centering
+  \caption{Bekannte Einschränkungen und Lösungen}
+  \label{tab:spec-einschraenkungen}
+  \begin{tabularx}{\textwidth}{@{}X c X@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Status} & \textbf{Lösung} \\
+    \midrule
+    ESP32-S3 USB-CDC fragmentiert & ✓ & \texttt{Serial.flush()} \\
+    pyserial funktioniert nicht & ✓ & \texttt{os.open} + \texttt{stty} \\
+    CD4021B braucht längere Pulse & ✓ & \SI{2}{\micro\second} Load, \SI{1}{\micro\second} Clock \\
+    CD4021B First-Bit-Problem & ✓ & \texttt{digitalRead()} vor SPI \\
+    LED-Latenz durch Roundtrip & ✓ & Lokale LED-Steuerung \\
+    Dashboard-Latenz & ✓ & Medien-Preloading \\
+    Serial-Pfad instabil & ✓ & by-id Pfad verwenden \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

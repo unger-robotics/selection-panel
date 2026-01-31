@@ -1,0 +1,355 @@
+% =============================================================================
+% farbschema.tex – Farbdefinitionen mit visueller Vorschau
+% =============================================================================
+% Projekt: Interaktives Auswahlpanel
+% =============================================================================
+\documentclass{techdoc}
+
+% =============================================================================
+% METADATEN
+% =============================================================================
+\title{Farbschema}
+\subtitle{Arduino Teal + Raspberry Pi Red + GitHub Dark}
+\tagline{Konsistente Farbdefinitionen für alle Projektdateien}
+\scope{LaTeX \textbullet\ CSS \textbullet\ Schaltpläne}
+\stack{Arduino Teal \textbullet\ Raspberry Red \textbullet\ Success Green \textbullet\ Warning Orange}
+\version{2.2.3}
+\date{11.01.2026}
+\author{Jan Unger}
+\credits{Claude 4.5}
+\coverimage{cover-farbschema.pdf}
+
+% Bilder liegen in ./images/ und ./covers/
+\graphicspath{{images/}{covers/}}
+
+\setheadertitle{Farbschema}
+
+\hypersetup{
+  pdftitle={Farbschema – Auswahlpanel-Projekt},
+  pdfauthor={Jan Unger}
+}
+
+% =============================================================================
+% FARBDEFINITIONEN (alle Farben explizit definieren)
+% =============================================================================
+
+% Primärfarben
+\definecolor{ArduinoTeal}{RGB}{0,151,157}
+\definecolor{ArduinoDark}{RGB}{0,92,95}
+\definecolor{ArduinoTealLight}{RGB}{98,174,178}
+\definecolor{RaspberryRed}{RGB}{197,26,74}
+\definecolor{RaspberryPurple}{RGB}{117,38,74}
+
+% Statusfarben
+\definecolor{SuccessGreen}{RGB}{117,169,40}
+\definecolor{WarningOrange}{RGB}{217,119,6}
+
+% Hintergründe
+\definecolor{GitHubDark}{RGB}{13,17,23}
+\definecolor{SlateDark}{RGB}{30,41,51}
+\definecolor{SlateMedium}{RGB}{45,58,69}
+\definecolor{BackgroundLight}{RGB}{250,250,250}
+
+% Text
+\definecolor{LightText}{RGB}{230,237,243}
+\definecolor{DarkText}{RGB}{13,17,23}
+\definecolor{MutedText}{RGB}{74,85,104}
+\definecolor{SecondaryText}{RGB}{139,148,158}
+
+% Signalfarben
+\definecolor{SignalData}{RGB}{81,207,102}
+\definecolor{SignalClock}{RGB}{255,212,59}
+\definecolor{SignalLatch}{RGB}{77,171,247}
+\definecolor{SignalVCC}{RGB}{255,107,107}
+\definecolor{SignalGND}{RGB}{107,114,128}
+\definecolor{SignalCapacitor}{RGB}{255,169,77}
+
+% Code-Farben
+\definecolor{CodeBackground}{RGB}{248,250,252}
+\definecolor{CodeFrame}{RGB}{200,210,220}
+
+% Info-Box-Farben
+\definecolor{InfoBoxBg}{RGB}{230,245,250}
+\definecolor{WarnBoxBg}{RGB}{255,247,237}
+\definecolor{TipBoxBg}{RGB}{240,250,240}
+\definecolor{ErrorBoxBg}{RGB}{255,240,245}
+
+% Tabellen
+\definecolor{TableHeader}{RGB}{230,245,250}
+\definecolor{TableRowAlt}{RGB}{248,250,252}
+
+% =============================================================================
+% HILFSBEFEHLE
+% =============================================================================
+
+% Farbkreis mit Hex-Code
+\newcommand{\farbkreis}[2]{%
+  \tikz[baseline=-0.5ex]{%
+    \fill[fill=#1] (0,0) circle (0.35em);%
+  }%
+  \hspace{0.3em}%
+  \texttt{\small #2}%
+}
+
+% Farbbox für Code-Namen
+\newcommand{\codename}[1]{%
+  \tikz[baseline=-0.5ex]{%
+    \node[fill=CodeBackground, draw=CodeFrame, rounded corners=2pt,
+          inner sep=2pt, font=\ttfamily\small] {#1};%
+  }%
+}
+
+% Große Farbvorschau (dunkler Text)
+\newcommand{\farbvorschau}[2]{%
+  \tikz{%
+    \fill[fill=#1] (0,0) rectangle (2.5cm,0.8cm);%
+    \node[anchor=west, font=\ttfamily\small, text=white] at (0.15,0.4) {#2};%
+  }%
+}
+
+% Farbvorschau mit dunklem Text (für helle Farben)
+\newcommand{\farbvorschauhell}[2]{%
+  \tikz{%
+    \fill[fill=#1] (0,0) rectangle (2.5cm,0.8cm);%
+    \draw[CodeFrame] (0,0) rectangle (2.5cm,0.8cm);%
+    \node[anchor=west, font=\ttfamily\small, text=DarkText] at (0.15,0.4) {#2};%
+  }%
+}
+
+% Highlight-Befehle (providecommand falls nicht in techdoc.cls definiert)
+\providecommand{\highlight}[1]{\textcolor{ArduinoTeal}{\textbf{#1}}}
+\providecommand{\improvement}[1]{\textcolor{SuccessGreen}{\textbf{#1}}}
+\providecommand{\warning}[1]{\textcolor{WarningOrange}{\textbf{#1}}}
+\providecommand{\critical}[1]{\textcolor{RaspberryRed}{\textbf{#1}}}
+
+% =============================================================================
+% DOKUMENT
+% =============================================================================
+\begin{document}
+
+\maketitlepage
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% =============================================================================
+% INHALT
+% =============================================================================
+
+\section{Strukturierte Farbdefinitionen}
+
+\begin{table}[H]
+\centering
+\caption{Primär- und Statusfarben}
+\label{tab:farben-primaer}
+\begin{tabular}{@{} p{2.8cm} p{3.2cm} p{3.5cm} p{4cm} @{}}
+\toprule
+\textbf{Kategorie} & \textbf{Farbe} & \textbf{Hex} & \textbf{LaTeX-Name} \\
+\midrule
+\rowcolor{TableRowAlt}
+\textbf{Primär} & Arduino Teal & \farbkreis{ArduinoTeal}{\ \#00979D} & \codename{ArduinoTeal} \\
+ & Arduino Dark & \farbkreis{ArduinoDark}{\ \#005C5F} & \codename{ArduinoDark} \\
+\rowcolor{TableRowAlt}
+ & Raspberry Red & \farbkreis{RaspberryRed}{\ \#C51A4A} & \codename{RaspberryRed} \\
+ & Raspberry Purple & \farbkreis{RaspberryPurple}{\ \#75264A} & \codename{RaspberryPurple} \\
+\midrule
+\rowcolor{TableRowAlt}
+\textbf{Status} & Success Green & \farbkreis{SuccessGreen}{\ \#75A928} & \codename{SuccessGreen} \\
+ & Warning Orange & \farbkreis{WarningOrange}{\ \#D97706} & \codename{WarningOrange} \\
+\midrule
+\rowcolor{TableRowAlt}
+\textbf{Hintergrund} & GitHub Dark & \farbkreis{GitHubDark}{\ \#0D1117} & \codename{GitHubDark} \\
+ & Slate Dark & \farbkreis{SlateDark}{\ \#1E2933} & \codename{SlateDark} \\
+\rowcolor{TableRowAlt}
+ & Slate Medium & \farbkreis{SlateMedium}{\ \#2D3A45} & \codename{SlateMedium} \\
+\midrule
+\textbf{Text} & Muted Text & \farbkreis{MutedText}{\ \#4A5568} & \codename{MutedText} \\
+\rowcolor{TableRowAlt}
+ & Light Text & \farbkreis{LightText}{\ \#E6EDF3} & \codename{LightText} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Abgeleitete Farben für Komponenten}
+
+\begin{table}[H]
+\centering
+\caption{Box- und Code-Farben}
+\label{tab:farben-komponenten}
+\begin{tabular}{@{} p{3.5cm} p{5cm} p{4.5cm} @{}}
+\toprule
+\textbf{Komponente} & \textbf{Hintergrund} & \textbf{Rahmen} \\
+\midrule
+\rowcolor{TableRowAlt}
+\textbf{Info-Box} & Arduino Teal (hell) & Arduino Teal \\
+\textbf{Warn-Box} & Warning Orange (hell) & Warning Orange \\
+\rowcolor{TableRowAlt}
+\textbf{Tip-Box} & Success Green (hell) & Success Green \\
+\textbf{Code-Blöcke} & Sehr helles Grau & Grau \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Farbvorschau}
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{@{} c c c c @{}}
+\farbvorschau{ArduinoTeal}{\#00979D} &
+\farbvorschau{ArduinoDark}{\#005C5F} &
+\farbvorschau{RaspberryRed}{\#C51A4A} &
+\farbvorschau{RaspberryPurple}{\#75264A} \\[0.3em]
+{\small Arduino Teal} & {\small Arduino Dark} & {\small Raspberry Red} & {\small Raspberry Purple} \\[1em]
+
+\farbvorschau{SuccessGreen}{\#75A928} &
+\farbvorschau{WarningOrange}{\#D97706} &
+\farbvorschau{GitHubDark}{\#0D1117} &
+\farbvorschau{SlateMedium}{\#2D3A45} \\[0.3em]
+{\small Success Green} & {\small Warning Orange} & {\small GitHub Dark} & {\small Slate Medium} \\
+\end{tabular}
+\caption{Visuelle Farbvorschau der Hauptfarben}
+\label{fig:farbvorschau}
+\end{figure}
+
+\section{Signalfarben (Schaltplan)}
+
+\begin{table}[H]
+\centering
+\caption{Signalfarben für Schaltpläne}
+\label{tab:signalfarben}
+\begin{tabular}{@{} p{2.8cm} p{3.2cm} p{3.5cm} p{5cm} @{}}
+\toprule
+\textbf{Signal} & \textbf{Farbe} & \textbf{Hex} & \textbf{Verwendung} \\
+\midrule
+\rowcolor{TableRowAlt}
+Data & \farbkreis{SignalData}{\ \#51CF66} & \codename{SignalData} & SER, Q8 \\
+Clock & \farbkreis{SignalClock}{\ \#FFD43B} & \codename{SignalClock} & SRCLK, CLK \\
+\rowcolor{TableRowAlt}
+Latch & \farbkreis{SignalLatch}{\ \#4DABF7} & \codename{SignalLatch} & RCLK, P/S \\
+VCC & \farbkreis{SignalVCC}{\ \#FF6B6B} & \codename{SignalVCC} & Versorgung \\
+\rowcolor{TableRowAlt}
+GND & \farbkreis{SignalGND}{\ \#6B7280} & \codename{SignalGND} & Masse \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Semantische Zuordnung}
+
+\begin{table}[H]
+\centering
+\caption{Hardware-Komponenten und ihre Farben}
+\label{tab:semantik}
+\begin{tabular}{@{} p{3.5cm} p{4cm} p{3cm} @{}}
+\toprule
+\textbf{Komponente} & \textbf{Farbe} & \textbf{Hex} \\
+\midrule
+\rowcolor{TableRowAlt}
+ESP32-S3 XIAO & \farbkreis{ArduinoTeal}{\ Arduino Teal} & \texttt{\#00979D} \\
+74HC595 (Output) & \farbkreis{RaspberryRed}{\ Raspberry Red} & \texttt{\#C51A4A} \\
+\rowcolor{TableRowAlt}
+CD4021BE (Input) & \farbkreis{SuccessGreen}{\ Success Green} & \texttt{\#75A928} \\
+Raspberry Pi 5 & \farbkreis{RaspberryRed}{\ Raspberry Red} & \texttt{\#C51A4A} \\
+\rowcolor{TableRowAlt}
+Web-Browser & \farbkreis{SuccessGreen}{\ Success Green} & \texttt{\#75A928} \\
+Warnung & \farbkreis{WarningOrange}{\ Warning Orange} & \texttt{\#D97706} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Highlight-Befehle}
+
+\begin{table}[H]
+\centering
+\caption{Verfügbare Highlight-Befehle}
+\label{tab:highlights}
+\begin{tabular}{@{} p{4.5cm} p{4cm} p{5cm} @{}}
+\toprule
+\textbf{Befehl} & \textbf{Ergebnis} & \textbf{Verwendung} \\
+\midrule
+\rowcolor{TableRowAlt}
+\texttt{\textbackslash highlight\{...\}} & \highlight{Wichtiger Text} & Hauptakzent, Kernaussagen \\
+\texttt{\textbackslash improvement\{...\}} & \improvement{Erledigt} & Erfolge, OK \\
+\rowcolor{TableRowAlt}
+\texttt{\textbackslash warning\{...\}} & \warning{Achtung} & Warnungen, Hinweise \\
+\texttt{\textbackslash critical\{...\}} & \critical{Fehler} & Kritische Punkte \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Info-Box-Vorschau}
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{@{} c c @{}}
+% Info-Box
+\tikz{
+  \fill[fill=InfoBoxBg] (0,0) rectangle (5.5cm,1.2cm);
+  \draw[ArduinoTeal, line width=1pt] (0,0) rectangle (5.5cm,1.2cm);
+  \node[anchor=west, font=\sffamily\bfseries\small, text=ArduinoTeal] at (0.2,0.85) {Info-Box};
+  \node[anchor=west, font=\small] at (0.2,0.35) {Hinweise, Erklärungen};
+}
+&
+% Warn-Box
+\tikz{
+  \fill[fill=WarnBoxBg] (0,0) rectangle (5.5cm,1.2cm);
+  \draw[WarningOrange, line width=1pt] (0,0) rectangle (5.5cm,1.2cm);
+  \node[anchor=west, font=\sffamily\bfseries\small, text=WarningOrange] at (0.2,0.85) {Warn-Box};
+  \node[anchor=west, font=\small] at (0.2,0.35) {Warnungen, Achtung};
+}
+\\[1em]
+% Tip-Box
+\tikz{
+  \fill[fill=TipBoxBg] (0,0) rectangle (5.5cm,1.2cm);
+  \draw[SuccessGreen, line width=1pt] (0,0) rectangle (5.5cm,1.2cm);
+  \node[anchor=west, font=\sffamily\bfseries\small, text=SuccessGreen] at (0.2,0.85) {Tip-Box};
+  \node[anchor=west, font=\small] at (0.2,0.35) {Tipps, Best Practices};
+}
+&
+% Error-Box
+\tikz{
+  \fill[fill=ErrorBoxBg] (0,0) rectangle (5.5cm,1.2cm);
+  \draw[RaspberryRed, line width=1pt] (0,0) rectangle (5.5cm,1.2cm);
+  \node[anchor=west, font=\sffamily\bfseries\small, text=RaspberryRed] at (0.2,0.85) {Error-Box};
+  \node[anchor=west, font=\small] at (0.2,0.35) {Fehler, Kritisch};
+}
+\\
+\end{tabular}
+\caption{Vorschau der Info-Box-Varianten}
+\label{fig:infoboxen}
+\end{figure}
+
+\section{Verwendung}
+
+\subsection{In LaTeX-Dokumenten}
+
+\begin{lstlisting}[style=shell]
+\usepackage[table]{xcolor}
+\input{farbschema.tex}
+
+% Dann verfuegbar:
+\textcolor{ArduinoTeal}{Text}
+\highlight{Wichtig}
+\end{lstlisting}
+
+\subsection{CSS-Variablen}
+
+\begin{lstlisting}[style=shell]
+:root {
+    --arduino-teal: #00979D;
+    --arduino-dark: #005C5F;
+    --raspberry-red: #C51A4A;
+    --success-green: #75A928;
+    --warning-orange: #D97706;
+    --bg-primary: #0D1117;
+}
+\end{lstlisting}
+
+\begin{infobox}[Konsistenz-Hinweis]
+Dieses Farbschema ist identisch in folgenden Dateien definiert:
+\texttt{praesentation.tex}, \texttt{main.tex}, \texttt{cover-diagram.tex},
+\texttt{schematic.css}, \texttt{create\_amr\_placeholders.sh}
+\end{infobox}
+
+\end{document}

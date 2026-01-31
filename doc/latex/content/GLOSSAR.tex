@@ -1,0 +1,407 @@
+% =============================================================================
+% GLOSSAR.tex – Begriffsdefinitionen und Referenzen
+% Modulares Fragment (kein \documentclass, kein \begin{document})
+% Stand: 2026-01-08 | Version: 2.5.2
+% =============================================================================
+
+\section{Glossar}
+\label{sec:glossar}
+
+Dieses Glossar erklärt die wichtigsten Begriffe des Selection-Panel-Projekts. Die Einträge sind thematisch gruppiert und folgen dem Muster: Regel, Beispiel, Anwendung.
+
+\begin{infobox}[Begriffskategorien]
+  \begin{itemize}
+    \item \textbf{JSON} = Datenformat (Text-Notation für Schlüssel/Wert und Listen)
+    \item \textbf{WebSocket / UART / SPI} = Transportwege (Kommunikationsprotokolle)
+    \item \textbf{Server / Raspberry Pi / ESP32-S3} = Rollen/Computer
+    \item \textbf{Schieberegister} = Hardware-Trick (Serial ↔ Parallel)
+  \end{itemize}
+\end{infobox}
+
+% -----------------------------------------------------------------------------
+\subsection{WebSocket}
+\label{subsec:glossar-websocket}
+
+WebSocket ist eine \textbf{dauerhafte TCP-Verbindung} zwischen Browser und Server. Der Server kann sofort pushen, ohne dass der Browser ständig pollt (Polling = zyklisches Nachfragen per HTTP).
+
+\textbf{Beispiel:} Browser verbindet sich auf \texttt{/ws}. Server sendet:
+
+\begin{lstlisting}[style=json,numbers=none]
+{"type":"play","id":42}
+\end{lstlisting}
+
+\textbf{Anwendung:} Der Pi-Server broadcastet das Event an alle verbundenen Browser – Bild/Audio startet ohne neue HTTP-Anfrage pro Tastendruck.
+
+% -----------------------------------------------------------------------------
+\subsection{JSON}
+\label{subsec:glossar-json}
+
+JSON ist \textbf{Text}, der Daten als Schlüssel/Wert-Paare und Listen darstellt. Leicht im Browser (JavaScript) und in Python zu parsen (parsen = Text in Datenstruktur umwandeln).
+
+\begin{lstlisting}[style=json,numbers=none]
+{"type":"PRESS","id":42,"t_ms":123456}
+\end{lstlisting}
+
+\textbf{Anwendung:} Einheitliches Format für Events (\texttt{PRESS}, \texttt{RELEASE}, \texttt{play}, \texttt{stop}) zwischen Pi und Browser.
+
+% -----------------------------------------------------------------------------
+\subsection{Server}
+\label{subsec:glossar-server}
+
+Ein Server ist ein Programm, das \textbf{Anfragen annimmt} (HTTP/WebSocket) und \textbf{Antworten/Ereignisse liefert}.
+
+\textbf{Beispiel:} \filep{server.py} macht typischerweise:
+
+\begin{itemize}
+  \item \texttt{GET /} → liefert \filep{index.html}
+  \item \texttt{GET /media/...} → liefert Mediendatei
+  \item \texttt{WS /ws} → hält Verbindung offen und sendet Events
+\end{itemize}
+
+\textbf{Anwendung:} Der Raspberry Pi ist der Koordinator: nimmt UART-Events vom ESP an, verwaltet Medien und verteilt \texttt{play}/\texttt{stop} an Browser.
+
+% -----------------------------------------------------------------------------
+\subsection{UART (Serial)}
+\label{subsec:glossar-uart}
+
+UART ist eine \textbf{asynchrone serielle} Punkt-zu-Punkt-Verbindung (TX/RX + GND). Üblich: \SI{115200}{\baud}, 8N1.
+
+\begin{table}[H]
+  \centering
+  \caption{UART-Parameter}
+  \label{tab:glossar-uart}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Parameter} & \textbf{Bedeutung} \\
+    \midrule
+    Baud & Symbole pro Sekunde (hier praktisch Bitrate) \\
+    8N1 & 8 Datenbits, kein Paritätsbit, 1 Stopbit \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Berechnung:} Bei \SI{115200}{\baud} und 8N1:
+
+\begin{equation}
+  \frac{\SI{115200}{\bit\per\second}}{\SI{10}{\bit\per\byte}} \approx \SI{11520}{\byte\per\second} \approx \SI{11.5}{\kilo\byte\per\second}
+\end{equation}
+
+\textbf{Anwendung:} ESP32-S3 → Pi sendet kurze Textzeilen wie \texttt{PRESS 042\textbackslash n}. Das ist schnell genug, weil pro Event nur wenige Bytes übertragen werden.
+
+% -----------------------------------------------------------------------------
+\subsection{SPI (und „SPI-ähnlich")}
+\label{subsec:glossar-spi}
+
+SPI ist eine \textbf{synchrone} serielle Verbindung: Master erzeugt Clock, Daten werden pro Takt geschoben.
+
+\begin{table}[H]
+  \centering
+  \caption{SPI-Signale}
+  \label{tab:glossar-spi}
+  \begin{tabularx}{0.7\textwidth}{@{}l X@{}}
+    \toprule
+    \textbf{Signal} & \textbf{Funktion} \\
+    \midrule
+    SCLK & Clock (Taktgeber) \\
+    MOSI & Daten zum Slave \\
+    MISO & Daten zurück zum Master \\
+    CS/Latch & Rahmen/Übernahme \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Anwendung:} Der ESP32 taktet Bits in/aus die Schieberegister. Das ist „SPI-ähnlich", weil zusätzlich Latch/Load-Signale benötigt werden.
+
+% -----------------------------------------------------------------------------
+\subsection{Schieberegister (74HC595 / CD4021B)}
+\label{subsec:glossar-schieberegister}
+
+Schieberegister wandeln \textbf{Serial ↔ Parallel}. Mehrere lassen sich kaskadieren (QH' → nächstes SER).
+
+\textbf{Beispiel für 100 Buttons:}
+
+\begin{itemize}
+  \item 13× 74HC595 → $(13 \cdot 8 = 104)$ LED-Ausgänge
+  \item 13× CD4021B → $(13 \cdot 8 = 104)$ Taster-Eingänge
+\end{itemize}
+
+\textbf{Anwendung:}
+
+\begin{itemize}
+  \item \textbf{74HC595 (Output):} ESP schiebt 100 Bits → Latch → alle LEDs aktualisieren gleichzeitig
+  \item \textbf{CD4021B (Input):} ESP löst Parallel-Load aus → schiebt 100 Bits raus und liest sie ein
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{Raspberry Pi}
+\label{subsec:glossar-pi}
+
+Ein Raspberry Pi ist ein \textbf{Linux-Single-Board-Computer}: Dateisystem, Netzwerk, HDMI, Audio, Python-Server.
+
+\textbf{Anwendung im Projekt:}
+
+\begin{itemize}
+  \item Hostet Web-App (HTML/JS/CSS) + Medien-Dateien
+  \item Läuft \filep{server.py} (aiohttp): WebSocket + Datei-Serving
+  \item Liest USB-Serial vom ESP32-S3
+  \item Verteilt Events an Browser und triggert Medienwiedergabe
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{ESP32-S3 (Seeed XIAO)}
+\label{subsec:glossar-esp32}
+
+ESP32-S3 ist ein \textbf{Mikrocontroller}: sehr schnell für I/O, deterministisch, echtzeit-nah. Das Seeed XIAO ist das Board-Layout mit USB, Pins, Regler.
+
+\textbf{Anwendung im Projekt:}
+
+\begin{itemize}
+  \item Scannt Taster über CD4021B (schnell, periodisch)
+  \item Setzt LEDs über 74HC595 (schnell, gelatcht)
+  \item Entprellt und erzeugt Events
+  \item Sendet Events über UART an den Pi
+  \item FreeRTOS Dual-Core: io\_task und serial\_task auf Core 1
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\subsection{74HC595 Pinout (DIP-16)}
+\label{subsec:glossar-74hc595}
+
+\begin{table}[H]
+  \centering
+  \caption{74HC595 Pin-Verbindungen}
+  \label{tab:glossar-74hc595}
+  \begin{tabularx}{0.8\textwidth}{@{}r l X@{}}
+    \toprule
+    \textbf{Pin} & \textbf{Name} & \textbf{Verbindung} \\
+    \midrule
+    14 & SER & ← \pin{D10} (MOSI) oder vorheriger QH' \\
+    11 & SRCLK & ← \pin{D8} (SCK, shared) \\
+    12 & RCLK & ← \pin{D0} (Latch) \\
+    9 & QH' & → nächster SER oder offen \\
+    10 & SRCLR & → VCC (nicht löschen) \\
+    13 & OE & ← \pin{D2} (PWM) oder → GND \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{SPI-Mode:} MODE0 (CPOL=0, CPHA=0) @ \SI{1}{\mega\hertz}
+
+% -----------------------------------------------------------------------------
+\subsection{CD4021B Pinout (DIP-16)}
+\label{subsec:glossar-cd4021b}
+
+\begin{table}[H]
+  \centering
+  \caption{CD4021B Pin-Verbindungen}
+  \label{tab:glossar-cd4021b}
+  \begin{tabularx}{0.8\textwidth}{@{}r l X@{}}
+    \toprule
+    \textbf{Pin} & \textbf{Name} & \textbf{Verbindung} \\
+    \midrule
+    3 & Q8 & → \pin{D9} (MISO) oder nächster DS \\
+    10 & CLK & ← \pin{D8} (SCK, shared) \\
+    9 & P/S & ← \pin{D1} (Load-Signal) \\
+    11 & DS & ← \textbf{VCC} (letzter IC!) oder vorheriger Q8 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{warnbox}[P/S = HIGH für Load]
+  Der CD4021B hat invertierte Load-Logik im Vergleich zum 74HC165!
+\end{warnbox}
+
+\textbf{SPI-Mode:} MODE1 (CPOL=0, CPHA=1) @ \SI{500}{\kilo\hertz}
+
+% -----------------------------------------------------------------------------
+\subsection{Bit-Mapping}
+\label{subsec:glossar-bitmapping}
+
+\subsubsection{Button-Verdrahtung (CD4021B)}
+
+\begin{table}[H]
+  \centering
+  \caption{Taster-Bit-Zuordnung}
+  \label{tab:glossar-btn-mapping}
+  \begin{tabularx}{0.8\textwidth}{@{}r r l r@{}}
+    \toprule
+    \textbf{Taster} & \textbf{Pin} & \textbf{PI-Eingang} & \textbf{Bit} \\
+    \midrule
+    BTN 1 & Pin 1 & PI-8 & Bit 0 \\
+    BTN 2 & Pin 15 & PI-7 & Bit 1 \\
+    BTN 3 & Pin 14 & PI-6 & Bit 2 \\
+    BTN 4 & Pin 13 & PI-5 & Bit 3 \\
+    BTN 5 & Pin 4 & PI-4 & Bit 4 \\
+    BTN 6 & Pin 5 & PI-3 & Bit 5 \\
+    BTN 7 & Pin 6 & PI-2 & Bit 6 \\
+    BTN 8 & Pin 7 & PI-1 & Bit 7 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Formel:} $\text{btn\_bit}(id) = (id - 1) \mod 8$
+
+\subsubsection{LED-Verdrahtung (74HC595)}
+
+\begin{table}[H]
+  \centering
+  \caption{LED-Bit-Zuordnung}
+  \label{tab:glossar-led-mapping}
+  \begin{tabularx}{0.8\textwidth}{@{}r r l r@{}}
+    \toprule
+    \textbf{LED} & \textbf{Pin} & \textbf{Ausgang} & \textbf{Bit} \\
+    \midrule
+    LED 1 & Pin 15 & QA & Bit 0 \\
+    LED 2 & Pin 1 & QB & Bit 1 \\
+    LED 3 & Pin 2 & QC & Bit 2 \\
+    LED 4 & Pin 3 & QD & Bit 3 \\
+    LED 5 & Pin 4 & QE & Bit 4 \\
+    LED 6 & Pin 5 & QF & Bit 5 \\
+    LED 7 & Pin 6 & QG & Bit 6 \\
+    LED 8 & Pin 7 & QH & Bit 7 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Formel:} $\text{led\_bit}(id) = (id - 1) \mod 8$
+
+% -----------------------------------------------------------------------------
+\subsection{Taster-Input Decoder (Active-Low)}
+\label{subsec:glossar-input-decoder}
+
+\textbf{Active-Low:} gedrückt ⇒ Bit = 0 (Pull-up Widerstand \SI{10}{\kilo\ohm})
+
+\textbf{Beispiel: BTN 5 gedrückt}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Bit:    7    6    5    4    3    2    1    0
+BTN:    8    7    6    5    4    3    2    1
+Wert:   1    1    1    0    1    1    1    1
+                      ^
+                BTN 5 gedrueckt (Bit 4 = 0)
+\end{lstlisting}
+
+\textbf{Hex:} \texttt{0xEF} (1110 1111)
+
+\begin{lstlisting}[style=arduino,caption={Taster-Abfrage im Code}]
+bool isPressed = !((stream >> btn_bit(5)) & 1);  // btn_bit(5) = 4
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{LED-Output Decoder (Active-High)}
+\label{subsec:glossar-output-decoder}
+
+\textbf{Active-High:} an ⇒ Bit = 1
+
+\textbf{Beispiel: LED 5 an}
+
+\begin{lstlisting}[style=shell,numbers=none]
+Bit:    7    6    5    4    3    2    1    0
+LED:    8    7    6    5    4    3    2    1
+Wert:   0    0    0    1    0    0    0    0
+                      ^
+                LED 5 an (Bit 4 = 1)
+\end{lstlisting}
+
+\textbf{Hex:} \texttt{0x10} (0001 0000)
+
+\begin{lstlisting}[style=arduino,caption={LED setzen im Code}]
+led_set(ledBytes, 5, true);  // setzt Bit 4
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Skalierungsbeispiel: LED 100}
+\label{subsec:glossar-led100}
+
+100-LED-Config: \texttt{NUM\_LEDS = 100} → \texttt{NUM\_BYTES = 13}
+
+\textbf{Ziel:} Nur LED 100 an
+
+\subsubsection{Berechnung}
+
+\begin{align}
+  \text{idx0} &= 100 - 1 = 99 \\
+  \text{ic} &= \lfloor 99 / 8 \rfloor = 12 \quad \text{(IC \#12, letzter in der Kette)} \\
+  \text{bit} &= 99 \mod 8 = 3 \quad \text{(Bit 3)} \\
+  \text{mask} &= 1 \ll 3 = \texttt{0x08}
+\end{align}
+
+\subsubsection{Array-Zustand und SPI-Transfer}
+
+\begin{lstlisting}[style=arduino,caption={LED 100 setzen und übertragen}]
+ledBytes[12] = 0x08;  // LED100 an
+ledBytes[0..11] = 0x00;
+
+// Hinten zuerst, vorne zuletzt
+for (int i = NUM_BYTES - 1; i >= 0; i--) {
+    SPI.transfer(ledBytes[i]);
+}
+digitalWrite(PIN_LED_RCK, HIGH);  // Latch
+digitalWrite(PIN_LED_RCK, LOW);
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\subsection{Binär-Hex-Tabelle}
+\label{subsec:glossar-binaer-hex}
+
+\begin{table}[H]
+  \centering
+  \caption{Binär-Hexadezimal-Dezimal Umrechnung}
+  \label{tab:glossar-hex}
+  \begin{tabularx}{0.5\textwidth}{@{}c c r@{}}
+    \toprule
+    \textbf{Binär} & \textbf{Hex} & \textbf{Dezimal} \\
+    \midrule
+    0000 & 0 & 0 \\
+    0001 & 1 & 1 \\
+    0010 & 2 & 2 \\
+    0011 & 3 & 3 \\
+    0100 & 4 & 4 \\
+    0101 & 5 & 5 \\
+    0110 & 6 & 6 \\
+    0111 & 7 & 7 \\
+    1000 & 8 & 8 \\
+    1001 & 9 & 9 \\
+    1010 & A & 10 \\
+    1011 & B & 11 \\
+    1100 & C & 12 \\
+    1101 & D & 13 \\
+    1110 & E & 14 \\
+    1111 & F & 15 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection{Firmware-Architektur (FreeRTOS)}
+\label{subsec:glossar-freertos}
+
+Die Firmware verwendet \textbf{FreeRTOS Dual-Core} auf dem ESP32-S3.
+
+\begin{table}[H]
+  \centering
+  \caption{FreeRTOS Tasks}
+  \label{tab:glossar-tasks}
+  \begin{tabularx}{\textwidth}{@{}l r r r X@{}}
+    \toprule
+    \textbf{Task} & \textbf{Core} & \textbf{Priorität} & \textbf{Periode} & \textbf{Funktion} \\
+    \midrule
+    io\_task & 1 & 5 & \SI{5}{\milli\second} & Hardware-I/O (Taster, LEDs) \\
+    serial\_task & 1 & 2 & Event-driven & Protokoll-Handler \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\textbf{Design-Prinzipien:}
+
+\begin{itemize}
+  \item \textbf{Queue-basiert:} io\_task sendet LogEvents über FreeRTOS-Queue an serial\_task
+  \item \textbf{Mutex-geschützt:} SPI-Bus wird durch Mutex vor gleichzeitigem Zugriff geschützt
+  \item \textbf{RAII:} SpiGuard für automatisches Cleanup
+  \item \textbf{Zeitbasiertes Debouncing:} Jeder Taster hat eigenen Timer (\SI{30}{\milli\second})
+  \item \textbf{Bitfeld-basiert:} LEDs/Taster als Byte-Arrays mit Maskenoperationen
+\end{itemize}
+
+\begin{tipbox}[Core-Zuordnung]
+  Core 0 bleibt für WiFi/BLE reserviert (falls später benötigt). Die I/O-Tasks laufen auf Core 1.
+\end{tipbox}
