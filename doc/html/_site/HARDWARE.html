@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>HARDWARE.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="hardware-dokumentation">Hardware-Dokumentation</h1>
+<p>Hardwarespezifikation fuer das Seeed Studio XIAO ESP32-S3 Board.</p>
+<hr />
+<h2 id="board-uebersicht">Board-Uebersicht</h2>
+<figure>
+<img src="Seeed%20Studio%20XIAO%20ESP32-S3.png"
+alt="Seeed Studio XIAO ESP32-S3" />
+<figcaption aria-hidden="true">Seeed Studio XIAO ESP32-S3</figcaption>
+</figure>
+<h3 id="spezifikationen">Spezifikationen</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Eigenschaft</th>
+<th>Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MCU</strong></td>
+<td>ESP32-S3 (Xtensa LX7 Dual-Core, 240 MHz)</td>
+</tr>
+<tr>
+<td><strong>Flash</strong></td>
+<td>8 MB</td>
+</tr>
+<tr>
+<td><strong>PSRAM</strong></td>
+<td>8 MB (optional)</td>
+</tr>
+<tr>
+<td><strong>SRAM</strong></td>
+<td>512 KB</td>
+</tr>
+<tr>
+<td><strong>WiFi</strong></td>
+<td>802.11 b/g/n (2.4 GHz)</td>
+</tr>
+<tr>
+<td><strong>Bluetooth</strong></td>
+<td>BLE 5.0</td>
+</tr>
+<tr>
+<td><strong>USB</strong></td>
+<td>USB-C (Native USB + UART)</td>
+</tr>
+<tr>
+<td><strong>Abmessungen</strong></td>
+<td>21 x 17.5 mm</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="pinbelegung">Pinbelegung</h2>
+<h3 id="front-seite-hauptpins">Front-Seite (Hauptpins)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>GPIO</th>
+<th>Funktion</th>
+<th>Projekt-Verwendung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D0</td>
+<td>GPIO1</td>
+<td>ADC1_CH0, Touch</td>
+<td>LED_RCK (74HC595 Latch)</td>
+</tr>
+<tr>
+<td>D1</td>
+<td>GPIO2</td>
+<td>ADC1_CH1, Touch</td>
+<td>BTN_PS (CD4021 P/S)</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>GPIO3</td>
+<td>ADC1_CH2, Touch</td>
+<td>LED_OE (74HC595 OE)</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>GPIO4</td>
+<td>ADC1_CH3, Touch</td>
+<td>(frei)</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>GPIO5</td>
+<td>ADC1_CH4, Touch</td>
+<td>(frei)</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>GPIO6</td>
+<td>ADC1_CH5, Touch</td>
+<td>(frei)</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>GPIO43</td>
+<td>TX (UART0)</td>
+<td>(reserviert)</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>GPIO44</td>
+<td>RX (UART0)</td>
+<td>(reserviert)</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>GPIO7</td>
+<td>SPI SCK</td>
+<td>SPI Clock (gemeinsam)</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>GPIO8</td>
+<td>SPI MISO</td>
+<td>BTN_MISO (CD4021 Q8)</td>
+</tr>
+<tr>
+<td>D10</td>
+<td>GPIO9</td>
+<td>SPI MOSI</td>
+<td>LED_MOSI (74HC595 SER)</td>
+</tr>
+<tr>
+<td>5V</td>
+<td>-</td>
+<td>5V Eingang/Ausgang</td>
+<td>-</td>
+</tr>
+<tr>
+<td>GND</td>
+<td>-</td>
+<td>Masse</td>
+<td>Gemeinsame Masse</td>
+</tr>
+<tr>
+<td>3V3</td>
+<td>-</td>
+<td>3.3V Ausgang</td>
+<td>VCC fuer Schieberegister</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rueck-seite-debugbatterie">Rueck-Seite (Debug/Batterie)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pad</th>
+<th>Funktion</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MTDO</td>
+<td>GPIO40</td>
+<td>JTAG TDO</td>
+</tr>
+<tr>
+<td>MTDI</td>
+<td>GPIO41</td>
+<td>JTAG TDI</td>
+</tr>
+<tr>
+<td>MTCK</td>
+<td>GPIO39</td>
+<td>JTAG TCK</td>
+</tr>
+<tr>
+<td>MTMS</td>
+<td>GPIO42</td>
+<td>JTAG TMS</td>
+</tr>
+<tr>
+<td>EN</td>
+<td>-</td>
+<td>Enable (Reset)</td>
+</tr>
+<tr>
+<td>D+</td>
+<td>-</td>
+<td>USB Data+</td>
+</tr>
+<tr>
+<td>D-</td>
+<td>-</td>
+<td>USB Data-</td>
+</tr>
+<tr>
+<td>BAT+</td>
+<td>-</td>
+<td>Batterie + (3.7V LiPo)</td>
+</tr>
+<tr>
+<td>BAT-</td>
+<td>-</td>
+<td>Batterie -</td>
+</tr>
+</tbody>
+</table>
+<h3 id="onboard-komponenten">Onboard-Komponenten</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Komponente</th>
+<th>GPIO</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>User LED</strong></td>
+<td>GPIO21</td>
+<td>Gelbe LED (Active High)</td>
+</tr>
+<tr>
+<td><strong>Charge LED</strong></td>
+<td>-</td>
+<td>Ladeanzeige (Orange)</td>
+</tr>
+<tr>
+<td><strong>Reset Button</strong></td>
+<td>-</td>
+<td>Hardware-Reset</td>
+</tr>
+<tr>
+<td><strong>Boot Button</strong></td>
+<td>GPIO0</td>
+<td>Boot-Mode / User Button</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="projekt-gpio-mapping">Projekt-GPIO-Mapping</h2>
+<h3 id="aktuelle-belegung-selection-panel">Aktuelle Belegung (Selection
+Panel)</h3>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 6%" />
+<col style="width: 19%" />
+<col style="width: 22%" />
+<col style="width: 13%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr>
+<th>Pin</th>
+<th>Funktion</th>
+<th>Konstante</th>
+<th>Chip</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D0</td>
+<td>LED_RCK</td>
+<td><code>PIN_LED_RCK</code></td>
+<td>74HC595</td>
+<td>Latch (RCLK)</td>
+</tr>
+<tr>
+<td>D1</td>
+<td>BTN_PS</td>
+<td><code>PIN_BTN_PS</code></td>
+<td>CD4021BE</td>
+<td>Parallel/Shift</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>LED_OE</td>
+<td><code>PIN_LED_OE</code></td>
+<td>74HC595</td>
+<td>Output Enable (Active-Low)</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>SCK</td>
+<td><code>PIN_SCK</code></td>
+<td>Beide</td>
+<td>SPI Clock (gemeinsam)</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>BTN_MISO</td>
+<td><code>PIN_BTN_MISO</code></td>
+<td>CD4021BE</td>
+<td>Serial Out (Q8)</td>
+</tr>
+<tr>
+<td>D10</td>
+<td>LED_MOSI</td>
+<td><code>PIN_LED_MOSI</code></td>
+<td>74HC595</td>
+<td>Serial In (SER)</td>
+</tr>
+</tbody>
+</table>
+<p>Definiert in: <code>include/hw/board_pins.h</code></p>
+<h3
+id="schieberegister-konfiguration">Schieberegister-Konfiguration</h3>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 20%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>Chip</th>
+<th>Anzahl</th>
+<th>Funktion</th>
+<th>SPI-Frequenz</th>
+<th>SPI-Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CD4021BE</td>
+<td>2</td>
+<td>16 Inputs (10 genutzt)</td>
+<td>500 kHz</td>
+<td>MODE1</td>
+</tr>
+<tr>
+<td>74HC595</td>
+<td>2</td>
+<td>16 Outputs (10 genutzt)</td>
+<td>1 MHz</td>
+<td>MODE0</td>
+</tr>
+</tbody>
+</table>
+<p>Definiert in: <code>include/hw/spi_params.h</code></p>
+<h3 id="reservierte-gpios">Reservierte GPIOs</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>GPIO</th>
+<th>Grund</th>
+<th>Hinweis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPIO0</td>
+<td>Boot Button</td>
+<td>Low beim Start = Download-Mode</td>
+</tr>
+<tr>
+<td>GPIO43</td>
+<td>USB Serial TX</td>
+<td>Native USB</td>
+</tr>
+<tr>
+<td>GPIO44</td>
+<td>USB Serial RX</td>
+<td>Native USB</td>
+</tr>
+<tr>
+<td>GPIO19</td>
+<td>USB D-</td>
+<td>Nicht verwenden</td>
+</tr>
+<tr>
+<td>GPIO20</td>
+<td>USB D+</td>
+<td>Nicht verwenden</td>
+</tr>
+</tbody>
+</table>
+<h3 id="verfuegbare-gpios-fuer-erweiterung">Verfuegbare GPIOs fuer
+Erweiterung</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>GPIO</th>
+<th>Empfohlene Verwendung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D3</td>
+<td>GPIO4</td>
+<td>Digital I/O, Touch</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>GPIO5</td>
+<td>Digital I/O, Touch</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>GPIO6</td>
+<td>Digital I/O, Touch</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>GPIO43</td>
+<td>(TX - reserviert)</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>GPIO44</td>
+<td>(RX - reserviert)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="schnittstellen">Schnittstellen</h2>
+<h3 id="usb-native">USB (Native)</h3>
+<pre><code>USB-C Connector
+├── CDC Serial (921600 baud fuer Bridge-Protokoll)
+├── Debug Monitor (115200 baud)
+├── JTAG Debug (optional)
+└── Mass Storage (optional)</code></pre>
+<p><strong>Hinweis:</strong> USB-CDC ignoriert Baudrate, aber Bridge
+konfiguriert 921600. Debug-Monitor nutzt 115200.</p>
+<h3 id="i2c-nicht-verwendet">I2C (nicht verwendet)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Signal</th>
+<th>GPIO</th>
+<th>Pull-Up</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SDA</td>
+<td>GPIO8</td>
+<td>Extern erforderlich</td>
+</tr>
+<tr>
+<td>SCL</td>
+<td>GPIO7</td>
+<td>Extern erforderlich</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Hinweis:</strong> GPIO7/GPIO8 werden im Selection Panel fuer
+SPI verwendet. I2C ist daher nicht gleichzeitig nutzbar.</p>
+<h3 id="spi-selection-panel">SPI (Selection Panel)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Signal</th>
+<th>Pin</th>
+<th>GPIO</th>
+<th>Verwendung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SCK</td>
+<td>D8</td>
+<td>GPIO7</td>
+<td>Gemeinsamer Clock</td>
+</tr>
+<tr>
+<td>MISO</td>
+<td>D9</td>
+<td>GPIO8</td>
+<td>CD4021 Q8 (Button-Daten)</td>
+</tr>
+<tr>
+<td>MOSI</td>
+<td>D10</td>
+<td>GPIO9</td>
+<td>74HC595 SER (LED-Daten)</td>
+</tr>
+</tbody>
+</table>
+<p>Steuerleitungen (keine Hardware-CS):</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Signal</th>
+<th>Pin</th>
+<th>GPIO</th>
+<th>Verwendung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BTN_PS</td>
+<td>D1</td>
+<td>GPIO2</td>
+<td>CD4021 Parallel/Shift</td>
+</tr>
+<tr>
+<td>LED_RCK</td>
+<td>D0</td>
+<td>GPIO1</td>
+<td>74HC595 Latch</td>
+</tr>
+<tr>
+<td>LED_OE</td>
+<td>D2</td>
+<td>GPIO3</td>
+<td>74HC595 Output Enable</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Hinweis:</strong> Beide Chips teilen SCK, aber verwenden
+separate Steuerleitungen. Transfers erfolgen mit chip-spezifischen
+<code>spi_settings_t</code> (Frequenz/Mode).</p>
+<hr />
+<h2 id="stromversorgung">Stromversorgung</h2>
+<h3 id="eingaenge">Eingaenge</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Quelle</th>
+<th>Spannung</th>
+<th>Max. Strom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USB-C</td>
+<td>5V</td>
+<td>500mA</td>
+</tr>
+<tr>
+<td>BAT+/-</td>
+<td>3.7V LiPo</td>
+<td>-</td>
+</tr>
+<tr>
+<td>5V Pin</td>
+<td>5V</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ausgaenge">Ausgaenge</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Spannung</th>
+<th>Max. Strom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3V3</td>
+<td>3.3V</td>
+<td>700mA</td>
+</tr>
+<tr>
+<td>5V</td>
+<td>5V (USB durchgeschleift)</td>
+<td>begrenzt durch USB</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stromverbrauch-typisch">Stromverbrauch (typisch)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Modus</th>
+<th>Verbrauch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active (WiFi)</td>
+<td>~100-200 mA</td>
+</tr>
+<tr>
+<td>Active (CPU only)</td>
+<td>~50 mA</td>
+</tr>
+<tr>
+<td>Light Sleep</td>
+<td>~1 mA</td>
+</tr>
+<tr>
+<td>Deep Sleep</td>
+<td>~14 µA</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="anschlussbild">Anschlussbild</h2>
+<pre><code>                    USB-C
+                   ┌─────┐
+         ┌─────────┤     ├─────────┐
+         │  [RST]  └─────┘  [BOOT] │
+         │   ●                 ●   │
+    D0 ──┤ ○ LED_RCK             ○ ├── 5V
+    D1 ──┤ ○ BTN_PS              ○ ├── GND
+    D2 ──┤ ○ LED_OE              ○ ├── 3V3
+    D3 ──┤ ○ (frei)              ○ ├── D10 LED_MOSI
+    D4 ──┤ ○ (frei)              ○ ├── D9  BTN_MISO
+    D5 ──┤ ○ (frei)  [LED]       ○ ├── D8  SCK
+    D6 ──┤ ○ (TX)    GPIO21      ○ ├── D7  (RX)
+         └─────────────────────────┘
+
+    ● = Button
+    ○ = Pin
+    [LED] = Onboard User LED (GPIO21)</code></pre>
+<h3 id="verbindung-zu-schieberegistern">Verbindung zu
+Schieberegistern</h3>
+<pre><code>XIAO ESP32-S3              CD4021BE (Buttons)       74HC595 (LEDs)
+┌─────────────┐           ┌──────────────┐        ┌──────────────┐
+│ D8 (SCK)   ─┼───────────┼─► CLK        │   ┌────┼─► SRCLK      │
+│             │           │              │   │    │              │
+│ D1 (BTN_PS)─┼───────────┼─► PS         │   │    │              │
+│             │           │              │   │    │              │
+│ D9 (MISO) ◄─┼───────────┼── Q8         │   │    │              │
+│             │           └──────────────┘   │    │              │
+│             │                              │    │              │
+│ D8 (SCK)   ─┼──────────────────────────────┘    │              │
+│             │                                   │              │
+│ D10 (MOSI) ─┼───────────────────────────────────┼─► SER        │
+│             │                                   │              │
+│ D0 (RCK)   ─┼───────────────────────────────────┼─► RCLK       │
+│             │                                   │              │
+│ D2 (OE)    ─┼───────────────────────────────────┼─► OE         │
+└─────────────┘                                   └──────────────┘</code></pre>
+<hr />
+<h2 id="externe-hardware-selection-panel">Externe Hardware (Selection
+Panel)</h2>
+<h3 id="cd4021be-button-input">CD4021BE (Button-Input)</h3>
+<p>Parallel-In / Serial-Out Schieberegister fuer Button-Matrix.</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Funktion</th>
+<th>Verbindung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PS</td>
+<td>Parallel/Shift</td>
+<td>D1 (HIGH=Load, LOW=Shift)</td>
+</tr>
+<tr>
+<td>CLK</td>
+<td>Clock</td>
+<td>D8 (SPI SCK)</td>
+</tr>
+<tr>
+<td>Q8</td>
+<td>Serial Out</td>
+<td>D9 (MISO)</td>
+</tr>
+<tr>
+<td>P1-P8</td>
+<td>Parallel Inputs</td>
+<td>Buttons (Active-Low, Pull-Up)</td>
+</tr>
+<tr>
+<td>VCC</td>
+<td>Versorgung</td>
+<td>3.3V</td>
+</tr>
+<tr>
+<td>GND</td>
+<td>Masse</td>
+<td>GND</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Kaskadierung:</strong> Q8 von Chip 1 → DS von Chip 2</p>
+<h3 id="hc595-led-output">74HC595 (LED-Output)</h3>
+<p>Serial-In / Parallel-Out Schieberegister fuer LED-Ansteuerung.</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Funktion</th>
+<th>Verbindung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SER</td>
+<td>Serial In</td>
+<td>D10 (MOSI)</td>
+</tr>
+<tr>
+<td>SRCLK</td>
+<td>Shift Clock</td>
+<td>D8 (SPI SCK)</td>
+</tr>
+<tr>
+<td>RCLK</td>
+<td>Latch Clock</td>
+<td>D0</td>
+</tr>
+<tr>
+<td>OE</td>
+<td>Output Enable</td>
+<td>D2 (Active-Low)</td>
+</tr>
+<tr>
+<td>Q0-Q7</td>
+<td>Parallel Outputs</td>
+<td>LEDs (Active-High)</td>
+</tr>
+<tr>
+<td>VCC</td>
+<td>Versorgung</td>
+<td>3.3V</td>
+</tr>
+<tr>
+<td>GND</td>
+<td>Masse</td>
+<td>GND</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Kaskadierung:</strong> Q7’ von Chip 1 → SER von Chip 2</p>
+<h3 id="beschaltung">Beschaltung</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Komponente</th>
+<th>Wert</th>
+<th>Hinweis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Button Pull-Up</td>
+<td>10 kOhm</td>
+<td>Extern oder intern</td>
+</tr>
+<tr>
+<td>LED-Vorwiderstand</td>
+<td>220-470 Ohm</td>
+<td>Je nach LED-Typ</td>
+</tr>
+<tr>
+<td>Abblockkondensator</td>
+<td>100 nF</td>
+<td>Je IC nahe VCC/GND</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="hinweise">Hinweise</h2>
+<h3 id="boot-mode">Boot-Mode</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>GPIO0 beim Start</th>
+<th>Modus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>High (normal)</td>
+<td>Normal Boot</td>
+</tr>
+<tr>
+<td>Low (BOOT gedrueckt)</td>
+<td>Download Mode</td>
+</tr>
+</tbody>
+</table>
+<h3 id="antenna">Antenna</h3>
+<ul>
+<li>Onboard PCB-Antenne</li>
+<li>Externer U.FL Anschluss (XIAO ESP32-S3 Sense Variante)</li>
+</ul>
+<h3 id="waermemanagement">Waermemanagement</h3>
+<ul>
+<li>Thermal Pad auf Rueckseite</li>
+<li>Bei hoher Last Kuehlung empfohlen</li>
+</ul>
+<hr />
+<h2 id="siehe-auch">Siehe auch</h2>
+<ul>
+<li><code>wiring.md</code> – Detaillierte Verdrahtungsanleitung</li>
+<li><code>architecture.md</code> – Firmware-Schichten und
+Datenfluss</li>
+<li><code>debug-playbook.md</code> – Hardware-Debugging</li>
+<li><code>DEVELOPER.md</code> – Treiber-API (C API fuer
+cd4021/hc595)</li>
+</ul>
+</div>
+</body>
+</html>

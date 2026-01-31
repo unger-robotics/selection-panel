@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>PYTHON-CODE-GUIDE.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1
+id="python-code-guide-am-beispiel-server.py-v2.5.2">Python-Code-Guide
+(am Beispiel <code>server.py</code> v2.5.2)</h1>
+<p>Version 2.5.2 | Stand: 2026-01-08</p>
+<h2 id="architektur-in-einem-satz">1) Architektur in einem Satz</h2>
+<p>Ein <strong>aiohttp-Server</strong> bridged <strong>ESP32-Serial →
+asyncio</strong> und broadcastet Events per <strong>WebSocket</strong>
+an Browser-Clients; bei jedem Tastendruck gilt <strong>“Umschalten
+gewinnt”</strong> (Preempt) und <strong>One-Hot-LED</strong>.</p>
+<h2 id="bauplan-schichten-verantwortlichkeiten">2) Bauplan: Schichten
+&amp; Verantwortlichkeiten</h2>
+<p><strong>Regel (Bloch-Kernidee):</strong> Jede Komponente soll
+<em>eine</em> Hauptverantwortung haben, mit klaren Schnittstellen.</p>
+<p><strong>Im Code:</strong></p>
+<ul>
+<li><strong>Konfiguration (Konstanten):</strong> Ports, Pfade, Mode,
+Timeouts (<code>FRAGMENT_TIMEOUT_MS = 50</code>, Reconnect 5 s).</li>
+<li><strong>Zustand (State-Objekt):</strong> <code>AppState</code> hält
+<code>current_id</code>, WebSocket-Clients, Serial-FD,
+Media-Status.</li>
+<li><strong>Serial-Pfad:</strong> <code>serial_reader_task()</code>
+startet einen Thread, der Bytes liest, Zeilen/Fragmente zusammensetzt
+und per <code>asyncio.run_coroutine_threadsafe(...)</code> in den
+Event-Loop übergibt.</li>
+<li><strong>Event-Logik:</strong> <code>handle_button_press()</code>
+setzt <code>current_id</code>, sendet <code>stop</code> und direkt
+danach <code>play</code>.</li>
+<li><strong>HTTP/WebSocket-API:</strong> <code>/ws</code>,
+<code>/status</code>, <code>/health</code>,
+<code>/test/play/{id}</code>, <code>/test/stop</code>, plus
+Static/Media-Serving.</li>
+</ul>
+<p><strong>Anwendung (Wie du erweiterst):</strong></p>
+<p>Neue Funktionalität immer dort hinzufügen, wo die Verantwortung
+liegt:</p>
+<ul>
+<li>neues Serial-Kommando → <code>handle_serial_line()</code></li>
+<li>neue WebSocket-Message → <code>handle_ws_message()</code></li>
+<li>neue HTTP-Route → <code>create_app()</code> + eigener Handler</li>
+</ul>
+<h2 id="asyncio-grundmuster-sauber-robust">3) asyncio-Grundmuster
+(sauber &amp; robust)</h2>
+<p><strong>Regel:</strong> Im Event-Loop keine Blocker (kein
+<code>time.sleep</code>, kein blocking IO). Blockendes IO →
+Thread/Process; Ergebnisse → zurück in den Loop.</p>
+<p><strong>Im Code:</strong></p>
+<ul>
+<li>Serial-IO ist bewusst im Thread (poll + nonblocking FD).</li>
+<li>Event-Loop übernimmt nur: Parsing-Resultate verarbeiten,
+broadcasten, (optional) Serial-TX.</li>
+</ul>
+<p><strong>Praxis-Pattern:</strong></p>
+<ul>
+<li>Parallelität im Loop: <code>await asyncio.gather(...)</code> für
+gleichzeitige Sends.</li>
+<li>Broadcast resilient: fehlerhafte Clients sammeln und aus
+<code>ws_clients</code> entfernen.</li>
+</ul>
+<h2 id="serial-parsing-fragmentierung-korrekt-behandeln">4)
+Serial-Parsing: Fragmentierung korrekt behandeln</h2>
+<p><strong>Beobachtung → Daten → Regel (induktiv):</strong></p>
+<ul>
+<li>Beobachtung: USB-CDC kann <code>PRESS</code> und <code>003</code>
+getrennt liefern.</li>
+<li>Daten: Pending-Fragment + Timeout-Vervollständigung (50 ms).</li>
+<li>Regel: <strong>Bytes puffern → Zeilen bilden → ggf. Fragmente
+kombinieren → erst dann “Event” erzeugen.</strong></li>
+</ul>
+<p><strong>Anwendung (wenn du neue Befehle hinzufügst):</strong></p>
+<p>Erweitere <code>handle_serial_line()</code> um <strong>eindeutige
+Prefixe</strong> (z. B. <code>SENSOR</code>, <code>ACK</code>), damit
+Fragmente nicht “aus Versehen” als Zahlen-ID interpretiert werden. Halte
+<code>parse_button_id()</code> strikt (nur <code>isdigit</code>,
+Range-Check).</p>
+<h2 id="preempt-one-hot-race-conditions-kontrollieren">5) Preempt &amp;
+One-Hot: Race-Conditions kontrollieren</h2>
+<p><strong>Regel:</strong> Bei konkurrierenden Events entscheidet eine
+<strong>monotone Wahrheit</strong> (hier:
+<code>state.current_id</code>). Alles, was “später” reinkommt, muss
+gegen diese Wahrheit geprüft werden.</p>
+<p><strong>Im Code:</strong></p>
+<ul>
+<li>Preempt: neuer Tastendruck setzt sofort
+<code>state.current_id</code> und sendet <code>stop</code> +
+<code>play</code>.</li>
+<li>Playback-Ende: <code>handle_playback_ended()</code> löscht LEDs nur,
+wenn <code>ended_id == current_id</code> (Race-Schutz).</li>
+</ul>
+<p><strong>Anwendung (wenn du Logik verschärfen willst):</strong></p>
+<p>Ergänze optional eine <strong>laufende Sequenznummer</strong> (z. B.
+<code>event_seq += 1</code>) und sende sie mit <code>play</code>; dann
+kann der Browser “ended” ebenfalls eindeutig zuordnen (hilft bei
+Multi-Tab/Latency).</p>
+<h2 id="medien-validierung-start-checks-und-runtime-checks">6)
+Medien-Validierung: Start-Checks und Runtime-Checks</h2>
+<p><strong>Regel:</strong> Teure Validierung früh (Startup), schnelle
+Checks zur Laufzeit.</p>
+<p><strong>Im Code:</strong></p>
+<ul>
+<li>Startup: <code>validate_media()</code> prüft pro ID
+<code>.jpg</code> und <code>.mp3</code>, zählt, loggt fehlende
+Dateien.</li>
+<li>Runtime: <code>check_media_exists()</code> liefert Status für eine
+ID.</li>
+</ul>
+<p><strong>Anwendung (Best-Practice):</strong></p>
+<p><code>/health</code> ist “degraded” wenn Serial down oder Medien
+fehlen; gut für systemd/Monitoring. Für Produktion: fehlende Medien
+optional als <strong>harte Startbedingung</strong> (Exitcode ≠ 0), wenn
+du “fail fast” willst.</p>
+<h2 id="code-qualität-konkrete-leitplanken">7) Code-Qualität: konkrete
+Leitplanken</h2>
+<p><strong>Regeln, die sich in der Praxis auszahlen:</strong></p>
+<ol type="1">
+<li><strong>Typen durchziehen:</strong> du nutzt bereits
+<code>Optional[int]</code>, Return-Types; halte das konsequent (auch für
+WS-Payload-Schemas).</li>
+<li><strong>Logging statt Print:</strong> bereits sauber
+(<code>LOG_FORMAT</code>, Levels). Für Debug-Phasen: gezielte
+<code>logging.debug</code> in Parser/State-Übergängen.</li>
+<li><strong>Konstanten zentral:</strong> Mode/Anzahl Medien über
+<code>PROTOTYPE_MODE</code> und <code>NUM_MEDIA</code>.</li>
+<li><strong>Schnittstellen schmal halten:</strong>
+<code>handle_button_press(button_id)</code> ist der zentrale Eingang für
+“User-Intent”.</li>
+</ol>
+<h2 id="protokoll-übersicht">8) Protokoll-Übersicht</h2>
+<h3 id="serial-protokoll-esp32-pi">Serial-Protokoll (ESP32 ↔︎ Pi)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Richtung</th>
+<th>Nachricht</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32 → Pi</td>
+<td><code>READY</code></td>
+<td>ESP32 bereit</td>
+</tr>
+<tr>
+<td>ESP32 → Pi</td>
+<td><code>FW SelectionPanel v2.5.2</code></td>
+<td>Firmware-Version</td>
+</tr>
+<tr>
+<td>ESP32 → Pi</td>
+<td><code>PRESS 001</code></td>
+<td>Taster 1 gedrückt</td>
+</tr>
+<tr>
+<td>ESP32 → Pi</td>
+<td><code>RELEASE 001</code></td>
+<td>Taster 1 losgelassen</td>
+</tr>
+<tr>
+<td>ESP32 → Pi</td>
+<td><code>PONG</code></td>
+<td>Antwort auf PING</td>
+</tr>
+<tr>
+<td>Pi → ESP32</td>
+<td><code>LEDSET 001</code></td>
+<td>LED 1 an (One-Hot)</td>
+</tr>
+<tr>
+<td>Pi → ESP32</td>
+<td><code>LEDCLR</code></td>
+<td>Alle LEDs aus</td>
+</tr>
+<tr>
+<td>Pi → ESP32</td>
+<td><code>PING</code></td>
+<td>Verbindungstest</td>
+</tr>
+</tbody>
+</table>
+<h3 id="websocket-protokoll-server-browser">WebSocket-Protokoll (Server
+↔︎ Browser)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Richtung</th>
+<th>Message</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server → Browser</td>
+<td><code>{"type":"play","id":n}</code></td>
+<td>Wiedergabe starten</td>
+</tr>
+<tr>
+<td>Server → Browser</td>
+<td><code>{"type":"stop"}</code></td>
+<td>Wiedergabe stoppen</td>
+</tr>
+<tr>
+<td>Browser → Server</td>
+<td><code>{"type":"ended","id":n}</code></td>
+<td>Audio beendet</td>
+</tr>
+<tr>
+<td>Browser → Server</td>
+<td><code>{"type":"ping"}</code></td>
+<td>Heartbeat</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http-endpoints">HTTP-Endpoints</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Methode</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>GET</td>
+<td>Web-Dashboard</td>
+</tr>
+<tr>
+<td><code>/ws</code></td>
+<td>WebSocket</td>
+<td>Echtzeit-Events</td>
+</tr>
+<tr>
+<td><code>/static/</code></td>
+<td>GET</td>
+<td>JavaScript, CSS</td>
+</tr>
+<tr>
+<td><code>/media/</code></td>
+<td>GET</td>
+<td>Bilder und Audio</td>
+</tr>
+<tr>
+<td><code>/status</code></td>
+<td>GET</td>
+<td>Server-Status (JSON)</td>
+</tr>
+<tr>
+<td><code>/health</code></td>
+<td>GET</td>
+<td>Health-Check (200/503)</td>
+</tr>
+<tr>
+<td><code>/test/play/{id}</code></td>
+<td>GET</td>
+<td>Tastendruck simulieren</td>
+</tr>
+<tr>
+<td><code>/test/stop</code></td>
+<td>GET</td>
+<td>Wiedergabe stoppen</td>
+</tr>
+</tbody>
+</table>
+<h2 id="glossar-alphabetisch">Glossar (alphabetisch)</h2>
+<ul>
+<li><strong>aiohttp</strong> – Python-Webframework für HTTP-Server und
+WebSockets auf asyncio-Basis.</li>
+<li><strong>async / await</strong> – Syntax, um asynchrone Funktionen
+(Coroutines) nicht-blockierend auszuführen.</li>
+<li><strong>asyncio</strong> – Standardbibliothek für kooperatives
+Multitasking (Event-Loop, Tasks, Futures).</li>
+<li><strong>broadcast</strong> – Senden derselben Nachricht an mehrere
+Empfänger (hier: alle WebSocket-Clients).</li>
+<li><strong>Coroutine</strong> – Asynchrone Funktion, die vom Event-Loop
+ausgeführt und pausiert/fortgesetzt werden kann.</li>
+<li><strong>Daemon-Thread</strong> – Thread, der das Programm nicht am
+Beenden hindert (läuft “im Hintergrund”).</li>
+<li><strong>Event-Loop</strong> – Zentrale Ausführungsschleife, die
+Coroutines plant und IO-Ereignisse verarbeitet.</li>
+<li><strong>File Descriptor (FD)</strong> – Integer-Handle eines
+geöffneten OS-Ressourcenkanals (Datei, Serial-Device).</li>
+<li><strong>Fragmentierung</strong> – Aufteilung logisch
+zusammengehöriger Daten in mehrere Pakete/Chunks (z. B. USB-CDC).</li>
+<li><strong>gather</strong> – asyncio-Funktion, die mehrere awaitables
+parallel startet und gemeinsam abwartet.</li>
+<li><strong>Health-Check</strong> – Endpoint, der “gesund/degraded” für
+Monitoring/Orchestrierung ausgibt (z. B. systemd).</li>
+<li><strong>Idempotent</strong> – Mehrfaches Ausführen führt zum selben
+Ergebnis (wichtig bei Retries/Startup-Hooks).</li>
+<li><strong>JSON</strong> – Textformat für strukturierte Daten
+(Key-Value), oft für WebSocket-Payloads genutzt.</li>
+<li><strong>Lock (Mutex)</strong> – Synchronisationsobjekt, das
+kritische Abschnitte gegen gleichzeitigen Zugriff schützt.</li>
+<li><strong>non-blocking IO</strong> – Lese/Schreiboperationen
+blockieren nicht; statt warten gibt es “kein Datum verfügbar”.</li>
+<li><strong>One-Hot</strong> – Kodierung, bei der genau ein Bit/Element
+“1/aktiv” ist, alle anderen “0/inaktiv”.</li>
+<li><strong>poll</strong> – Systemcall/Mechanismus, um auf IO-Events
+mehrerer FDs zu warten.</li>
+<li><strong>Preempt</strong> – “Neues Ereignis gewinnt”: laufende Aktion
+wird sofort verdrängt/überschrieben.</li>
+<li><strong>Race-Condition</strong> – Timing-abhängiger Fehler, wenn
+konkurrierende Abläufe in ungünstiger Reihenfolge wirken.</li>
+<li><strong>Reconnect-Loop</strong> – Wiederholtes Verbinden nach
+Fehler/Disconnect, meist mit Wartezeit (Backoff).</li>
+<li><strong>Static Files</strong> – Unveränderliche Dateien, die direkt
+per HTTP ausgeliefert werden (HTML/CSS/JS).</li>
+<li><strong>WebSocket</strong> – Dauerhafte bidirektionale Verbindung
+(Client ↔︎ Server) für Events in Echtzeit.</li>
+</ul>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

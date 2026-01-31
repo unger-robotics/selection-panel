@@ -1,5 +1,16 @@
+/**
+ * @file spi_bus.h
+ * @brief SPI-Bus Abstraktion mit FreeRTOS Mutex
+ *
+ * Stellt thread-sichere SPI-Transaktionen bereit.
+ * SpiGuard (RAII) garantiert Transaction-Ende auch bei Exceptions.
+ */
 #ifndef SPI_BUS_H
 #define SPI_BUS_H
+
+// =============================================================================
+// INCLUDES
+// =============================================================================
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -7,65 +18,74 @@
 #include "freertos/semphr.h"
 
 // =============================================================================
-// SPI-Bus Abstraktion mit FreeRTOS Mutex
-// =============================================================================
-//
-// Warum eine eigene Klasse statt direktem SPI-Zugriff?
-// → Mutex schützt vor gleichzeitigem Zugriff (falls später mehrere Tasks)
-// → SpiGuard (RAII) garantiert Transaction-Ende auch bei Exceptions
-// → Zentrale Stelle für Bus-Initialisierung
-//
+// CLASSES
 // =============================================================================
 
+/**
+ * @brief SPI-Bus Wrapper mit Mutex-Schutz
+ */
 class SpiBus {
 public:
-    // Initialisiert SPI-Hardware und erstellt Mutex
+    /**
+     * @brief Initialisiert SPI-Hardware und erstellt Mutex
+     * @param sck Clock-Pin
+     * @param miso MISO-Pin
+     * @param mosi MOSI-Pin
+     */
     void begin(int sck, int miso, int mosi);
 
-    // Mutex-Zugriff (für SpiGuard)
+    /**
+     * @brief Sperrt den Bus (blockiert bis frei)
+     */
     void lock();
+
+    /**
+     * @brief Gibt den Bus frei
+     */
     void unlock();
 
 private:
-    SemaphoreHandle_t mtx_ = nullptr;
+    SemaphoreHandle_t _mtx = nullptr;  /**< FreeRTOS Mutex */
 };
 
-// =============================================================================
-// RAII Guard für SPI-Transaktionen
-// =============================================================================
-//
-// Warum RAII statt manuellem begin/end?
-// → Garantiert endTransaction() auch wenn Code früh returned
-// → Garantiert unlock() auch bei Fehlern
-// → Kompakter Code ohne vergessene Cleanup-Aufrufe
-//
-// Verwendung:
-//   {
-//       SpiGuard g(bus, settings);
-//       SPI.transfer(...);
-//   }  // ← Automatisch: endTransaction() + unlock()
-//
-// =============================================================================
-
+/**
+ * @brief RAII Guard fuer SPI-Transaktionen
+ *
+ * Verwendung:
+ * @code
+ * {
+ *     SpiGuard g(bus, settings);
+ *     SPI.transfer(...);
+ * }  // Automatisch: endTransaction() + unlock()
+ * @endcode
+ */
 class SpiGuard {
 public:
+    /**
+     * @brief Startet SPI-Transaktion mit Lock
+     * @param bus SpiBus-Instanz
+     * @param settings SPI-Einstellungen
+     */
     SpiGuard(SpiBus& bus, const SPISettings& settings)
-        : bus_(bus) {
-        bus_.lock();
+        : _bus(bus) {
+        _bus.lock();
         SPI.beginTransaction(settings);
     }
 
+    /**
+     * @brief Beendet Transaktion und gibt Lock frei
+     */
     ~SpiGuard() {
         SPI.endTransaction();
-        bus_.unlock();
+        _bus.unlock();
     }
 
-    // Nicht kopierbar (würde doppeltes unlock verursachen)
+    // Nicht kopierbar (wuerde doppeltes unlock verursachen)
     SpiGuard(const SpiGuard&) = delete;
     SpiGuard& operator=(const SpiGuard&) = delete;
 
 private:
-    SpiBus& bus_;
+    SpiBus& _bus;  /**< Referenz auf den Bus */
 };
 
 #endif // SPI_BUS_H

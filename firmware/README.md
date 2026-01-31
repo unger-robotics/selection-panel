@@ -1,12 +1,12 @@
-# Selection Panel
+# Selection Panel Firmware
 
-**10-100 Taster mit LEDs, gesteuert über ESP32-S3 und Raspberry Pi**
+**ESP32-S3 Firmware fuer 10-100 Taster mit LED-Feedback**
 
-Version 2.5.2 | Phase 7 (Pi-Integration abgeschlossen)
+Version 2.5.3 | Phase 7 (Pi-Integration abgeschlossen)
 
-## Überblick
+## Ueberblick
 
-Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster über CD4021B-Schieberegister ein und steuert LEDs über 74HC595. Ein Raspberry Pi 5 übernimmt die Anwendungslogik: Medien-Wiedergabe (aiohttp + WebSocket), Web-Dashboard und externe Steuerung.
+Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster ueber CD4021B-Schieberegister ein und steuert LEDs ueber 74HC595. Ein Raspberry Pi 5 uebernimmt die Anwendungslogik.
 
 ```
 ┌───────────────────┐     USB-CDC      ┌───────────────────┐
@@ -20,7 +20,7 @@ Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und L
         ▼ http://rover:8080              ┌───────┴───────┐
    ┌─────────┐                           │               │
    │ Browser │                     ┌─────┴─────┐   ┌─────┴─────┐
-   │ Dashboard│                    │  CD4021B  │   │  74HC595  │
+   │Dashboard│                     │  CD4021B  │   │  74HC595  │
    └─────────┘                     │  Taster   │   │   LEDs    │
                                    └─────┬─────┘   └─────┬─────┘
                                          │               │
@@ -32,130 +32,129 @@ Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und L
 ## Features
 
 - **10 Taster** mit zeitbasierter Entprellung (30 ms)
-- **10 LEDs** mit PWM-Helligkeitsregelung (verschiedene Farben)
+- **10 LEDs** mit PWM-Helligkeitsregelung
 - **FreeRTOS** auf ESP32-S3 (200 Hz I/O-Zyklus)
-- **Serial-Protokoll** für Pi-Integration
-- **Web-Dashboard** mit WebSocket-Live-Updates
+- **Serial-Protokoll** fuer Pi-Integration
 - **Skalierbar** auf 100 Taster/LEDs
 
 ## Schnellstart
 
-### Hardware
+### Voraussetzungen
 
-| Komponente | Typ | Anzahl |
-|------------|-----|--------|
-| XIAO ESP32-S3 | Mikrocontroller | 1 |
-| Raspberry Pi 5 | SBC + Netzteil + microSD | 1 |
-| CD4021B | Schieberegister (Input) | 2 |
-| 74HC595 | Schieberegister (Output) | 2 |
-| Taster | 6×6 mm Tactile | 10 |
-| LED | 5 mm, verschiedene Farben | 10 |
-| Widerstand | 330 Ω – 3 kΩ (LED) | 10 |
-| Widerstand | 10 kΩ (Pull-up) | 10 |
-| Kondensator | 100 nF (Stützkondensator) | 4 |
+- [PlatformIO](https://platformio.org/) (CLI oder IDE)
+- Seeed XIAO ESP32-S3
 
-### Firmware flashen
+### Build & Flash
 
 ```bash
-cd firmware
-pio run -t upload
-pio device monitor
+pio run                       # Kompilieren
+pio run -t upload             # Flashen
+pio device monitor            # Serial-Monitor (115200 Baud)
+pio run -t upload -t monitor  # Alles in einem
 ```
 
-Erwartete Ausgabe:
+### Erwartete Ausgabe
 
 ```
 READY
-FW SelectionPanel v2.5.2
+FW selection-panel v2.5.3
 ```
 
-### Pi-Verbindung
+### Entwicklung
 
 ```bash
-# Stabiler USB-Pfad (by-id)
-ls /dev/serial/by-id/usb-Espressif*
-
-# Verbindung testen
-screen /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_*-if00 115200
-# Taster drücken → PRESS 001
+./tools/format.sh             # Code formatieren (clang-format)
+./tools/lint.sh               # Statische Analyse (cppcheck)
+pio check                     # PlatformIO Check
 ```
 
-### Server starten
+## Architektur
 
-```bash
-cd pi-server
-python3 server.py
-# Dashboard: http://rover:8080
-```
+### Schichtenmodell
 
-### Python-Beispiel
+| Schicht | Verzeichnis | Verantwortung |
+|---------|-------------|---------------|
+| Entry | `main.cpp` | Queue-Erstellung, Task-Start |
+| App | `src/app/` | FreeRTOS Tasks (io_task, serial_task) |
+| Logic | `src/logic/` | Entprellung, Auswahllogik |
+| Driver | `src/drivers/` | CD4021B, 74HC595 |
+| HAL | `src/hal/` | SPI-Bus mit Mutex |
 
-```python
-import serial
-
-# Stabiler Pfad verwenden
-port = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
-ser = serial.Serial(port, 115200)
-
-while True:
-    line = ser.readline().decode().strip()
-    if line.startswith("PRESS"):
-        btn_id = line.split()[1]
-        print(f"Button {btn_id} pressed")
-        ser.write(f"LEDSET {btn_id}\n".encode())
-```
-
-## Projektstruktur
+### Projektstruktur
 
 ```
-selection-panel/
-├── firmware/                   # ESP32-S3 Firmware (Hauptverzeichnis)
-│   ├── src/
-│   │   ├── main.cpp            # Entry Point
-│   │   ├── app/                # FreeRTOS Tasks
-│   │   │   ├── io_task.cpp/h   # I/O-Zyklus (200 Hz)
-│   │   │   └── serial_task.cpp/h
-│   │   ├── logic/              # Geschäftslogik
-│   │   │   ├── debounce.cpp/h  # Entprellung
-│   │   │   └── selection.cpp/h # Auswahllogik
-│   │   ├── drivers/            # Hardware-Treiber
-│   │   │   ├── cd4021.cpp/h    # Taster-Input
-│   │   │   └── hc595.cpp/h     # LED-Output
-│   │   └── hal/                # Hardware Abstraction
-│   │       └── spi_bus.cpp/h   # SPI-Bus
-│   ├── include/
-│   │   ├── config.h            # Konfiguration
-│   │   ├── types.h             # Datentypen
-│   │   └── bitops.h            # Bit-Operationen
-│   ├── docs/                   # Firmware-Dokumentation
-│   │   ├── 00-overview.md
-│   │   ├── 01-wiring.md
-│   │   ├── 02-firmware-architecture.md
-│   │   ├── 03-debug-playbook.md
-│   │   ├── 04-test-plan.md
-│   │   └── 05-performance-notes.md
-│   ├── platformio.ini
-│   └── README.md
-├── pi-server/                  # Raspberry Pi Server
-│   ├── server.py               # aiohttp + WebSocket
-│   ├── static/                 # Web-Dashboard (HTML/JS/CSS)
-│   └── media/                  # Medien (001.mp3, 001.jpg, ...)
-└── docs/                       # Projekt-Dokumentation
+firmware/
+├── include/
+│   ├── config.h          # Konfiguration (Pins, Timing)
+│   ├── types.h           # Gemeinsame Datentypen
+│   └── bitops.h          # Bit-Operationen
+├── src/
+│   ├── main.cpp          # Entry Point
+│   ├── app/              # FreeRTOS Tasks
+│   │   ├── io_task.*     # I/O-Zyklus (200 Hz)
+│   │   └── serial_task.* # Serial-Kommunikation
+│   ├── logic/            # Geschaeftslogik
+│   │   ├── debounce.*    # Zeitbasierte Entprellung
+│   │   └── selection.*   # One-Hot Auswahllogik
+│   ├── drivers/          # Hardware-Treiber
+│   │   ├── cd4021.*      # Taster-Input
+│   │   └── hc595.*       # LED-Output
+│   └── hal/              # Hardware Abstraction
+│       └── spi_bus.*     # SPI-Bus
+├── docs/                 # Dokumentation
+│   ├── overview.md       # Kurzreferenz
+│   ├── architecture.md   # Schichtenmodell
+│   ├── ALGORITHM.md      # Algorithmen
+│   ├── FLOWCHART.md      # Ablaufdiagramme
+│   ├── DEVELOPER.md      # Entwickler-Guide
+│   ├── HARDWARE.md       # Hardware-Dokumentation
+│   └── CODING_STANDARD.md# Code-Stil
+├── tools/                # Hilfsskripte
+│   ├── format.sh         # clang-format
+│   └── lint.sh           # cppcheck
+├── platformio.ini
+├── CLAUDE.md             # KI-Assistenz Kontext
+├── CONTRIBUTING.md       # Beitragsrichtlinien
+└── README.md
 ```
 
-## Protokoll-Übersicht
+## Konfiguration
 
-### Serial: ESP32 → Pi
+Wichtige Parameter in `include/config.h`:
+
+```cpp
+constexpr uint8_t BTN_COUNT = 10;        // Anzahl Taster (max 100)
+constexpr uint8_t LED_COUNT = 10;        // Anzahl LEDs (max 100)
+constexpr uint32_t IO_PERIOD_MS = 5;     // Abtastrate (200 Hz)
+constexpr uint32_t DEBOUNCE_MS = 30;     // Entprellzeit
+constexpr uint8_t PWM_DUTY_PERCENT = 50; // LED-Helligkeit
+constexpr bool LATCH_SELECTION = true;   // Auswahl persistent
+```
+
+### Skalierung auf 100 Taster
+
+```cpp
+constexpr uint8_t BTN_COUNT = 100;
+constexpr uint8_t LED_COUNT = 100;
+```
+
+`BTN_BYTES`/`LED_BYTES` berechnen sich automatisch.
+
+## Protokoll
+
+### ESP32 → Pi
 
 | Nachricht | Beschreibung |
 |-----------|--------------|
 | `READY` | System bereit |
 | `FW <version>` | Firmware-Version |
-| `PRESS <id>` | Taster gedrückt (001-100) |
+| `PRESS <id>` | Taster gedrueckt (001-100) |
 | `RELEASE <id>` | Taster losgelassen |
 | `PONG` | Antwort auf PING |
+| `OK` | Befehl ausgefuehrt |
+| `ERROR <msg>` | Fehler |
 
-### Serial: Pi → ESP32
+### Pi → ESP32
 
 | Befehl | Beschreibung |
 |--------|--------------|
@@ -164,51 +163,65 @@ selection-panel/
 | `LEDOFF <id>` | LED ausschalten |
 | `LEDCLR` | Alle LEDs aus |
 | `LEDALL` | Alle LEDs an |
-| `PING` | Verbindung prüfen → PONG |
+| `PING` | Verbindung pruefen |
 | `STATUS` | Status abfragen |
+| `VERSION` | Version abfragen |
+| `HELP` | Hilfe anzeigen |
 
-### WebSocket: Server ↔ Browser
+**Wichtig:** Alle IDs sind 1-basiert und 3-stellig formatiert (001-100).
 
-| Richtung | Message | Beschreibung |
-|----------|---------|--------------|
-| Server → Browser | `{"type":"play","id":3}` | Starte Wiedergabe |
-| Server → Browser | `{"type":"stop"}` | Stoppe Wiedergabe |
-| Browser → Server | `{"type":"ended","id":3}` | Wiedergabe beendet |
+## Hardware
 
-## Konfiguration
+### Pin-Belegung (XIAO ESP32-S3)
 
-Wichtige Parameter in `firmware/include/config.h`:
+| Pin | GPIO | Funktion | Chip |
+|-----|------|----------|------|
+| D0 | GPIO1 | LED_RCK (Latch) | 74HC595 |
+| D1 | GPIO2 | BTN_PS (Parallel/Shift) | CD4021B |
+| D2 | GPIO3 | LED_OE (PWM) | 74HC595 |
+| D8 | GPIO7 | SCK (gemeinsamer Takt) | Beide |
+| D9 | GPIO8 | BTN_MISO | CD4021B |
+| D10 | GPIO9 | LED_MOSI | 74HC595 |
+
+### Komponenten
+
+| Komponente | Typ | Anzahl |
+|------------|-----|--------|
+| XIAO ESP32-S3 | Mikrocontroller | 1 |
+| CD4021B | Schieberegister (Input) | 2 |
+| 74HC595 | Schieberegister (Output) | 2 |
+| Taster | 6×6 mm Tactile | 10 |
+| LED | 5 mm | 10 |
+| Widerstand | 330Ω-3kΩ (LED) | 10 |
+| Widerstand | 10kΩ (Pull-up) | 10 |
+| Kondensator | 100nF (Abblockkondensator) | 4 |
+
+## Debugging
+
+Verbose-Logging in `config.h` aktivieren:
 
 ```cpp
-constexpr uint8_t BTN_COUNT = 10;        // Anzahl Taster
-constexpr uint8_t LED_COUNT = 10;        // Anzahl LEDs
-constexpr uint32_t IO_PERIOD_MS = 5;     // Abtastrate (200 Hz)
-constexpr uint32_t DEBOUNCE_MS = 30;     // Entprellzeit
-constexpr uint8_t PWM_DUTY_PERCENT = 50; // LED-Helligkeit
-constexpr bool LATCH_SELECTION = true;   // Auswahl persistent
+constexpr bool LOG_VERBOSE_PER_ID = true;
+constexpr bool LOG_ON_RAW_CHANGE = true;
+constexpr bool SERIAL_PROTOCOL_ONLY = false;
 ```
 
-## Entwicklungsphasen
+## Dokumentation
 
-| Phase | Status | Beschreibung |
-|-------|--------|--------------|
-| 1 | ✅ | ESP32 Grundtest |
-| 2 | ✅ | LED-SPI (74HC595) |
-| 3 | ✅ | Button-SPI (CD4021B) |
-| 4 | ✅ | Combined SPI |
-| 5 | ✅ | FreeRTOS Integration |
-| 6 | ✅ | Modulare Architektur |
-| 7 | ✅ | Raspberry Pi Bridge |
-| 8 | 🔲 | 100-Button |
+| Dokument | Inhalt |
+|----------|--------|
+| [overview.md](docs/overview.md) | Kurzreferenz, Invarianten, Boot-Sequenz |
+| [architecture.md](docs/architecture.md) | Schichtenmodell, Datenfluss, Design-Entscheidungen |
+| [ALGORITHM.md](docs/ALGORITHM.md) | Debounce, Selection, Bit-Mapping im Detail |
+| [FLOWCHART.md](docs/FLOWCHART.md) | Programmablaufplaene (ASCII) |
+| [DEVELOPER.md](docs/DEVELOPER.md) | API, Timing, Memory, Troubleshooting |
+| [HARDWARE.md](docs/HARDWARE.md) | Pin-Belegung, Schaltung, Erweiterung |
+| [CODING_STANDARD.md](docs/CODING_STANDARD.md) | Namenskonventionen, Code-Stil |
 
 ## Lizenz
 
 MIT License
 
-## Autor & Maintainer
+## Autor
 
 Jan Unger
-
-## Credits
-
-Unterstützt durch KI-Tools (Claude, ChatGPT).

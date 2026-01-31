@@ -2,11 +2,11 @@
 
 **10-100 Taster mit LEDs, gesteuert über ESP32-S3 und Raspberry Pi**
 
-Version 2.5.2 | Phase 7 (Pi-Integration abgeschlossen)
+Version 2.5.3 | Phase 7 (Pi-Integration abgeschlossen)
 
 ## Überblick
 
-Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster über CD4021B-Schieberegister ein und steuert LEDs über 74HC595. Ein Raspberry Pi 5 übernimmt die Anwendungslogik: Medien-Wiedergabe über ein Web-Dashboard (aiohttp + WebSocket) und externe Steuerung.
+Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und LED-Feedback. Ein ESP32-S3 (XIAO) liest Taster über CD4021B-Schieberegister ein und steuert LEDs über 74HC595. Ein Raspberry Pi 5 übernimmt die Anwendungslogik: Medien-Wiedergabe über ein Web-Dashboard (aiohttp + WebSocket).
 
 ```
 ┌───────────────────┐     USB-CDC      ┌───────────────────┐
@@ -31,12 +31,11 @@ Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und L
 
 ## Features
 
-- **10 Taster** mit zeitbasierter Entprellung (30 ms)
-- **10 LEDs** mit PWM-Helligkeitsregelung
+- **10-100 Taster** mit zeitbasierter Entprellung (30 ms)
+- **10-100 LEDs** mit PWM-Helligkeitsregelung
 - **FreeRTOS** auf ESP32-S3 (200 Hz I/O-Zyklus)
 - **Serial-Protokoll** für Pi-Integration
 - **Web-Dashboard** zur Fernsteuerung
-- **Skalierbar** auf 100 Taster/LEDs
 
 ## Schnellstart
 
@@ -56,8 +55,7 @@ Das Selection Panel ist ein modulares Eingabesystem mit physischen Tastern und L
 
 ```bash
 cd firmware
-pio run -t upload
-pio device monitor
+pio run -t upload -t monitor
 ```
 
 Erwartete Ausgabe:
@@ -67,19 +65,14 @@ READY
 FW SelectionPanel v2.5.2
 ```
 
-### Pi-Verbindung
+### Pi-Server starten
 
 ```bash
-# Stabilen USB-Pfad ermitteln
-ls /dev/serial/by-id/
+cd ~/selection-panel/server
+source ../venv/bin/activate
+python server.py
 
-# Server starten
-cd selection-panel
-python3 server.py
-
-# Web-Dashboard öffnen
-# http://rover.local:8080/
-# oder http://192.168.1.24:8080/
+# Web-Dashboard: http://rover:8080/
 ```
 
 ### Minimales Python-Beispiel
@@ -97,39 +90,9 @@ while True:
         ser.write(f"LEDSET {btn_id}\n".encode())
 ```
 
-## Projektstruktur
+## Protokoll
 
-```
-selection-panel/
-├── firmware/               # ESP32-S3 Firmware
-│   ├── src/
-│   │   ├── main.cpp        # Entry Point
-│   │   ├── app/            # FreeRTOS Tasks
-│   │   ├── logic/          # Debounce, Selection
-│   │   ├── drivers/        # CD4021, HC595
-│   │   └── hal/            # SPI-Abstraktion
-│   └── include/
-│       ├── config.h        # Konfiguration
-│       ├── types.h         # Datentypen
-│       └── bitops.h        # Bit-Operationen
-├── server.py               # Python-Server
-├── static/                 # Web-Dashboard
-├── media/                  # Sound/Bilder (001.mp3, 001.jpg)
-└── docs/                   # Dokumentation
-```
-
-## Dokumentation
-
-| Dokument | Beschreibung |
-|----------|--------------|
-| [selection-panel-architektur.md](docs/selection-panel-architektur.md) | Systemarchitektur, Schichtenmodell |
-| [HARDWARE.md](docs/HARDWARE.md) | Schaltpläne, Pin-Belegung |
-| [firmware-code-guide.md](docs/firmware-code-guide.md) | Firmware-Struktur, Module |
-| [PI-INTEGRATION.md](docs/PI-INTEGRATION.md) | Raspberry Pi Setup, WebSocket-API |
-| [PROTOCOL.md](docs/PROTOCOL.md) | Serial + WebSocket Protokoll |
-| [usb-port-verwaltung.md](docs/usb-port-verwaltung.md) | Port-Sharing mit AMR-Projekt |
-
-## Protokoll-Übersicht
+**Wichtig:** Alle IDs sind 1-basiert und 3-stellig formatiert (001-100).
 
 ### ESP32 → Pi
 
@@ -149,41 +112,54 @@ selection-panel/
 | `LEDOFF <id>` | LED ausschalten |
 | `LEDCLR` | Alle LEDs aus |
 | `LEDALL` | Alle LEDs an |
-| `PING` | Verbindung prüfen |
+| `PING` | Verbindung prüfen → `PONG` |
 
 ## Konfiguration
 
-Wichtige Parameter in `include/config.h`:
+### Firmware (`firmware/include/config.h`)
 
 ```cpp
-constexpr uint8_t BTN_COUNT = 10;       // Anzahl Taster
-constexpr uint8_t LED_COUNT = 10;       // Anzahl LEDs
-constexpr uint32_t IO_PERIOD_MS = 5;    // Abtastrate (200 Hz)
-constexpr uint32_t DEBOUNCE_MS = 30;    // Entprellzeit
-constexpr uint8_t PWM_DUTY_PERCENT = 50; // LED-Helligkeit
+constexpr uint8_t BTN_COUNT = 10;       // Skalierbar auf 100
+constexpr uint8_t LED_COUNT = 10;
+constexpr uint32_t IO_PERIOD_MS = 5;    // 200 Hz
+constexpr uint32_t DEBOUNCE_MS = 30;
+constexpr uint8_t PWM_DUTY_PERCENT = 50;
 ```
+
+### Server (`server/server.py`)
+
+```python
+PROTOTYPE_MODE = True   # True = 10 Medien, False = 100
+ESP32_SETS_LED_LOCALLY = True
+```
+
+## Dokumentation
+
+| Dokument | Beschreibung |
+|----------|--------------|
+| [QUICKSTART.md](doc/md/QUICKSTART.md) | Schnelleinstieg |
+| [SELECTION-PANEL-ARCHITEKTUR.md](doc/md/SELECTION-PANEL-ARCHITEKTUR.md) | Systemarchitektur |
+| [PROTOCOL.md](doc/md/PROTOCOL.md) | Serial + WebSocket Protokoll |
+| [PI-INTEGRATION.md](doc/md/PI-INTEGRATION.md) | Raspberry Pi Setup |
+| [firmware/docs/HARDWARE.md](firmware/docs/HARDWARE.md) | Schaltpläne, Pin-Belegung |
+| [firmware/docs/DEVELOPER.md](firmware/docs/DEVELOPER.md) | Firmware-Entwicklung |
 
 ## Entwicklungsphasen
 
 | Phase | Status | Beschreibung |
 |-------|--------|--------------|
-| 1 | ✅ | ESP32 Grundtest |
-| 2 | ✅ | LED-SPI (74HC595) |
-| 3 | ✅ | Button-SPI (CD4021B) |
-| 4 | ✅ | Combined SPI |
-| 5 | ✅ | FreeRTOS Integration |
-| 6 | ✅ | Modulare Architektur |
+| 1-6 | ✅ | ESP32 → LEDs → Taster → FreeRTOS → Modular |
 | 7 | ✅ | Raspberry Pi Bridge |
-| 8 | 🔲 | 100x Button + LEDs + Multimedia |
+| 8 | 🔲 | 100x Taster + LEDs + Multimedia |
 
 ## Lizenz
 
 MIT License
 
-## Autor & Maintainer
+## Autor
 
 Jan Unger
 
 ## Credits
 
-Unterstützt durch KI-Tools (Claude 4.5, ChatGPT 5.2).
+Unterstützt durch KI-Tools (Claude Code, ChatGPT).

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ARDUINO-CPP.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="embedded-firmware-mit-arduino-c">Embedded Firmware mit Arduino
+C++</h1>
+<p>Selection-Panel-Codes</p>
+<h2 id="was-ist-embedded-firmware">1. Was ist Embedded Firmware?</h2>
+<p><strong>Firmware</strong> ist Software, die direkt auf Hardware läuft
+– ohne Betriebssystem dazwischen. Sie steuert Mikrocontroller, die in
+Geräten “eingebettet” (embedded) sind.</p>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│                    Desktop-PC                           │
+├─────────────────────────────────────────────────────────┤
+│  Anwendung (Browser, Word, ...)                         │
+│  ─────────────────────────────────────────────────────  │
+│  Betriebssystem (Windows, Linux, macOS)                 │
+│  ─────────────────────────────────────────────────────  │
+│  Hardware (CPU, RAM, SSD, ...)                          │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│                  Embedded System                        │
+├─────────────────────────────────────────────────────────┤
+│  Firmware (dein Code)           ← Läuft direkt!         │
+│  ─────────────────────────────────────────────────────  │
+│  Hardware (ESP32, Sensoren, LEDs, ...)                  │
+└─────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>Konsequenzen für den Code:</strong></p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aspekt</th>
+<th>Desktop</th>
+<th>Embedded</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Speicher</td>
+<td>GBs RAM</td>
+<td>KBs RAM</td>
+</tr>
+<tr>
+<td>Dateisystem</td>
+<td>Ja</td>
+<td>Meist nein</td>
+</tr>
+<tr>
+<td>Multitasking</td>
+<td>OS regelt</td>
+<td>Du regelst</td>
+</tr>
+<tr>
+<td>Timing</td>
+<td>Unkritisch</td>
+<td>Oft kritisch</td>
+</tr>
+<tr>
+<td>Fehler</td>
+<td>Absturz → Neustart</td>
+<td>Kann Hardware beschädigen</td>
+</tr>
+</tbody>
+</table>
+<h2 id="arduino-c-welche-version">2. Arduino C++: Welche Version?</h2>
+<h3 id="der-arduino-core">Der Arduino-Core</h3>
+<p>Arduino verwendet <strong>C++11</strong> mit Erweiterungen. Der
+ESP32-Arduino-Core (Espressif) basiert auf <strong>GCC 8.4</strong> und
+unterstützt:</p>
+<ul>
+<li>C++11 vollständig</li>
+<li>C++14 teilweise (z.B. keine Digit-Separatoren
+<code>1'000'000</code>)</li>
+<li>C++17 teilweise</li>
+</ul>
+<h3 id="was-arduino-hinzufügt">Was Arduino hinzufügt</h3>
+<p>Arduino ist kein eigener Compiler, sondern ein
+<strong>Framework</strong> auf C++:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Klassisches C/C++: Du schreibst main()</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Hardware initialisieren</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="op">(</span><span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Endlosschleife</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Arduino: Das Framework versteckt main()</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> setup<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Wird einmal ausgeführt</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Wird endlos wiederholt</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><strong>Hinter den Kulissen</strong> sieht Arduino’s
+<code>main()</code> so aus:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    init<span class="op">();</span>           <span class="co">// Hardware-Initialisierung</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    setup<span class="op">();</span>          <span class="co">// Dein Setup</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="op">(</span><span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        loop<span class="op">();</span>       <span class="co">// Dein Loop</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="programmierdogma-embedded-best-practices">3. Programmierdogma:
+Embedded Best Practices</h2>
+<h3 id="die-goldenen-regeln">Die goldenen Regeln</h3>
+<pre><code>1. KEIN dynamischer Speicher (new, malloc) in der Hauptschleife
+2. KEINE Blockierung (delay nur wenn unvermeidbar)
+3. DETERMINISMUS: Jeder Durchlauf dauert gleich lang
+4. FEHLERTOLERANZ: Hardware kann jederzeit &quot;spinnen&quot;
+5. RESSOURCEN-BEWUSSTSEIN: Jedes Byte zählt</code></pre>
+<h3 id="speicher-dogma">Speicher-Dogma</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// ❌ SCHLECHT: Dynamische Allokation</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    String text <span class="op">=</span> <span class="st">&quot;Hello&quot;</span><span class="op">;</span>        <span class="co">// String alloziert auf Heap</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    text <span class="op">+=</span> <span class="st">&quot; World&quot;</span><span class="op">;</span>             <span class="co">// Re-Allokation!</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">// → Speicherfragmentierung, irgendwann Absturz</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">// ✅ GUT: Statische Allokation</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">char</span> text<span class="op">[</span><span class="dv">32</span><span class="op">];</span>             <span class="co">// Feste Größe, einmal alloziert</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    snprintf<span class="op">(</span>text<span class="op">,</span> <span class="kw">sizeof</span><span class="op">(</span>text<span class="op">),</span> <span class="st">&quot;Hello World&quot;</span><span class="op">);</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="timing-dogma">Timing-Dogma</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// ❌ SCHLECHT: Blockierendes Warten</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>buttonPressed<span class="op">())</span> <span class="op">{</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        doSomething<span class="op">();</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        delay<span class="op">(</span><span class="dv">1000</span><span class="op">);</span>              <span class="co">// CPU macht 1 Sekunde NICHTS</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">// ✅ GUT: Nicht-blockierendes Warten</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">uint32_t</span> lastAction <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>buttonPressed<span class="op">()</span> <span class="op">&amp;&amp;</span> <span class="op">(</span>millis<span class="op">()</span> <span class="op">-</span> lastAction <span class="op">&gt;=</span> <span class="dv">1000</span><span class="op">))</span> <span class="op">{</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        doSomething<span class="op">();</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>        lastAction <span class="op">=</span> millis<span class="op">();</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="code-aufbau-die-anatomie-der-firmware">4. Code-Aufbau: Die
+Anatomie der Firmware</h2>
+<h3 id="dateistruktur">Dateistruktur</h3>
+<pre><code>src/
+├── config.h      ← Konfiguration (Konstanten, Pins)
+└── main.cpp      ← Hauptprogramm (Logik)</code></pre>
+<h3 id="aufbau-von-main.cpp">Aufbau von main.cpp</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 1. INCLUDES                                         │</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">// │    Externe Bibliotheken einbinden                   │</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;config.h&quot;</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;SPI.h&gt;</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 2. KONSTANTEN &amp; KONFIGURATION                       │</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">// │    SPI-Settings, Timing-Parameter                   │</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="at">const</span> SPISettings spiButtons<span class="op">(</span><span class="dv">500000</span><span class="op">,</span> MSBFIRST<span class="op">,</span> SPI_MODE1<span class="op">);</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 3. GLOBALE VARIABLEN (ZUSTAND)                      │</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">// │    static = nur in dieser Datei sichtbar            │</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">uint8_t</span> btnRaw<span class="op">[</span>BTN_BYTES<span class="op">];</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">uint8_t</span> activeId <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 4. HILFSFUNKTIONEN                                  │</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co">// │    Kleine, wiederverwendbare Bausteine              │</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">bool</span> btnIsPressed<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span> <span class="op">*</span>state<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 5. HARDWARE-FUNKTIONEN                              │</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="co">// │    Direkter Zugriff auf Peripherie                  │</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">void</span> readButtons<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 6. LOGIK-FUNKTIONEN                                 │</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co">// │    Verarbeitung, Entscheidungen                     │</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">void</span> debounceButtons<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 7. DEBUG-FUNKTIONEN                                 │</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="co">// │    Ausgaben für Entwicklung                         │</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">void</span> printState<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="co">// ┌─────────────────────────────────────────────────────┐</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="co">// │ 8. ARDUINO ENTRY POINTS                             │</span></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="co">// │    setup() und loop()                               │</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a><span class="co">// └─────────────────────────────────────────────────────┘</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> setup<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Einmalige Initialisierung</span></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Hauptschleife</span></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="c-syntax-im-detail">5. C++ Syntax im Detail</h2>
+<h3 id="präprozessor-direktiven">5.1 Präprozessor-Direktiven</h3>
+<p>Der Präprozessor läuft <strong>vor</strong> dem Compiler und
+manipuliert den Quelltext:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Include: Fügt Dateiinhalt ein</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;SPI.h&gt;</span><span class="pp">          </span><span class="co">// Sucht in System-Pfaden</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;config.h&quot;</span><span class="pp">       </span><span class="co">// Sucht im Projekt-Ordner</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Include Guard: Verhindert doppeltes Einbinden</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#pragma once              </span><span class="co">// Moderne Variante (eine Zeile)</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Alternativ (klassisch):</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="pp">#ifndef CONFIG_H</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="pp">#define CONFIG_H</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">// ... Inhalt ...</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="pp">#endif</span></span></code></pre></div>
+<h3 id="datentypen">5.2 Datentypen</h3>
+<h4 id="ganzzahlen-integer">Ganzzahlen (Integer)</h4>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Arduino/C++ Standard-Typen (Größe variiert je nach Plattform!)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> x<span class="op">;</span>            <span class="co">// Mindestens 16 Bit, auf ESP32: 32 Bit</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="dt">long</span> y<span class="op">;</span>           <span class="co">// Mindestens 32 Bit</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="dt">char</span> c<span class="op">;</span>           <span class="co">// 8 Bit (oft für Zeichen)</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Embedded Best Practice: Exakte Größen verwenden!</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;cstdint&gt;</span><span class="pp">        </span><span class="co">// Oder: &lt;stdint.h&gt;</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="dt">int8_t</span>   a<span class="op">;</span>       <span class="co">//  8 Bit mit Vorzeichen:    -128 bis 127</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span>  b<span class="op">;</span>       <span class="co">//  8 Bit ohne Vorzeichen:      0 bis 255</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="dt">int16_t</span>  c<span class="op">;</span>       <span class="co">// 16 Bit mit Vorzeichen: -32768 bis 32767</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="dt">uint16_t</span> d<span class="op">;</span>       <span class="co">// 16 Bit ohne Vorzeichen:      0 bis 65535</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="dt">int32_t</span>  e<span class="op">;</span>       <span class="co">// 32 Bit mit Vorzeichen</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="dt">uint32_t</span> f<span class="op">;</span>       <span class="co">// 32 Bit ohne Vorzeichen</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">// size_t: Für Größen und Indizes (plattformabhängig, immer positiv)</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="dt">size_t</span> arraySize <span class="op">=</span> <span class="dv">10</span><span class="op">;</span></span></code></pre></div>
+<h4 id="warum-exakte-größen">Warum exakte Größen?</h4>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// ❌ Problem: &quot;int&quot; ist auf verschiedenen Plattformen unterschiedlich groß</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> value <span class="op">=</span> <span class="dv">70000</span><span class="op">;</span>        <span class="co">// Auf 16-Bit-System: Überlauf!</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">// ✅ Lösung: Explizite Größe</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="dt">uint32_t</span> value <span class="op">=</span> <span class="dv">70000</span><span class="op">;</span>   <span class="co">// Immer 32 Bit, egal welche Plattform</span></span></code></pre></div>
+<h4 id="konstanten">Konstanten</h4>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// C-Style (veraltet, aber funktioniert)</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#define LED_COUNT </span><span class="dv">10</span><span class="pp">      </span><span class="co">// Textersetzung, kein Typ!</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">// C++ Style (empfohlen)</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">int</span> LED_COUNT <span class="op">=</span> <span class="dv">10</span><span class="op">;</span>           <span class="co">// Zur Laufzeit, braucht RAM</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> LED_COUNT <span class="op">=</span> <span class="dv">10</span><span class="op">;</span>       <span class="co">// Zur Compile-Zeit, kein RAM!</span></span></code></pre></div>
+<p><strong>constexpr vs const:</strong></p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> COMPILE_TIME <span class="op">=</span> <span class="dv">5</span> <span class="op">*</span> <span class="dv">2</span><span class="op">;</span>     <span class="co">// Berechnung zur Compile-Zeit</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">int</span> RUNTIME <span class="op">=</span> analogRead<span class="op">(</span>A0<span class="op">);</span>      <span class="co">// Kann nur const sein (Laufzeit)</span></span></code></pre></div>
+<h3 id="variablen-deklaration">5.3 Variablen-Deklaration</h3>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Speicherklassen</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> globalVar<span class="op">;</span>                    <span class="co">// Global: überall sichtbar</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">int</span> fileVar<span class="op">;</span>               <span class="co">// Datei-lokal: nur in dieser .cpp</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> func<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">int</span> localVar<span class="op">;</span>                 <span class="co">// Lokal: nur in dieser Funktion</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">static</span> <span class="dt">int</span> persistentVar<span class="op">;</span>     <span class="co">// Lokal, aber behält Wert zwischen Aufrufen!</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><strong>static bei globalen Variablen:</strong></p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In main.cpp:</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">uint8_t</span> btnRaw<span class="op">[</span>BTN_BYTES<span class="op">];</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">// &quot;static&quot; hier bedeutet: Diese Variable ist nur in main.cpp sichtbar.</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Andere .cpp-Dateien können keine Variable mit demselben Namen sehen.</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">// → Vermeidet Namenskonflikte in größeren Projekten.</span></span></code></pre></div>
+<p><strong>static bei lokalen Variablen:</strong></p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> countCalls<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">static</span> <span class="dt">int</span> counter <span class="op">=</span> <span class="dv">0</span><span class="op">;</span>   <span class="co">// Initialisierung nur beim ersten Aufruf!</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    counter<span class="op">++;</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    Serial<span class="op">.</span>println<span class="op">(</span>counter<span class="op">);</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Aufruf 1: Ausgabe &quot;1&quot;</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Aufruf 2: Ausgabe &quot;2&quot;</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Aufruf 3: Ausgabe &quot;3&quot;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co">// → Variable &quot;überlebt&quot; zwischen Funktionsaufrufen</span></span></code></pre></div>
+<h3 id="funktionen">5.4 Funktionen</h3>
+<h4 id="grundstruktur">Grundstruktur</h4>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>Rückgabetyp Funktionsname<span class="op">(</span>Parameter<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Körper</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Wert<span class="op">;</span>    <span class="co">// Falls Rückgabetyp nicht void</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h4 id="beispiele-aus-dem-code">Beispiele aus dem Code</h4>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Keine Parameter, keine Rückgabe</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> setup<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Parameter und Rückgabe</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">bool</span> btnIsPressed<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span> <span class="op">*</span>state<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// state: Zeiger auf Array (wird nicht verändert wegen const)</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// id: Kopie des Wertes (call by value)</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">!(</span>state<span class="op">[</span>byte<span class="op">]</span> <span class="op">&amp;</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bit<span class="op">));</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Nur Parameter, keine Rückgabe</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">void</span> ledSet<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">,</span> <span class="dt">bool</span> on<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>id <span class="op">&lt;</span> <span class="dv">1</span> <span class="op">||</span> id <span class="op">&gt;</span> LED_COUNT<span class="op">)</span> <span class="cf">return</span><span class="op">;</span>   <span class="co">// Frühes Return bei Fehler</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h4 id="schlüsselwörter-bei-funktionen">Schlüsselwörter bei
+Funktionen</h4>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">// static: Funktion nur in dieser Datei sichtbar</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="dt">void</span> readButtons<span class="op">()</span> <span class="op">{</span> <span class="op">}</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">// inline: Compiler soll Code direkt einsetzen statt Funktionsaufruf</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">//         (Hinweis, keine Garantie)</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="dt">bool</span> isValid<span class="op">(</span><span class="dt">int</span> x<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> x <span class="op">&gt;</span> <span class="dv">0</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">// static inline: Beides kombiniert (häufig für kleine Hilfsfunktionen)</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> byteIndex<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span></code></pre></div>
+<h3 id="zeiger-und-referenzen">5.5 Zeiger und Referenzen</h3>
+<h4 id="zeiger-pointer">Zeiger (Pointer)</h4>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> buffer<span class="op">[</span><span class="dv">10</span><span class="op">];</span>           <span class="co">// Array</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> <span class="op">*</span>ptr <span class="op">=</span> buffer<span class="op">;</span>        <span class="co">// Zeiger auf erstes Element</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="op">*</span>ptr <span class="op">=</span> <span class="dv">42</span><span class="op">;</span>                    <span class="co">// Dereferenzierung: Wert schreiben</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> x <span class="op">=</span> <span class="op">*</span>ptr<span class="op">;</span>             <span class="co">// Dereferenzierung: Wert lesen</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>ptr<span class="op">++;</span>                        <span class="co">// Zeiger auf nächstes Element</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co">// const-Korrektheit</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="at">const</span> <span class="dt">uint8_t</span> <span class="op">*</span>readOnly <span class="op">=</span> buffer<span class="op">;</span>    <span class="co">// Daten nicht änderbar</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="op">*</span>readOnly <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                        <span class="co">// ❌ Compiler-Fehler!</span></span></code></pre></div>
+<h4 id="arrays-und-zeiger">Arrays und Zeiger</h4>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In C/C++ sind Arrays und Zeiger eng verwandt:</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> arr<span class="op">[</span><span class="dv">10</span><span class="op">];</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> <span class="op">*</span>ptr <span class="op">=</span> arr<span class="op">;</span>           <span class="co">// Array &quot;zerfällt&quot; zu Zeiger</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>arr<span class="op">[</span><span class="dv">3</span><span class="op">]</span> <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                   <span class="co">// Identisch:</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="op">*(</span>arr <span class="op">+</span> <span class="dv">3</span><span class="op">)</span> <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>               <span class="co">// Zeiger-Arithmetik</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>ptr<span class="op">[</span><span class="dv">3</span><span class="op">]</span> <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                   <span class="co">// Auch Zeiger kann [] nutzen</span></span></code></pre></div>
+<h4 id="funktionsparameter">Funktionsparameter</h4>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Call by Value: Kopie wird übergeben</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> modify<span class="op">(</span><span class="dt">int</span> x<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> <span class="dv">99</span><span class="op">;</span>                   <span class="co">// Ändert nur die lokale Kopie</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Call by Pointer: Adresse wird übergeben</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> modify<span class="op">(</span><span class="dt">int</span> <span class="op">*</span>x<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>x <span class="op">=</span> <span class="dv">99</span><span class="op">;</span>                  <span class="co">// Ändert das Original</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Call by Reference (C++): Wie Pointer, aber eleganter</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> modify<span class="op">(</span><span class="dt">int</span> <span class="op">&amp;</span>x<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> <span class="dv">99</span><span class="op">;</span>                   <span class="co">// Ändert das Original</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Const Reference: Effizient + nicht änderbar</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> print<span class="op">(</span><span class="at">const</span> String <span class="op">&amp;</span>s<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    Serial<span class="op">.</span>println<span class="op">(</span>s<span class="op">);</span>        <span class="co">// Keine Kopie, kein Ändern</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="bit-operationen">5.6 Bit-Operationen</h3>
+<p>Essentiell für Embedded-Entwicklung!</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Bit-Operatoren</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> a <span class="op">=</span> <span class="bn">0b11001010</span><span class="op">;</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> b <span class="op">=</span> <span class="bn">0b10101100</span><span class="op">;</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>a <span class="op">&amp;</span> b     <span class="co">// AND:  0b10001000  (beide 1 → 1)</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>a <span class="op">|</span> b     <span class="co">// OR:   0b11101110  (mindestens einer 1 → 1)</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>a <span class="op">^</span> b     <span class="co">// XOR:  0b01100110  (genau einer 1 → 1)</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="op">~</span>a        <span class="co">// NOT:  0b00110101  (invertiert)</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>a <span class="op">&lt;&lt;</span> <span class="dv">2</span>    <span class="co">// Links-Shift: 0b00101000 (× 4)</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>a <span class="op">&gt;&gt;</span> <span class="dv">2</span>    <span class="co">// Rechts-Shift: 0b00110010 (÷ 4)</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Praktische Anwendungen:</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Bit setzen (auf 1)</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>value <span class="op">|=</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bitNr<span class="op">);</span>       <span class="co">// 1u = unsigned, verhindert Vorzeichen-Probleme</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Bit löschen (auf 0)</span></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>value <span class="op">&amp;=</span> <span class="op">~(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bitNr<span class="op">);</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Bit umschalten (toggle)</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>value <span class="op">^=</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bitNr<span class="op">);</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="co">// Bit prüfen</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="op">(</span>value <span class="op">&amp;</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bitNr<span class="op">))</span> <span class="op">{</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Bit ist gesetzt</span></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h4 id="im-code">Im Code</h4>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Taster gedrückt prüfen (Active-Low: 0 = gedrückt)</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="op">!(</span>state<span class="op">[</span>byte<span class="op">]</span> <span class="op">&amp;</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bit<span class="op">));</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co">//       ↑              ↑</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co">//       Invertieren    Bit-Maske</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="co">// LED einschalten</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>ledState<span class="op">[</span>byte<span class="op">]</span> <span class="op">|=</span> <span class="op">(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bit<span class="op">);</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="co">// LED ausschalten</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>ledState<span class="op">[</span>byte<span class="op">]</span> <span class="op">&amp;=</span> <span class="op">~(</span><span class="dv">1</span><span class="bu">u</span> <span class="op">&lt;&lt;</span> bit<span class="op">);</span></span></code></pre></div>
+<h3 id="kontrollstrukturen">5.7 Kontrollstrukturen</h3>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">// if-else</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="op">(</span>bedingung<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>andere_bedingung<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Kurzform für einfache Zuweisungen</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> max <span class="op">=</span> <span class="op">(</span>a <span class="op">&gt;</span> b<span class="op">)</span> <span class="op">?</span> a <span class="op">:</span> b<span class="op">;</span>    <span class="co">// Ternärer Operator</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="co">// for-Schleife</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">10</span><span class="op">;</span> i<span class="op">++)</span> <span class="op">{</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">// i läuft von 0 bis 9</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a><span class="co">// Rückwärts (wichtig für Daisy-Chain!)</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> LED_BYTES <span class="op">-</span> <span class="dv">1</span><span class="op">;</span> i <span class="op">&gt;=</span> <span class="dv">0</span><span class="op">;</span> <span class="op">--</span>i<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>ledState<span class="op">[</span>i<span class="op">]);</span></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a><span class="co">// while-Schleife</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="op">(</span>bedingung<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Solange bedingung wahr</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a><span class="co">// do-while (mindestens einmal ausführen)</span></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a><span class="cf">do</span> <span class="op">{</span></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="cf">while</span> <span class="op">(</span>bedingung<span class="op">);</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a><span class="co">// Frühes Verlassen</span></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">100</span><span class="op">;</span> i<span class="op">++)</span> <span class="op">{</span></span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>found<span class="op">)</span> <span class="cf">break</span><span class="op">;</span>         <span class="co">// Schleife sofort verlassen</span></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>skip<span class="op">)</span> <span class="cf">continue</span><span class="op">;</span>       <span class="co">// Zum nächsten Durchlauf springen</span></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="speicher-funktionen">5.8 Speicher-Funktionen</h3>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;cstring&gt;</span><span class="pp">            </span><span class="co">// Oder: &lt;string.h&gt;</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> src<span class="op">[</span><span class="dv">10</span><span class="op">]</span> <span class="op">=</span> <span class="op">{</span><span class="dv">1</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">3</span><span class="op">};</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> dst<span class="op">[</span><span class="dv">10</span><span class="op">];</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Kopieren</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>memcpy<span class="op">(</span>dst<span class="op">,</span> src<span class="op">,</span> <span class="dv">10</span><span class="op">);</span>         <span class="co">// 10 Bytes von src nach dst</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Füllen</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>memset<span class="op">(</span>dst<span class="op">,</span> <span class="bn">0x00</span><span class="op">,</span> <span class="dv">10</span><span class="op">);</span>        <span class="co">// 10 Bytes mit 0x00 füllen</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>memset<span class="op">(</span>dst<span class="op">,</span> <span class="bn">0xFF</span><span class="op">,</span> <span class="dv">10</span><span class="op">);</span>        <span class="co">// 10 Bytes mit 0xFF füllen</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Vergleichen</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="op">(</span>memcmp<span class="op">(</span>src<span class="op">,</span> dst<span class="op">,</span> <span class="dv">10</span><span class="op">)</span> <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Identisch</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="arduino-spezifische-funktionen">6. Arduino-spezifische
+Funktionen</h2>
+<h3 id="digitale-io">Digitale I/O</h3>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>pinMode<span class="op">(</span>PIN<span class="op">,</span> MODE<span class="op">);</span>           <span class="co">// MODE: INPUT, OUTPUT, INPUT_PULLUP</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>digitalWrite<span class="op">(</span>PIN<span class="op">,</span> HIGH<span class="op">);</span>      <span class="co">// HIGH oder LOW</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> state <span class="op">=</span> digitalRead<span class="op">(</span>PIN<span class="op">);</span> <span class="co">// Gibt HIGH oder LOW zurück</span></span></code></pre></div>
+<h3 id="timing">Timing</h3>
+<div class="sourceCode" id="cb28"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>delay<span class="op">(</span><span class="dv">1000</span><span class="op">);</span>                  <span class="co">// 1000 ms warten (BLOCKIEREND!)</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>delayMicroseconds<span class="op">(</span><span class="dv">100</span><span class="op">);</span>       <span class="co">// 100 µs warten (BLOCKIEREND!)</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="dt">uint32_t</span> ms <span class="op">=</span> millis<span class="op">();</span>       <span class="co">// Millisekunden seit Start</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="dt">uint32_t</span> us <span class="op">=</span> micros<span class="op">();</span>       <span class="co">// Mikrosekunden seit Start</span></span></code></pre></div>
+<h3 id="serielle-kommunikation">Serielle Kommunikation</h3>
+<div class="sourceCode" id="cb29"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>begin<span class="op">(</span><span class="dv">115200</span><span class="op">);</span>         <span class="co">// Baudrate setzen</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>print<span class="op">(</span><span class="st">&quot;Text&quot;</span><span class="op">);</span>         <span class="co">// Ohne Zeilenumbruch</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>println<span class="op">(</span><span class="st">&quot;Text&quot;</span><span class="op">);</span>       <span class="co">// Mit Zeilenumbruch</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>printf<span class="op">(</span><span class="st">&quot;x=</span><span class="sc">%d</span><span class="st">&quot;</span><span class="op">,</span> x<span class="op">);</span>     <span class="co">// Formatierte Ausgabe (ESP32)</span></span></code></pre></div>
+<h3 id="spi">SPI</h3>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;SPI.h&gt;</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>SPI<span class="op">.</span>begin<span class="op">(</span>SCK<span class="op">,</span> MISO<span class="op">,</span> MOSI<span class="op">,</span> SS<span class="op">);</span>           <span class="co">// Pins konfigurieren</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>SPI<span class="op">.</span>beginTransaction<span class="op">(</span>SPISettings<span class="op">(...));</span>    <span class="co">// Transaktion starten</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="dt">uint8_t</span> rx <span class="op">=</span> SPI<span class="op">.</span>transfer<span class="op">(</span>tx<span class="op">);</span>             <span class="co">// Byte senden/empfangen</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>SPI<span class="op">.</span>endTransaction<span class="op">();</span>                      <span class="co">// Transaktion beenden</span></span></code></pre></div>
+<h3 id="pwm-esp32-spezifisch">PWM (ESP32-spezifisch)</h3>
+<div class="sourceCode" id="cb31"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>ledcSetup<span class="op">(</span>channel<span class="op">,</span> freq<span class="op">,</span> resolution<span class="op">);</span>     <span class="co">// Kanal konfigurieren</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>ledcAttachPin<span class="op">(</span>pin<span class="op">,</span> channel<span class="op">);</span>              <span class="co">// Pin zuweisen</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>ledcWrite<span class="op">(</span>channel<span class="op">,</span> duty<span class="op">);</span>                 <span class="co">// Duty Cycle setzen</span></span></code></pre></div>
+<h2 id="der-code-im-kontext">7. Der Code im Kontext</h2>
+<h3 id="ablaufdiagramm">Ablaufdiagramm</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                         setup()                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Serial.begin()         → Debugging vorbereiten              │
+│  2. pinMode()              → Pins konfigurieren                 │
+│  3. SPI.begin()            → SPI-Bus starten                    │
+│  4. ledcSetup()            → PWM konfigurieren                  │
+│  5. memset()               → Variablen initialisieren           │
+│  6. writeLEDs()            → LEDs ausschalten                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         loop()                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐                                                │
+│  │ readButtons │ → Hardware → btnRaw[]                          │
+│  └──────┬──────┘                                                │
+│         ▼                                                       │
+│  ┌────────────────┐                                             │
+│  │debounceButtons │ → btnRaw[] → btnDebounced[]                 │
+│  └──────┬─────────┘                                             │
+│         ▼                                                       │
+│  ┌───────────────┐                                              │
+│  │ updateActiveId│ → btnDebounced[] → activeId                  │
+│  └──────┬────────┘                                              │
+│         ▼                                                       │
+│  ┌───────────────┐                                              │
+│  │ ledSet/Clear  │ → activeId → ledState[]                      │
+│  └──────┬────────┘                                              │
+│         ▼                                                       │
+│  ┌───────────────┐                                              │
+│  │  writeLEDs    │ → ledState[] → Hardware                      │
+│  └──────┬────────┘                                              │
+│         ▼                                                       │
+│  ┌───────────────┐                                              │
+│  │  printState   │ → Serial (nur bei Änderung)                  │
+│  └──────┬────────┘                                              │
+│         ▼                                                       │
+│      delay(2)     → ~500 Hz Loop-Frequenz                       │
+│         │                                                       │
+└─────────┼───────────────────────────────────────────────────────┘
+          │
+          └──────────────► Zurück zum Anfang von loop()</code></pre>
+<h3 id="datenfluss">Datenfluss</h3>
+<pre><code>Hardware          Firmware                    Hardware
+─────────         ────────                    ────────
+
+Taster ──────────► btnRaw[]
+                      │
+                      ▼
+                  btnDebounced[] (zeitverzögert, stabil)
+                      │
+                      ▼
+                  activeId (0-10)
+                      │
+                      ▼
+                  ledState[]
+                      │
+                      ▼
+                                ──────────────► LEDs</code></pre>
+<h2 id="zusammenfassung">8. Zusammenfassung</h2>
+<h3 id="checkliste-für-guten-embedded-code">Checkliste für guten
+Embedded-Code</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Exakte Datentypen verwenden
+(uint8_t, uint32_t, …)</label></li>
+<li><label><input type="checkbox" />static für datei-lokale Variablen
+und Funktionen</label></li>
+<li><label><input type="checkbox" />constexpr für
+Compile-Zeit-Konstanten</label></li>
+<li><label><input type="checkbox" />Kein dynamischer Speicher in
+loop()</label></li>
+<li><label><input type="checkbox" />Blockierende Wartezeiten
+vermeiden</label></li>
+<li><label><input type="checkbox" />Bit-Operationen statt
+Division/Multiplikation wo möglich</label></li>
+<li><label><input type="checkbox" />Fehlerprüfung bei Parametern
+(Range-Checks)</label></li>
+<li><label><input type="checkbox" />Aussagekräftige Namen (nicht x,
+temp, data)</label></li>
+<li><label><input type="checkbox" />Kommentare erklären WARUM, nicht
+WAS</label></li>
+</ul>
+<h3 id="schnellreferenz-schlüsselwörter">Schnellreferenz:
+Schlüsselwörter</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Schlüsselwort</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>static</code></td>
+<td>Datei-lokal (global) oder persistent (lokal)</td>
+</tr>
+<tr>
+<td><code>const</code></td>
+<td>Wert nicht änderbar (zur Laufzeit)</td>
+</tr>
+<tr>
+<td><code>constexpr</code></td>
+<td>Wert zur Compile-Zeit berechnet</td>
+</tr>
+<tr>
+<td><code>inline</code></td>
+<td>Compiler-Hinweis: Code direkt einsetzen</td>
+</tr>
+<tr>
+<td><code>volatile</code></td>
+<td>Wert kann sich “von außen” ändern (Hardware, ISR)</td>
+</tr>
+<tr>
+<td><code>void</code></td>
+<td>Kein Rückgabewert / generischer Zeiger</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>

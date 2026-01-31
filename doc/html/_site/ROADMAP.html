@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ROADMAP.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="roadmap-implementierungsplan">ROADMAP —
+Implementierungsplan</h1>
+<blockquote>
+<p>Phasen und Status. Details: siehe <a href="SPEC.md">SPEC.md</a>,
+Tests: siehe <a href="RUNBOOK.md">RUNBOOK.md</a></p>
+</blockquote>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Version</th>
+<th>2.5.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stand</td>
+<td>2026-01-08</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="übersicht">Übersicht</h2>
+<pre><code>Phase 1: Infrastruktur        ✅
+Phase 2: Hardware-Prototyp    ✅
+Phase 3: ESP32 Firmware       ✅
+Phase 4: Raspberry Pi Server  ✅
+Phase 5: Web-Dashboard        ✅
+Phase 6: Integration &amp; Test   ✅ Prototyp (10×)
+Phase 7: Pi-Integration       ✅ Serial + WebSocket
+Phase 8: Skalierung (100×)    ◀ nächste Phase
+Phase 9: Produktivbetrieb     ◯</code></pre>
+<hr />
+<h2 id="phase-15-abgeschlossen">Phase 1–5: Abgeschlossen ✅</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Phase</th>
+<th>Meilenstein</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Toolchain funktioniert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Taster → LED reagiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>PRESS</code> → <code>LEDSET</code> funktioniert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>4</td>
+<td>WebSocket-Verbindung steht</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Browser zeigt Bild + Audio</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="phase-6-integration-prototyp">Phase 6: Integration (Prototyp)
+✅</h2>
+<h3 id="hardware-prototyp">Hardware Prototyp</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2× CD4021B kaskadiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>2× 74HC595 kaskadiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>10 Taster verdrahtet</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>10 LEDs verdrahtet</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Bit-Mapping implementiert</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="software">Software</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firmware v2.5.2 (FreeRTOS, Hardware-SPI)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Server v2.5.2 (asyncio, by-id Pfad)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Dashboard v2.5.1 (Preloading)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>1-basierte Nummerierung</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="medien">Medien</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test-Medien (001–010)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Medien-Validierung</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Preloading im Browser</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tests">Tests</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Test</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alle 10 Taster erkannt</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Zuordnung Taster → Medien</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Preempt (curl)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Ende → LEDCLR</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>WebSocket Broadcast</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>LED-Latenz &lt; 1ms</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Dashboard-Latenz &lt; 50ms</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Meilenstein M6:</strong> ✅ Prototyp mit 10 Tastern voll
+funktionsfähig.</p>
+<hr />
+<h2 id="phase-7-pi-integration">Phase 7: Pi-Integration ✅</h2>
+<h3 id="architektur">Architektur</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32 als reiner I/O-Controller</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Pi als Anwendungslogik-Host</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Serial-Protokoll dokumentiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>WebSocket-Protokoll dokumentiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>by-id Serial-Pfad (stabil)</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="firmware">Firmware</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FreeRTOS Dual-Core</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Hardware-SPI (shared Bus)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>First-Bit-Rescue (CD4021B)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>SPI-Modi dokumentiert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Zeitbasiertes Debouncing</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="server">Server</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>aiohttp WebSocket</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Serial-Thread mit asyncio Bridge</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Medien-Validierung</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Health-Check Endpoint</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>systemd-Service</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dokumentation">Dokumentation</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PI-INTEGRATION.md</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>PROTOCOL.md</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>SPEC.md aktualisiert</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Meilenstein M7:</strong> ✅ Pi-Integration mit Serial +
+WebSocket funktionsfähig.</p>
+<hr />
+<h2 id="phase-8-skalierung-100-nächste-phase">Phase 8: Skalierung (100×)
+◀ nächste Phase</h2>
+<h3 id="hardware">Hardware</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>13× CD4021B kaskadieren</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>13× 74HC595 kaskadieren</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>100 Taster verdrahten</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>100 LEDs verdrahten</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>PCB-Design (KiCad)</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Lineare Verdrahtung</td>
+<td>◯</td>
+</tr>
+</tbody>
+</table>
+<h3 id="software-1">Software</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROTOTYPE_MODE = False</code></td>
+<td>◯</td>
+</tr>
+<tr>
+<td>BTN_COUNT = 100, LED_COUNT = 100</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>100 Medien-Sets</td>
+<td>◯</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tests-1">Tests</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Test</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hardware End-to-End</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Stresstest</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Alle 100 Taster</td>
+<td>◯</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Meilenstein M8:</strong> System mit 100 Tastern
+funktionsfähig.</p>
+<hr />
+<h2 id="phase-9-produktivbetrieb">Phase 9: Produktivbetrieb ◯</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aufgabe</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>systemd-Service aktiviert</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Reboot-Test</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Dauertest</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Gehäuse</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>Dokumentation finalisiert</td>
+<td>◯</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Meilenstein M9:</strong> System läuft.</p>
+<hr />
+<h2 id="gelöste-probleme">Gelöste Probleme</h2>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 30%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Lösung</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LED-Latenz durch Roundtrip</td>
+<td>ESP32 setzt LED lokal (&lt; 1ms)</td>
+<td>FW 2.5.2</td>
+</tr>
+<tr>
+<td>Dashboard-Latenz</td>
+<td>Medien-Preloading + Cache</td>
+<td>Dashboard 2.5.1</td>
+</tr>
+<tr>
+<td>Sequentielle Server-Aktionen</td>
+<td><code>asyncio.gather()</code> für Parallelität</td>
+<td>Server 2.5.2</td>
+</tr>
+<tr>
+<td>iOS Audio-Unlock fehlgeschlagen</td>
+<td>AudioContext API + Fallback</td>
+<td>Dashboard 2.5.1</td>
+</tr>
+<tr>
+<td>ESP32-S3 USB-CDC fragmentiert</td>
+<td><code>Serial.flush()</code> nach jedem Event</td>
+<td>FW 2.5.2</td>
+</tr>
+<tr>
+<td>pyserial funktioniert nicht</td>
+<td><code>os.open</code> + <code>stty</code> statt pyserial</td>
+<td>Server 2.5.2</td>
+</tr>
+<tr>
+<td>CD4021B First-Bit-Problem</td>
+<td>digitalRead() vor SPI</td>
+<td>FW 2.5.2</td>
+</tr>
+<tr>
+<td>CD4021B Timing-Probleme</td>
+<td>Längere Load-Pulse (2µs)</td>
+<td>FW 2.5.2</td>
+</tr>
+<tr>
+<td>Serial-Pfad instabil</td>
+<td>by-id Pfad verwenden</td>
+<td>Server 2.5.2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="zeitschätzung">Zeitschätzung</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Phase</th>
+<th>Aufwand</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–5</td>
+<td>6–9 Tage</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>6</td>
+<td>3–4 Tage</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>7</td>
+<td>2–3 Tage</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>8</td>
+<td>2–3 Tage</td>
+<td>◯</td>
+</tr>
+<tr>
+<td>9</td>
+<td>0,5 Tage</td>
+<td>◯</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="nächste-schritte">Nächste Schritte</h2>
+<ol type="1">
+<li><label><input type="checkbox" />Schaltplan (KiCad)</label></li>
+<li><label><input type="checkbox" />Lineare Verdrahtung (kein
+Bit-Mapping nötig)</label></li>
+<li><label><input type="checkbox" />100 Medien-Sets
+erstellen</label></li>
+<li><label><input type="checkbox" />End-to-End Tests (100×)</label></li>
+<li><label><input type="checkbox" />Gehäuse-Design</label></li>
+</ol>
+<hr />
+<h2 id="versionen">Versionen</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Komponente</th>
+<th>Prototyp (aktuell)</th>
+<th>Produktion (geplant)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firmware</td>
+<td>2.5.2</td>
+<td>3.0.0</td>
+</tr>
+<tr>
+<td>Server</td>
+<td>2.5.2</td>
+<td>3.0.0</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>2.5.1</td>
+<td>3.0.0</td>
+</tr>
+<tr>
+<td>Hardware</td>
+<td>2× ICs</td>
+<td>26× ICs</td>
+</tr>
+<tr>
+<td>Taster</td>
+<td>10</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Medien</td>
+<td>001–010</td>
+<td>001–100</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

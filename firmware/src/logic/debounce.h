@@ -1,38 +1,58 @@
+/**
+ * @file debounce.h
+ * @brief Zeitbasiertes Debouncing fuer Taster
+ *
+ * Warum zeitbasiert statt Counter-basiert?
+ * - Unabhaengig von Abtastrate (IO_PERIOD_MS kann variieren)
+ * - Jeder Taster hat eigenen Timer (schnelle Tastenfolgen moeglich)
+ * - Einfach zu verstehen und debuggen
+ *
+ * Algorithmus:
+ * 1. Bei jeder Rohwert-Aenderung: Timer zuruecksetzen
+ * 2. Wenn Timer abgelaufen UND Rohwert != Debounced: Uebernehmen
+ */
 #ifndef DEBOUNCE_H
 #define DEBOUNCE_H
+
+// =============================================================================
+// INCLUDES
+// =============================================================================
 
 #include "bitops.h"
 #include "config.h"
 #include <Arduino.h>
 
 // =============================================================================
-// Zeitbasiertes Debouncing
-// =============================================================================
-//
-// Warum zeitbasiert statt Counter-basiert?
-// → Unabhängig von Abtastrate (IO_PERIOD_MS kann variieren)
-// → Jeder Taster hat eigenen Timer (schnelle Tastenfolgen möglich)
-// → Einfach zu verstehen und debuggen
-//
-// Algorithmus:
-// 1. Bei jeder Rohwert-Änderung: Timer zurücksetzen
-// 2. Wenn Timer abgelaufen UND Rohwert != Debounced: Übernehmen
-//
+// CLASSES
 // =============================================================================
 
+/**
+ * @brief Zeitbasierter Entpreller fuer Taster
+ */
 class Debouncer {
 public:
-    // Initialisiert interne Zustände
+    /**
+     * @brief Konstruktor - initialisiert Member auf sichere Werte
+     */
+    Debouncer() : _raw_prev{}, _last_change{} {}
+
+    /**
+     * @brief Initialisiert interne Zustaende fuer Betrieb
+     */
     void init();
 
-    // Aktualisiert Debounce-Zustand, gibt true zurück wenn sich etwas geändert hat
-    // raw:  Aktueller Rohzustand [BTN_BYTES]
-    // deb:  Entprellter Zustand [BTN_BYTES] (wird modifiziert)
-    bool update(uint32_t nowMs, const uint8_t* raw, uint8_t* deb);
+    /**
+     * @brief Aktualisiert Debounce-Zustand
+     * @param now_ms Aktuelle Zeit in Millisekunden
+     * @param raw Aktueller Rohzustand [BTN_BYTES]
+     * @param deb Entprellter Zustand [BTN_BYTES] (wird modifiziert)
+     * @return true wenn sich etwas geaendert hat
+     */
+    bool update(uint32_t now_ms, const uint8_t* raw, uint8_t* deb);
 
 private:
-    uint8_t rawPrev_[BTN_BYTES];       // Rohzustand vom letzten Zyklus
-    uint32_t lastChange_[BTN_COUNT];   // Zeitpunkt der letzten Änderung pro Taster
+    uint8_t _raw_prev[BTN_BYTES];       /**< Rohzustand vom letzten Zyklus */
+    uint32_t _last_change[BTN_COUNT];   /**< Zeitpunkt der letzten Aenderung pro Taster */
 };
 
 #endif // DEBOUNCE_H

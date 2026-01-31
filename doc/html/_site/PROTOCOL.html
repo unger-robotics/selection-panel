@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>PROTOCOL.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="selection-panel-protokoll-referenz">Selection Panel:
+Protokoll-Referenz</h1>
+<p>Version 2.5.2 | Serial + WebSocket API | Stand: 2026-01-08</p>
+<h2 id="übersicht">Übersicht</h2>
+<p>Das Selection Panel verwendet zwei Protokolle:</p>
+<ol type="1">
+<li><strong>Serial-Protokoll</strong> (ESP32 ↔︎ Pi): Zeilenbasiert,
+ASCII, LF-terminiert</li>
+<li><strong>WebSocket-Protokoll</strong> (Server ↔︎ Browser):
+JSON-basiert</li>
+</ol>
+<pre><code>┌─────────────┐                          ┌─────────────┐                          ┌─────────────┐
+│             │   PRESS 001              │             │ {&quot;type&quot;:&quot;play&quot;,&quot;id&quot;:1}   │             │
+│   ESP32-S3  │ ──────────────────────▶  │  server.py  │ ──────────────────────▶  │   Browser   │
+│             │                          │             │                          │             │
+│             │   LEDCLR                 │             │ {&quot;type&quot;:&quot;ended&quot;,&quot;id&quot;:1}  │             │
+│             │ ◀──────────────────────  │             │ ◀──────────────────────  │             │
+└─────────────┘                          └─────────────┘                          └─────────────┘
+     Serial                                                    WebSocket
+ USB-CDC @ 115200                                           ws://host:8080/ws</code></pre>
+<h2 id="verbindungsaufbau">Verbindungsaufbau</h2>
+<h3 id="serial-esp32-pi">Serial (ESP32 ↔︎ Pi)</h3>
+<p>Nach dem Start sendet der ESP32 automatisch:</p>
+<pre><code>READY
+FW SelectionPanel v2.5.2</code></pre>
+<p>Der Server sollte auf <code>READY</code> warten, bevor er Befehle
+sendet. Empfohlener Timeout: 5 Sekunden.</p>
+<h3 id="websocket-server-browser">WebSocket (Server ↔︎ Browser)</h3>
+<p>Der Browser verbindet sich zu <code>ws://host:8080/ws</code>. Nach
+Verbindung ist der Client sofort empfangsbereit.</p>
+<hr />
+<h1 id="teil-1-serial-protokoll-esp32-pi">Teil 1: Serial-Protokoll
+(ESP32 ↔︎ Pi)</h1>
+<p>IDs sind 1-basiert und 3-stellig formatiert (001-100). Physikalisch:
+USB-CDC @ 115200 Baud, 8N1.</p>
+<h2 id="nachrichten-esp32-pi">Nachrichten ESP32 → Pi</h2>
+<h3 id="ready">READY</h3>
+<p>Signalisiert, dass der ESP32 betriebsbereit ist.</p>
+<pre><code>READY</code></pre>
+<h3 id="fw-firmware-version">FW (Firmware-Version)</h3>
+<p>Meldet die installierte Firmware-Version.</p>
+<pre><code>FW SelectionPanel v2.5.2</code></pre>
+<h3 id="press-release">PRESS / RELEASE</h3>
+<p>Taster-Events. Die ID ist 1-basiert (001-100).</p>
+<pre><code>PRESS 001
+RELEASE 001</code></pre>
+<p>Die Events werden erst nach erfolgreicher Entprellung (30 ms)
+gesendet.</p>
+<h3 id="pong">PONG</h3>
+<p>Antwort auf <code>PING</code>.</p>
+<pre><code>← PING
+→ PONG</code></pre>
+<h3 id="ok">OK</h3>
+<p>Bestätigung nach erfolgreich ausgeführtem Befehl.</p>
+<pre><code>← LEDSET 005
+→ OK</code></pre>
+<h3 id="error">ERROR</h3>
+<p>Fehlermeldung bei ungültigem Befehl oder Parameter.</p>
+<pre><code>← FOOBAR
+→ ERROR unknown command
+
+← LEDSET 999
+→ ERROR invalid id</code></pre>
+<h2 id="befehle-pi-esp32">Befehle Pi → ESP32</h2>
+<h3 id="ping">PING</h3>
+<p>Prüft die Verbindung. Antwort: <code>PONG</code>.</p>
+<pre><code>← PING
+→ PONG</code></pre>
+<h3 id="status">STATUS</h3>
+<p>Fragt den aktuellen Zustand ab. Antwort: Aktuelle Auswahl und
+LED-Zustand.</p>
+<pre><code>← STATUS
+→ STATUS active=5 leds=0x10</code></pre>
+<h3 id="version">VERSION</h3>
+<p>Fragt die Firmware-Version ab.</p>
+<pre><code>← VERSION
+→ FW SelectionPanel v2.5.2</code></pre>
+<h3 id="help">HELP</h3>
+<p>Listet verfügbare Befehle auf.</p>
+<pre><code>← HELP
+→ HELP: PING STATUS VERSION LEDSET LEDON LEDOFF LEDCLR LEDALL</code></pre>
+<h3 id="ledset">LEDSET</h3>
+<p>One-Hot-Modus: Schaltet nur die angegebene LED an, alle anderen
+aus.</p>
+<pre><code>← LEDSET 003
+→ OK
+
+# Ergebnis: Nur LED 3 leuchtet</code></pre>
+<h3 id="ledon">LEDON</h3>
+<p>Schaltet eine LED additiv ein (andere bleiben unverändert).</p>
+<pre><code>← LEDON 003
+→ OK
+
+← LEDON 005
+→ OK
+
+# Ergebnis: LED 3 und 5 leuchten</code></pre>
+<h3 id="ledoff">LEDOFF</h3>
+<p>Schaltet eine LED aus (andere bleiben unverändert).</p>
+<pre><code>← LEDOFF 003
+→ OK
+
+# Ergebnis: LED 3 aus, LED 5 bleibt an</code></pre>
+<h3 id="ledclr">LEDCLR</h3>
+<p>Schaltet alle LEDs aus.</p>
+<pre><code>← LEDCLR
+→ OK
+
+# Ergebnis: Alle LEDs aus</code></pre>
+<h3 id="ledall">LEDALL</h3>
+<p>Schaltet alle LEDs an.</p>
+<pre><code>← LEDALL
+→ OK
+
+# Ergebnis: Alle 10 LEDs leuchten</code></pre>
+<h2 id="fehlerbehandlung">Fehlerbehandlung</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Fehlermeldung</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ERROR unknown command</code></td>
+<td>Unbekannter Befehl</td>
+<td>Befehlsname prüfen</td>
+</tr>
+<tr>
+<td><code>ERROR invalid id</code></td>
+<td>ID außerhalb 1-100</td>
+<td>ID-Bereich prüfen</td>
+</tr>
+<tr>
+<td><code>ERROR missing id</code></td>
+<td>ID fehlt</td>
+<td><code>LEDSET &lt;id&gt;</code> mit ID</td>
+</tr>
+</tbody>
+</table>
+<h2 id="timing">Timing</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Wert</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baudrate</td>
+<td>115200</td>
+<td>8N1</td>
+</tr>
+<tr>
+<td>Event-Latenz</td>
+<td>&lt; 35 ms</td>
+<td>Abtastung + Entprellung</td>
+</tr>
+<tr>
+<td>Befehl-Antwort</td>
+<td>&lt; 5 ms</td>
+<td>Typische Antwortzeit</td>
+</tr>
+</tbody>
+</table>
+<p>Die Event-Latenz setzt sich zusammen aus: - IO-Zyklus: 5 ms (worst
+case: gerade verpasst) - Debounce: 30 ms - Serial: &lt; 1 ms</p>
+<h2 id="protokoll-muster">Protokoll-Muster</h2>
+<h3 id="echo-modus-led-folgt-taster">Echo-Modus (LED folgt Taster)</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    line <span class="op">=</span> ser.readline().decode().strip()</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> line.startswith(<span class="st">&quot;PRESS&quot;</span>):</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        btn_id <span class="op">=</span> line.split()[<span class="dv">1</span>]</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>        ser.write(<span class="ss">f&quot;LEDSET </span><span class="sc">{</span>btn_id<span class="sc">}</span><span class="ch">\n</span><span class="ss">&quot;</span>.encode())</span></code></pre></div>
+<h3 id="toggle-modus">Toggle-Modus</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>led_state <span class="op">=</span> [<span class="va">False</span>] <span class="op">*</span> <span class="dv">10</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    line <span class="op">=</span> ser.readline().decode().strip()</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> line.startswith(<span class="st">&quot;PRESS&quot;</span>):</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>        btn_id <span class="op">=</span> <span class="bu">int</span>(line.split()[<span class="dv">1</span>])</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>        led_state[btn_id <span class="op">-</span> <span class="dv">1</span>] <span class="op">=</span> <span class="kw">not</span> led_state[btn_id <span class="op">-</span> <span class="dv">1</span>]</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> led_state[btn_id <span class="op">-</span> <span class="dv">1</span>]:</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>            ser.write(<span class="ss">f&quot;LEDON </span><span class="sc">{</span>btn_id<span class="sc">:03d}</span><span class="ch">\n</span><span class="ss">&quot;</span>.encode())</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>            ser.write(<span class="ss">f&quot;LEDOFF </span><span class="sc">{</span>btn_id<span class="sc">:03d}</span><span class="ch">\n</span><span class="ss">&quot;</span>.encode())</span></code></pre></div>
+<h3 id="sequenz-modus">Sequenz-Modus</h3>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>sequence <span class="op">=</span> []</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>MAX_LEN <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    line <span class="op">=</span> ser.readline().decode().strip()</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> line.startswith(<span class="st">&quot;PRESS&quot;</span>):</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        btn_id <span class="op">=</span> <span class="bu">int</span>(line.split()[<span class="dv">1</span>])</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        sequence.append(btn_id)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(sequence) <span class="op">&gt;</span> MAX_LEN:</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>            sequence.pop(<span class="dv">0</span>)</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Alle LEDs der Sequenz anzeigen</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        ser.write(<span class="st">b&quot;LEDCLR</span><span class="ch">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> led_id <span class="kw">in</span> sequence:</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>            ser.write(<span class="ss">f&quot;LEDON </span><span class="sc">{</span>led_id<span class="sc">:03d}</span><span class="ch">\n</span><span class="ss">&quot;</span>.encode())</span></code></pre></div>
+<h2 id="erweiterung-für-100-buttons">Erweiterung für 100 Buttons</h2>
+<p>Das Protokoll skaliert automatisch auf 100 Taster/LEDs. Die
+ID-Formatierung (3-stellig) unterstützt Werte von 001 bis 100.</p>
+<pre><code>PRESS 042
+LEDSET 099</code></pre>
+<h2 id="debug-modus">Debug-Modus</h2>
+<p>Mit <code>SERIAL_PROTOCOL_ONLY = false</code> in config.h werden
+zusätzliche Debug-Informationen ausgegeben. Diese sollten vom Parser
+ignoriert werden:</p>
+<pre><code>[IO] Raw: 0xFF 0xFF
+[IO] Debounced: 0xFE 0xFF
+PRESS 001
+[IO] LED: 0x01 0x00</code></pre>
+<p>Für Produktivbetrieb: <code>SERIAL_PROTOCOL_ONLY = true</code>
+verwenden.</p>
+<h2 id="beispiel-session">Beispiel-Session</h2>
+<p>Vollständige Beispiel-Kommunikation:</p>
+<pre><code># ESP32 startet
+→ READY
+→ FW SelectionPanel v2.5.2
+
+# Pi prüft Verbindung
+← PING
+→ PONG
+
+# Pi fragt Status ab
+← STATUS
+→ STATUS active=0 leds=0x00
+
+# Benutzer drückt Taster 3
+→ PRESS 003
+
+# Pi schaltet LED 3 an
+← LEDSET 003
+→ OK
+
+# Benutzer lässt Taster 3 los
+→ RELEASE 003
+
+# Benutzer drückt Taster 7
+→ PRESS 007
+
+# Pi schaltet auf LED 7 um
+← LEDSET 007
+→ OK
+
+# Pi schaltet zusätzlich LED 1 an
+← LEDON 001
+→ OK
+
+# Pi schaltet alle LEDs aus
+← LEDCLR
+→ OK
+
+# Pi schaltet alle LEDs an
+← LEDALL
+→ OK
+
+# Ungültiger Befehl
+← FOOBAR
+→ ERROR unknown command</code></pre>
+<hr />
+<h1 id="teil-2-websocket-protokoll-server-browser">Teil 2:
+WebSocket-Protokoll (Server ↔︎ Browser)</h1>
+<p>Der Server kommuniziert mit dem Browser-Dashboard über WebSocket. Die
+Verbindung erfolgt zu <code>ws://host:8080/ws</code> (oder
+<code>wss://</code> bei HTTPS).</p>
+<h2 id="server-browser">Server → Browser</h2>
+<h3 id="play">play</h3>
+<p>Startet die Medien-Wiedergabe für eine Button-ID.</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;play&quot;</span><span class="fu">,</span> <span class="dt">&quot;id&quot;</span><span class="fu">:</span> <span class="dv">3</span><span class="fu">}</span></span></code></pre></div>
+<p>Der Browser zeigt das entsprechende Bild
+(<code>/media/003.jpg</code>) und spielt das Audio
+(<code>/media/003.mp3</code>) ab.</p>
+<h3 id="stop">stop</h3>
+<p>Stoppt die aktuelle Wiedergabe.</p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;stop&quot;</span><span class="fu">}</span></span></code></pre></div>
+<h2 id="browser-server">Browser → Server</h2>
+<h3 id="ended">ended</h3>
+<p>Signalisiert, dass das Audio für eine ID beendet ist.</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;ended&quot;</span><span class="fu">,</span> <span class="dt">&quot;id&quot;</span><span class="fu">:</span> <span class="dv">3</span><span class="fu">}</span></span></code></pre></div>
+<p>Der Server sendet daraufhin <code>LEDCLR</code> an den ESP32.</p>
+<h3 id="ping-1">ping</h3>
+<p>Heartbeat zur Verbindungsprüfung (optional).</p>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;ping&quot;</span><span class="fu">}</span></span></code></pre></div>
+<h2 id="websocket-ablauf">WebSocket-Ablauf</h2>
+<pre><code>Browser                      Server                       ESP32
+   │                            │                            │
+   │◀── WebSocket Connect ──────│                            │
+   │                            │                            │
+   │                            │◀──── PRESS 003 ────────────│
+   │                            │                            │
+   │◀── {&quot;type&quot;:&quot;play&quot;,&quot;id&quot;:3} ─│                            │
+   │                            │                            │
+   │    [Audio spielt...]       │                            │
+   │                            │                            │
+   │── {&quot;type&quot;:&quot;ended&quot;,&quot;id&quot;:3} ▶│                            │
+   │                            │                            │
+   │                            │───── LEDCLR ──────────────▶│
+   │                            │                            │</code></pre>
+<h2 id="http-endpoints">HTTP-Endpoints</h2>
+<p>Der Server bietet zusätzliche HTTP-Endpoints:</p>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 33%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Beschreibung</th>
+<th>Beispiel-Antwort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /</code></td>
+<td>Dashboard (index.html)</td>
+<td>HTML</td>
+</tr>
+<tr>
+<td><code>GET /status</code></td>
+<td>Server-Status</td>
+<td><code>{"version":"2.5.2","serial_connected":true,...}</code></td>
+</tr>
+<tr>
+<td><code>GET /health</code></td>
+<td>Health-Check</td>
+<td><code>{"status":"healthy"}</code></td>
+</tr>
+<tr>
+<td><code>GET /test/play/{id}</code></td>
+<td>Simuliert Tastendruck</td>
+<td><code>OK: play 3</code></td>
+</tr>
+<tr>
+<td><code>GET /test/stop</code></td>
+<td>Stoppt Wiedergabe</td>
+<td><code>OK: stopped</code></td>
+</tr>
+<tr>
+<td><code>GET /static/</code></td>
+<td>Statische Dateien</td>
+<td>JS, CSS, Favicon</td>
+</tr>
+<tr>
+<td><code>GET /media/</code></td>
+<td>Medien-Dateien</td>
+<td>001.jpg, 001.mp3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="status-endpoint">Status-Endpoint</h3>
+<div class="sourceCode" id="cb29"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> http://rover:8080/status <span class="kw">|</span> <span class="ex">jq</span></span></code></pre></div>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.2&quot;</span><span class="fu">,</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mode&quot;</span><span class="fu">:</span> <span class="st">&quot;prototype&quot;</span><span class="fu">,</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;num_media&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;current_button&quot;</span><span class="fu">:</span> <span class="dv">3</span><span class="fu">,</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ws_clients&quot;</span><span class="fu">:</span> <span class="dv">2</span><span class="fu">,</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;serial_connected&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;serial_port&quot;</span><span class="fu">:</span> <span class="st">&quot;/dev/serial/by-id/...&quot;</span><span class="fu">,</span></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;media_missing&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;esp32_local_led&quot;</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h2 id="besonderheit-esp32-setzt-led-lokal">Besonderheit: ESP32 setzt
+LED lokal</h2>
+<p>Mit <code>ESP32_SETS_LED_LOCALLY = true</code> (Standard) setzt der
+ESP32 bei Tastendruck die LED selbst. Der Server muss dann nicht
+<code>LEDSET</code> senden – er sendet nur <code>LEDCLR</code> wenn das
+Audio beendet ist.</p>
+<p>Dies reduziert die Latenz zwischen Tastendruck und LED-Reaktion auf
+unter 5 ms.</p>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

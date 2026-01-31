@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>LOETEN.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+  
+  <script>
+  window.MathJax = {
+    loader: {
+      load: ['[tex]/ams']
+    },
+    tex: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true,
+      processEnvironments: true,
+      packages: {'[+]': ['ams']},
+      macros: {
+        dd: '{\\,\\mathrm{d}}',
+        degC: '{^{\\circ}\\!\\mathrm{C}}',
+        Ohm: '{\\,\\Omega}',
+        ohm: '{\\,\\Omega}',
+        degree: '{^{\\circ}}'
+      }
+    },
+    options: {
+      skipHtmlTags: ['script','noscript','style','textarea','pre','code','kbd','samp']
+    }
+  };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div class="main-container">
+<h1 id="bleifreies-löten-mit-sac305">Bleifreies Löten mit SAC305</h1>
+<p>Handlöten von <strong>ESP32-Breakout-Boards</strong> und
+<strong>XT60-Steckern</strong> mit bleifreiem Lot.</p>
+<hr />
+<h2 id="ausrüstung">1. Ausrüstung</h2>
+<h3 id="lötzinn">Lötzinn</h3>
+<table class="table table-compact" style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 20%" />
+<col style="width: 24%" />
+<col style="width: 25%" />
+<col style="width: 12%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Produkt</th>
+<th style="text-align: left;">Legierung</th>
+<th style="text-align: center;">Durchmesser</th>
+<th style="text-align: left;">Reichelt-Nr.</th>
+<th style="text-align: right;">Preis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Felder ISO-Core “Clear”</td>
+<td style="text-align: left;">SAC305 (Sn96,5Ag3Cu0,5)</td>
+<td style="text-align: center;">0,5 mm</td>
+<td style="text-align: left;">LZ FE CSA 0,5 25</td>
+<td style="text-align: right;">45,99 €</td>
+</tr>
+</tbody>
+</table>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Schmelzbereich</td>
+<td style="text-align: left;">217–219 °C</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flussmittelanteil</td>
+<td style="text-align: left;">3,5 % (No-Clean)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>0,5 mm für alles:</strong> THT, SMD, XT60 – bei großen
+Kontakten 5–6× zuführen.</p>
+</blockquote>
+<h3 id="lötstationen">Lötstationen</h3>
+<table class="table table-compact" style="width:100%;">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 21%" />
+<col style="width: 19%" />
+<col style="width: 26%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Gerät</th>
+<th style="text-align: center;">Leistung</th>
+<th style="text-align: left;">Einsatz</th>
+<th style="text-align: center;">Temperatur</th>
+<th style="text-align: left;">Spitze</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ersa i-CON PICO</td>
+<td style="text-align: center;">68 W</td>
+<td style="text-align: left;">THT, SMD</td>
+<td style="text-align: center;">360 °C</td>
+<td style="text-align: left;">0102CDLF16 (1,6 mm Meißel)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ersa 150 S</td>
+<td style="text-align: center;">150 W</td>
+<td style="text-align: left;">XT60</td>
+<td style="text-align: center;">400 °C</td>
+<td style="text-align: left;">0152KD (5,3 mm Meißel)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="zubehör">Zubehör</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Produkt</th>
+<th style="text-align: left;">Funktion</th>
+<th style="text-align: left;">Reichelt-Nr.</th>
+<th style="text-align: right;">Preis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Stannol X32-10i</td>
+<td style="text-align: left;">Flussmittelstift</td>
+<td style="text-align: left;">STANNOL X32-10I</td>
+<td style="text-align: right;">6,99 €</td>
+</tr>
+<tr>
+<td style="text-align: left;">ERSA Tip-Reactivator</td>
+<td style="text-align: left;">Spitzen regenerieren</td>
+<td style="text-align: left;">ERSA 0TR01</td>
+<td style="text-align: right;">~13 €</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="temperatur">2. Temperatur</h2>
+<div class="math math-display">$$T_{\text{Spitze}} = T_{\text{Schmelz}} + 120\,°\mathrm{C}$$</div>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Arbeitsgang</th>
+<th style="text-align: center;">Temperatur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">SMD, Fein-Pitch</td>
+<td style="text-align: center;">350–360 °C</td>
+</tr>
+<tr>
+<td style="text-align: left;">THT, Pin-Header</td>
+<td style="text-align: center;">360–380 °C</td>
+</tr>
+<tr>
+<td style="text-align: left;">XT60, Litzen ≥ 1,5 mm²</td>
+<td style="text-align: center;">400 °C</td>
+</tr>
+</tbody>
+</table>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Situation</th>
+<th style="text-align: left;">Anpassung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Große Masseflächen</td>
+<td style="text-align: left;">+20–30 °C</td>
+</tr>
+<tr>
+<td style="text-align: left;">Empfindliche Bauteile</td>
+<td style="text-align: left;">−20 °C</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="technik">3. Technik</h2>
+<h3 id="lötstelle-in-5-schritten">Lötstelle in 5 Schritten</h3>
+<pre><code>1. Spitze verzinnen      → Wärmeübertragung verbessern
+2. Spitze ansetzen       → An Pad UND Bauteilbein
+3. Warten (1–2 s)        → Wärme übertragen
+4. Lot zuführen          → Von der Gegenseite
+5. Abziehen              → Erst Lot, dann Spitze</code></pre>
+<p><strong>Gesamtzeit:</strong> 2–4 Sekunden</p>
+<h3 id="entlöten">Entlöten</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Methode</th>
+<th style="text-align: left;">Anwendung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Entlötlitze + Flux</td>
+<td style="text-align: left;">SMD, kleine Mengen</td>
+</tr>
+<tr>
+<td style="text-align: left;">Entlötpumpe</td>
+<td style="text-align: left;">THT, große Mengen</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="esp32-breakout-löten">4. ESP32 Breakout löten</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />i-CON PICO auf <strong>360
+°C</strong></label></li>
+<li><label><input type="checkbox" />Spitze 0102CDLF16 (1,6 mm
+Meißel)</label></li>
+<li><label><input type="checkbox" />Platine fixieren</label></li>
+</ul>
+<pre><code>Spitze verzinnen → An Pad+Pin → 1–2 s → Lot zuführen → Abziehen</code></pre>
+<hr />
+<h2 id="xt60-stecker-löten">5. XT60 Stecker löten</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />Ersa 150 S auf <strong>400
+°C</strong> (5 Min vorheizen)</label></li>
+<li><label><input type="checkbox" />Spitze 0152KD (5,3 mm
+Meißel)</label></li>
+<li><label><input type="checkbox" />Litze abisolieren (8–10 mm),
+verdrillen</label></li>
+</ul>
+<pre><code>Hülse vorverzinnen → Litze vorverzinnen → Einführen → 
+Spitze seitlich → Warten (3–5 s) → Nicht bewegen bis erstarrt</code></pre>
+<hr />
+<h2 id="spitzenpflege">6. Spitzenpflege</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Wann</th>
+<th style="text-align: left;">Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Vor jedem Löten</td>
+<td style="text-align: left;">Messingwolle → frisch verzinnen</td>
+</tr>
+<tr>
+<td style="text-align: left;">Vor dem Ausschalten</td>
+<td style="text-align: left;"><strong>Niemals blank</strong> – Zinn
+drauf</td>
+</tr>
+<tr>
+<td style="text-align: left;">Oxidiert (Lot perlt ab)</td>
+<td style="text-align: left;">Tip-Reactivator bei 250–300 °C</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="qualitätskontrolle">7. Qualitätskontrolle</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Gut</th>
+<th style="text-align: left;">Mangelhaft</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Glänzend bis seidenmatt</td>
+<td style="text-align: left;">Rissig, körnig</td>
+</tr>
+<tr>
+<td style="text-align: left;">Konkaver Meniskus</td>
+<td style="text-align: left;">Kugelig</td>
+</tr>
+<tr>
+<td style="text-align: left;">Vollständige Benetzung</td>
+<td style="text-align: left;">Lot perlt ab</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Hinweis:</strong> SAC305 glänzt weniger als verbleites Lot.
+Seidenmatt ist normal.</p>
+</blockquote>
+<hr />
+<h2 id="sicherheit">8. Sicherheit</h2>
+<ul>
+<li>Dämpfe nicht einatmen – Absaugung verwenden</li>
+<li>Lötkolben nie unbeaufsichtigt</li>
+<li>Bleihaltiges und bleifreies Lot <strong>nie mischen</strong></li>
+</ul>
+<hr />
+<h2 id="einkaufsliste-reichelt">9. Einkaufsliste (Reichelt)</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th style="text-align: left;">Artikel</th>
+<th style="text-align: left;">Art.-Nr.</th>
+<th style="text-align: right;">Preis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Lötzinn bleifrei 0,5 mm, 250 g</td>
+<td style="text-align: left;">LZ FE CSA 0,5 25</td>
+<td style="text-align: right;">45,99 €</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flussmittelstift No-Clean</td>
+<td style="text-align: left;">STANNOL X32-10I</td>
+<td style="text-align: right;">6,99 €</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Gesamt</strong></td>
+<td style="text-align: left;"></td>
+<td style="text-align: right;"><strong>52,98 €</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Stand: Dezember 2025</em></p>
+</div>
+</body>
+</html>

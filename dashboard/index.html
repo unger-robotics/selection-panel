@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Auswahlpanel</title>
+
+    <link rel="icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/styles.css?v=2.5.1">
+</head>
+
+<body>
+    <header>
+        <h1>&#127919; Auswahlpanel</h1>
+        <div class="status">
+            <div class="status-indicator">
+                <span class="status-dot" id="ws-status"></span>
+                <span>WebSocket</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-dot" id="audio-status"></span>
+                <span>Audio</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <button id="unlock-btn">&#128266; Sound aktivieren</button>
+
+        <p id="waiting" class="hidden">Warte auf Tastendruck...</p>
+
+        <div id="media-container">
+            <div id="current-id">---</div>
+
+            <div id="image-container">
+                <span class="placeholder">Kein Bild</span>
+            </div>
+
+            <div id="audio-container">
+                <div id="progress-bar">
+                    <div id="progress-fill"></div>
+                </div>
+                <span id="time-display">0:00 / 0:00</span>
+            </div>
+        </div>
+
+        <audio id="audio" preload="auto"></audio>
+    </main>
+
+    <footer>
+        Interaktives Auswahlpanel v2.5.3
+    </footer>
+
+    <button id="debug-toggle">Debug</button>
+    <div id="debug"></div>
+
+    <script src="/static/app.js?v=2.5.1"></script>
+</body>
+
+</html>

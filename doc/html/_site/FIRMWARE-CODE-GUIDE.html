@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>FIRMWARE-CODE-GUIDE.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="selection-panel-firmware-code-guide">Selection Panel: Firmware
+Code Guide</h1>
+<p>Version 2.5.2 | ESP32-S3 (XIAO) + FreeRTOS</p>
+<h2 id="projektstruktur">Projektstruktur</h2>
+<pre><code>firmware/
+├── include/
+│   ├── bitops.h        # Bit-Adressierung für Taster/LEDs
+│   ├── config.h        # Zentrale Konfiguration
+│   └── types.h         # Gemeinsame Datentypen
+├── src/
+│   ├── main.cpp        # Entry Point
+│   ├── app/
+│   │   ├── io_task.cpp/.h      # I/O-Verarbeitung
+│   │   └── serial_task.cpp/.h  # Protokoll-Handler
+│   ├── drivers/
+│   │   ├── cd4021.cpp/.h       # Taster-Schieberegister
+│   │   └── hc595.cpp/.h        # LED-Schieberegister
+│   ├── hal/
+│   │   └── spi_bus.cpp/.h      # SPI-Abstraktion
+│   └── logic/
+│       ├── debounce.cpp/.h     # Entprellung
+│       └── selection.cpp/.h    # Auswahl-Logik
+└── platformio.ini</code></pre>
+<h2 id="schichtenmodell">Schichtenmodell</h2>
+<p>Die Firmware folgt einem strikten Schichtenmodell. Abhängigkeiten
+zeigen nur nach unten:</p>
+<pre><code>┌─────────────────────────────────────────────────────┐
+│                    main.cpp                         │
+│           Queue erstellen, Tasks starten            │
+└─────────────────────────┬───────────────────────────┘
+                          │
+┌─────────────────────────┴───────────────────────────┐
+│                    app/                             │
+│        io_task.cpp          serial_task.cpp         │
+│     (Hardware-Zyklus)     (Protokoll-Handler)       │
+└─────────────────────────┬───────────────────────────┘
+                          │
+┌─────────────────────────┴───────────────────────────┐
+│                   logic/                            │
+│      debounce.cpp              selection.cpp        │
+│   (Zeitbasierte Entprellung)  (One-Hot Auswahl)     │
+└─────────────────────────┬───────────────────────────┘
+                          │
+┌─────────────────────────┴───────────────────────────┐
+│                  drivers/                           │
+│        cd4021.cpp               hc595.cpp           │
+│    (Taster-Schieberegister) (LED-Schieberegister)   │
+└─────────────────────────┬───────────────────────────┘
+                          │
+┌─────────────────────────┴───────────────────────────┘
+│                    hal/                             │
+│                  spi_bus.cpp                        │
+│           (Mutex-geschützte SPI-Abstraktion)        │
+└─────────────────────────────────────────────────────┘</code></pre>
+<h2 id="modul-referenz">Modul-Referenz</h2>
+<h3 id="config.h-zentrale-konfiguration">config.h – Zentrale
+Konfiguration</h3>
+<p>Alle Hardware- und Timing-Parameter an einer Stelle:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Anzahl der Ein-/Ausgänge</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> BTN_COUNT <span class="op">=</span> <span class="dv">10</span><span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> LED_COUNT <span class="op">=</span> <span class="dv">10</span><span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Bytes für Bit-Arrays (aufrunden: 10 Bits → 2 Bytes)</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">size_t</span> BTN_BYTES <span class="op">=</span> <span class="op">(</span>BTN_COUNT <span class="op">+</span> <span class="dv">7</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">size_t</span> LED_BYTES <span class="op">=</span> <span class="op">(</span>LED_COUNT <span class="op">+</span> <span class="dv">7</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Pin-Zuordnung (gemeinsamer SPI-Bus)</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_SCK      <span class="op">=</span> D8<span class="op">;</span>   <span class="co">// SPI-Takt (shared)</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_BTN_PS   <span class="op">=</span> D1<span class="op">;</span>   <span class="co">// CD4021B: Parallel/Serial Select</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_BTN_MISO <span class="op">=</span> D9<span class="op">;</span>   <span class="co">// CD4021B: Daten (Q8)</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_LED_MOSI <span class="op">=</span> D10<span class="op">;</span>  <span class="co">// 74HC595: Daten (SER)</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_LED_RCK  <span class="op">=</span> D0<span class="op">;</span>   <span class="co">// 74HC595: Latch (RCLK)</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">int</span> PIN_LED_OE   <span class="op">=</span> D2<span class="op">;</span>   <span class="co">// 74HC595: Output Enable (PWM)</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co">// Timing</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint32_t</span> IO_PERIOD_MS <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>   <span class="co">// 200 Hz Abtastrate</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint32_t</span> DEBOUNCE_MS <span class="op">=</span> <span class="dv">30</span><span class="op">;</span>   <span class="co">// Entprellzeit</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co">// SPI-Einstellungen</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint32_t</span> SPI_HZ_BTN <span class="op">=</span> <span class="dv">500000</span><span class="bu">UL</span><span class="op">;</span>  <span class="co">// 500 kHz (CD4021B)</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint32_t</span> SPI_HZ_LED <span class="op">=</span> <span class="dv">1000000</span><span class="bu">UL</span><span class="op">;</span> <span class="co">// 1 MHz (74HC595)</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> SPI_MODE_BTN <span class="op">=</span> SPI_MODE1<span class="op">;</span> <span class="co">// CPOL=0, CPHA=1</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> SPI_MODE_LED <span class="op">=</span> SPI_MODE0<span class="op">;</span> <span class="co">// CPOL=0, CPHA=0</span></span></code></pre></div>
+<h3 id="bitops.h-bit-adressierung">bitops.h – Bit-Adressierung</h3>
+<p>Abstrahiert die Hardware-Verdrahtung der Schieberegister:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">// CD4021B Button Bit-Mapping</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Hardware-Verdrahtung: BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1 (Pin 7)</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">// CD4021B gibt MSB-first aus: PI-1 zuerst, PI-8 zuletzt</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Resultat im empfangenen Byte:</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">//   - BTN 1 (PI-8) erscheint als Bit 0</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">//   - BTN 8 (PI-1) erscheint als Bit 7</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co">//</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Formel: btn_bit(id) = (id - 1) % 8</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">//   btn_bit(1) = 0  ← BTN 1 → Bit 0</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co">//   btn_bit(8) = 7  ← BTN 8 → Bit 7</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> btn_byte<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> btn_bit<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span>  <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">%</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co">// 74HC595 LED Bit-Mapping</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="co">// Hardware-Verdrahtung: LED 1 → QA (Bit 0), LED 8 → QH (Bit 7)</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co">// 74HC595 erwartet LSB-first wenn wir MSBFIRST SPI verwenden</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co">//</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="co">// Formel: led_bit(id) = (id - 1) % 8</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="co">//   led_bit(1) = 0  ← LED 1 → Bit 0</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="co">//   led_bit(8) = 7  ← LED 8 → Bit 7</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> led_byte<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> led_bit<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span>  <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">%</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co">// Active-Low Hilfsfunktionen (Taster: 0 = gedrückt, Pull-up!)</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">bool</span> activeLow_pressed<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span><span class="op">*</span> arr<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">!((</span>arr<span class="op">[</span>btn_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">&gt;&gt;</span> btn_bit<span class="op">(</span>id<span class="op">))</span> <span class="op">&amp;</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">void</span> activeLow_setPressed<span class="op">(</span><span class="dt">uint8_t</span><span class="op">*</span> arr<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">,</span> <span class="dt">bool</span> pressed<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> mask <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> btn_bit<span class="op">(</span>id<span class="op">);</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>pressed<span class="op">)</span> arr<span class="op">[</span>btn_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">&amp;=</span> <span class="op">~</span>mask<span class="op">;</span>  <span class="co">// 0 = gedrückt</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>         arr<span class="op">[</span>btn_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">|=</span> mask<span class="op">;</span>   <span class="co">// 1 = losgelassen</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="co">// LED-Hilfsfunktionen</span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="co">// ============================================================================</span></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">bool</span> led_on<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span><span class="op">*</span> arr<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">(</span>arr<span class="op">[</span>led_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">&gt;&gt;</span> led_bit<span class="op">(</span>id<span class="op">))</span> <span class="op">&amp;</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">void</span> led_set<span class="op">(</span><span class="dt">uint8_t</span><span class="op">*</span> arr<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">,</span> <span class="dt">bool</span> on<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> mask <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> led_bit<span class="op">(</span>id<span class="op">);</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>on<span class="op">)</span> arr<span class="op">[</span>led_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">|=</span> mask<span class="op">;</span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>    arr<span class="op">[</span>led_byte<span class="op">(</span>id<span class="op">)]</span> <span class="op">&amp;=</span> <span class="op">~</span>mask<span class="op">;</span></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="types.h-gemeinsame-datentypen">types.h – Gemeinsame
+Datentypen</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> LogEvent <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint32_t</span> ms<span class="op">;</span>                <span class="co">// Zeitstempel</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> raw<span class="op">[</span>BTN_BYTES<span class="op">];</span>     <span class="co">// Rohzustand der Taster</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> deb<span class="op">[</span>BTN_BYTES<span class="op">];</span>     <span class="co">// Entprellter Zustand</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> led<span class="op">[</span>LED_BYTES<span class="op">];</span>     <span class="co">// LED-Ausgabezustand</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> activeId<span class="op">;</span>           <span class="co">// Aktive Auswahl (0 = keine, 1-10 = ID)</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">bool</span> rawChanged<span class="op">;</span>            <span class="co">// Flag: Raw hat sich geändert</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">bool</span> debChanged<span class="op">;</span>            <span class="co">// Flag: Debounced hat sich geändert</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">bool</span> activeChanged<span class="op">;</span>         <span class="co">// Flag: Auswahl hat sich geändert</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<h3 id="spi_bus.h-hal-schicht">spi_bus.h – HAL-Schicht</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SpiBus <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> begin<span class="op">(</span><span class="dt">int</span> sck<span class="op">,</span> <span class="dt">int</span> miso<span class="op">,</span> <span class="dt">int</span> mosi<span class="op">);</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> lock<span class="op">();</span>    <span class="co">// Mutex nehmen</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> unlock<span class="op">();</span>  <span class="co">// Mutex freigeben</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">SemaphoreHandle_t</span> <span class="va">mtx_</span><span class="op">;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">// RAII Guard für automatisches Cleanup</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SpiGuard <span class="op">{</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    SpiGuard<span class="op">(</span>SpiBus<span class="op">&amp;</span> bus<span class="op">,</span> <span class="at">const</span> SPISettings<span class="op">&amp;</span> settings<span class="op">);</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>SpiGuard<span class="op">();</span>  <span class="co">// Automatisch: endTransaction() + unlock()</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<h3 id="cd4021.h-taster-treiber">cd4021.h – Taster-Treiber</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Cd4021 <span class="op">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> init<span class="op">();</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> readRaw<span class="op">(</span>SpiBus<span class="op">&amp;</span> bus<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">*</span> out<span class="op">);</span>  <span class="co">// Liest alle Taster</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    SPISettings <span class="va">spi_</span><span class="op">{</span>SPI_HZ_BTN<span class="op">,</span> MSBFIRST<span class="op">,</span> SPI_MODE_BTN<span class="op">};</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<p><strong>First-Bit-Problem:</strong> Nach Parallel-Load (P/S HIGH→LOW)
+liegt das erste Bit (PI-1) bereits an Q8 an – bevor der erste Clock
+kommt! Die Lösung:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> Cd4021<span class="op">::</span>readRaw<span class="op">(</span>SpiBus<span class="op">&amp;</span> bus<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">*</span> out<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 1. Parallel Load</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    digitalWrite<span class="op">(</span>PIN_BTN_PS<span class="op">,</span> HIGH<span class="op">);</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    delayMicroseconds<span class="op">(</span><span class="dv">2</span><span class="op">);</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    digitalWrite<span class="op">(</span>PIN_BTN_PS<span class="op">,</span> LOW<span class="op">);</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    delayMicroseconds<span class="op">(</span><span class="dv">2</span><span class="op">);</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 2. First Bit Rescue: PI-1 liegt bereits an Q8!</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> firstBit <span class="op">=</span> digitalRead<span class="op">(</span>PIN_BTN_MISO<span class="op">);</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 3. SPI Transfer (restliche Bits)</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    SpiGuard g<span class="op">(</span>bus<span class="op">,</span> <span class="va">spi_</span><span class="op">);</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>out<span class="op">,</span> BTN_BYTES<span class="op">);</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 4. First Bit einsetzen (MSB von Byte 0)</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    out<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">=</span> <span class="op">(</span>out<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">&gt;&gt;</span> <span class="dv">1</span><span class="op">)</span> <span class="op">|</span> <span class="op">(</span>firstBit <span class="op">&lt;&lt;</span> <span class="dv">7</span><span class="op">);</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="hc595.h-led-treiber">hc595.h – LED-Treiber</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Hc595 <span class="op">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> init<span class="op">();</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> setBrightness<span class="op">(</span><span class="dt">uint8_t</span> percent<span class="op">);</span>  <span class="co">// PWM via OE</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> write<span class="op">(</span>SpiBus<span class="op">&amp;</span> bus<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">*</span> state<span class="op">);</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> maskUnused<span class="op">(</span><span class="dt">uint8_t</span><span class="op">*</span> state<span class="op">);</span>  <span class="co">// Ghost-LEDs verhindern</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> latch<span class="op">();</span>  <span class="co">// Shift → Output Register</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    SPISettings <span class="va">spi_</span><span class="op">{</span>SPI_HZ_LED<span class="op">,</span> MSBFIRST<span class="op">,</span> SPI_MODE_LED<span class="op">};</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<h3 id="debounce.h-entprellung">debounce.h – Entprellung</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Debouncer <span class="op">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> init<span class="op">();</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">bool</span> update<span class="op">(</span><span class="dt">uint32_t</span> nowMs<span class="op">,</span> <span class="at">const</span> <span class="dt">uint8_t</span><span class="op">*</span> raw<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">*</span> deb<span class="op">);</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> <span class="va">rawPrev_</span><span class="op">[</span>BTN_BYTES<span class="op">];</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint32_t</span> <span class="va">lastChange_</span><span class="op">[</span>BTN_COUNT<span class="op">];</span>  <span class="co">// Timer pro Taster</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<p>Der Algorithmus ist zeitbasiert:</p>
+<ol type="1">
+<li>Bei Rohwert-Änderung: Timer zurücksetzen</li>
+<li>Wenn Timer ≥ 30 ms UND Rohwert ≠ entprellt: übernehmen</li>
+</ol>
+<h3 id="selection.h-auswahl-logik">selection.h – Auswahl-Logik</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Selection <span class="op">{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> init<span class="op">();</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">bool</span> update<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span><span class="op">*</span> debNow<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">&amp;</span> activeId<span class="op">);</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="kw">private</span><span class="op">:</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> <span class="va">debPrev_</span><span class="op">[</span>BTN_BYTES<span class="op">];</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<p>Prinzip: “Last Press Wins” – der zuletzt gedrückte Taster wird aktiv.
+Mit <code>LATCH_SELECTION=true</code> bleibt die Auswahl nach Loslassen
+bestehen.</p>
+<h3 id="io_task.h-io-zyklus">io_task.h – I/O-Zyklus</h3>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> start_io_task<span class="op">(</span><span class="dt">QueueHandle_t</span> logQueue<span class="op">);</span></span></code></pre></div>
+<p>Der Task läuft mit 200 Hz und führt pro Zyklus aus:</p>
+<ol type="1">
+<li>Taster lesen (CD4021B)</li>
+<li>Entprellen</li>
+<li>Auswahl aktualisieren</li>
+<li>LED-Zustand schreiben (74HC595)</li>
+<li>Bei Änderung: LogEvent in Queue senden</li>
+</ol>
+<h3 id="serial_task.h-protokoll-handler">serial_task.h –
+Protokoll-Handler</h3>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">enum</span> LedCommand <span class="op">:</span> <span class="dt">uint8_t</span> <span class="op">{</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    LED_CMD_SET<span class="op">,</span>    <span class="co">// One-hot</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    LED_CMD_ON<span class="op">,</span>     <span class="co">// Additiv ein</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    LED_CMD_OFF<span class="op">,</span>    <span class="co">// Additiv aus</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    LED_CMD_CLEAR<span class="op">,</span>  <span class="co">// Alle aus</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    LED_CMD_ALL     <span class="co">// Alle an</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="kw">typedef</span> <span class="dt">void</span> <span class="op">(*</span>LedControlCallback<span class="op">)(</span>LedCommand cmd<span class="op">,</span> <span class="dt">uint8_t</span> id<span class="op">);</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> start_serial_task<span class="op">(</span><span class="dt">QueueHandle_t</span> logQueue<span class="op">);</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> set_led_callback<span class="op">(</span>LedControlCallback callback<span class="op">);</span></span></code></pre></div>
+<h2 id="freertos-konfiguration">FreeRTOS-Konfiguration</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Task</th>
+<th>Core</th>
+<th>Priorität</th>
+<th>Periode</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>io_task</td>
+<td>1</td>
+<td>5</td>
+<td>5 ms</td>
+<td>Hardware-I/O</td>
+</tr>
+<tr>
+<td>serial_task</td>
+<td>1</td>
+<td>2</td>
+<td>Event-driven</td>
+<td>Protokoll</td>
+</tr>
+</tbody>
+</table>
+<p>Core 0 bleibt für WiFi/BLE reserviert (falls später benötigt).</p>
+<h2 id="datenfluss-im-detail">Datenfluss im Detail</h2>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// io_task.cpp – Hauptschleife (vereinfacht)</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> io_loop<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">TickType_t</span> lastWake <span class="op">=</span> xTaskGetTickCount<span class="op">();</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="op">(</span><span class="kw">true</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>        <span class="dt">uint32_t</span> now <span class="op">=</span> millis<span class="op">();</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 1. Taster einlesen</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>        cd4021<span class="op">.</span>readRaw<span class="op">(</span>bus<span class="op">,</span> raw<span class="op">);</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">bool</span> rawChg <span class="op">=</span> memcmp<span class="op">(</span>raw<span class="op">,</span> rawPrev<span class="op">,</span> BTN_BYTES<span class="op">)</span> <span class="op">!=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 2. Entprellen</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>        <span class="dt">bool</span> debChg <span class="op">=</span> debouncer<span class="op">.</span>update<span class="op">(</span>now<span class="op">,</span> raw<span class="op">,</span> deb<span class="op">);</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 3. Auswahl aktualisieren</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">bool</span> selChg <span class="op">=</span> selection<span class="op">.</span>update<span class="op">(</span>deb<span class="op">,</span> activeId<span class="op">);</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 4. LEDs setzen (activeId → One-Hot)</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        memset<span class="op">(</span>led<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> LED_BYTES<span class="op">);</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>activeId <span class="op">&gt;</span> <span class="dv">0</span><span class="op">)</span> led_set<span class="op">(</span>led<span class="op">,</span> activeId<span class="op">,</span> <span class="kw">true</span><span class="op">);</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>        hc595<span class="op">.</span>write<span class="op">(</span>bus<span class="op">,</span> led<span class="op">);</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 5. Bei Änderung: Event senden</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>debChg <span class="op">||</span> selChg<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>            LogEvent ev <span class="op">=</span> <span class="op">{</span>now<span class="op">,</span> raw<span class="op">,</span> deb<span class="op">,</span> led<span class="op">,</span> activeId<span class="op">,</span> <span class="op">...};</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>            xQueueSend<span class="op">(</span>queue<span class="op">,</span> <span class="op">&amp;</span>ev<span class="op">,</span> <span class="dv">0</span><span class="op">);</span></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 6. Auf nächsten Zyklus warten</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>        vTaskDelayUntil<span class="op">(&amp;</span>lastWake<span class="op">,</span> pdMS_TO_TICKS<span class="op">(</span>IO_PERIOD_MS<span class="op">));</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="design-entscheidungen">Design-Entscheidungen</h2>
+<h3 id="warum-queue-statt-direktem-serial-aufruf">Warum Queue statt
+direktem Serial-Aufruf?</h3>
+<p>Die Queue entkoppelt I/O von Serial-Ausgabe:</p>
+<ul>
+<li>io_task blockiert nie (5 ms Deadline)</li>
+<li>serial_task kann langsam sein (USB-Puffer voll)</li>
+<li>Atomare Snapshots (keine Race-Conditions)</li>
+</ul>
+<h3 id="warum-spiguard-raii">Warum SpiGuard (RAII)?</h3>
+<p>Garantiert korrektes Cleanup auch bei frühem Return:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    SpiGuard g<span class="op">(</span>bus<span class="op">,</span> settings<span class="op">);</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>error<span class="op">)</span> <span class="cf">return</span><span class="op">;</span>  <span class="co">// endTransaction() + unlock() trotzdem!</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>data<span class="op">);</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="warum-zeitbasiertes-debouncing">Warum zeitbasiertes
+Debouncing?</h3>
+<ul>
+<li>Unabhängig von Abtastrate</li>
+<li>Jeder Taster hat eigenen Timer</li>
+<li>Schnelle Tastenfolgen möglich</li>
+</ul>
+<h3 id="warum-led_refresh_every_cycle">Warum
+LED_REFRESH_EVERY_CYCLE?</h3>
+<p>Beim CD4021B-Read werden Nullen durch den 74HC595 getaktet
+(gemeinsamer SCK). Ein glitchender Latch-Pin könnte LEDs kurz
+ausschalten. Der Refresh nach jedem Zyklus kompensiert dies.</p>
+<h2 id="erweiterung-100-buttons">Erweiterung: 100 Buttons</h2>
+<p>Die Architektur skaliert durch Änderung zweier Konstanten:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> BTN_COUNT <span class="op">=</span> <span class="dv">100</span><span class="op">;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">uint8_t</span> LED_COUNT <span class="op">=</span> <span class="dv">100</span><span class="op">;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">// BTN_BYTES und LED_BYTES werden automatisch auf 13 berechnet</span></span></code></pre></div>
+<p>Alle Schleifen und Bit-Arrays passen sich automatisch an. Die
+SPI-Transferzeit steigt von ~40 µs auf ~320 µs – weit unter dem 5 ms
+Budget.</p>
+<h2 id="build-und-upload">Build und Upload</h2>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># PlatformIO</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> firmware</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pio</span> run <span class="at">-t</span> upload</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pio</span> device monitor</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Serial-Ausgabe</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># READY</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co"># FW SelectionPanel v2.5.2</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co"># PRESS 001</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># RELEASE 001</span></span></code></pre></div>
+<h2 id="debugging">Debugging</h2>
+<h3 id="log-level-aktivieren">Log-Level aktivieren</h3>
+<p>In <code>config.h</code>:</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">bool</span> LOG_VERBOSE_PER_ID <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>   <span class="co">// Details pro Taster</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">bool</span> LOG_ON_RAW_CHANGE <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>    <span class="co">// Rohwert-Änderungen</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="kw">constexpr</span> <span class="dt">bool</span> SERIAL_PROTOCOL_ONLY <span class="op">=</span> <span class="kw">false</span><span class="op">;</span> <span class="co">// Debug-Ausgabe erlauben</span></span></code></pre></div>
+<h3 id="bit-mapping-verifizieren">Bit-Mapping verifizieren</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># STATUS-Befehl zeigt Bit-Arrays:</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;STATUS&quot;</span> <span class="op">&gt;</span> /dev/serial/by-id/usb-Espressif<span class="pp">*</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Ausgabe:</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># LEDS 0000000001    ← LED 1 an (Bit 0)</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># BTNS 1111111110    ← BTN 1 gedrückt (Active-Low: Bit 0 = 0)</span></span></code></pre></div>
+</div>
+</body>
+</html>

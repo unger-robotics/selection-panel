@@ -16,7 +16,9 @@ set -e
 
 # Parameter
 COUNT="${1:-10}"
-MEDIA_DIR="${2:-./media}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+MEDIA_DIR="${2:-$REPO_ROOT/server/media}"
 
 # 4K Auflösung
 WIDTH=3840

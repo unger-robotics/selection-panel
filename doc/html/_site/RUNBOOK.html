@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>RUNBOOK.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+  
+  <script>
+  window.MathJax = {
+    loader: {
+      load: ['[tex]/ams']
+    },
+    tex: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true,
+      processEnvironments: true,
+      packages: {'[+]': ['ams']},
+      macros: {
+        dd: '{\\,\\mathrm{d}}',
+        degC: '{^{\\circ}\\!\\mathrm{C}}',
+        Ohm: '{\\,\\Omega}',
+        ohm: '{\\,\\Omega}',
+        degree: '{^{\\circ}}'
+      }
+    },
+    options: {
+      skipHtmlTags: ['script','noscript','style','textarea','pre','code','kbd','samp']
+    }
+  };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div class="main-container">
+<h1 id="runbook-betrieb-und-troubleshooting">RUNBOOK – Betrieb und
+Troubleshooting</h1>
+<blockquote>
+<p>Debugging-Checklisten und Testprozeduren. Befehle: siehe <a
+href="COMMANDS.md">COMMANDS.md</a></p>
+</blockquote>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Version</th>
+<th>2.5.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stand</td>
+<td>2026-01-08</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="schnellstart">1 Schnellstart</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> http://rover:8080/              <span class="co"># Dashboard</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> http://rover:8080/status <span class="kw">|</span> <span class="ex">jq</span>   <span class="co"># Status</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> http://rover:8080/health        <span class="co"># Health (200/503)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> http://rover:8080/test/play/5   <span class="co"># Test (1-basiert!)</span></span></code></pre></div>
+<hr />
+<h2 id="hardware-debugging">2 Hardware-Debugging</h2>
+<h3 id="cd4021b-buttons">CD4021B (Buttons)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keine Events</td>
+<td>P/S-Logik invertiert</td>
+<td>HIGH = Load, LOW = Shift</td>
+</tr>
+<tr>
+<td>Falsche Bits</td>
+<td>Kaskadierung falsch</td>
+<td>Q8 → DS prüfen</td>
+</tr>
+<tr>
+<td>Instabil</td>
+<td>Fehlende Kondensatoren</td>
+<td>100 nF an VDD/VSS</td>
+</tr>
+<tr>
+<td>Zufällige Trigger</td>
+<td>DS floatet (letzter IC)</td>
+<td>Pin 11 → VCC</td>
+</tr>
+<tr>
+<td>Falsche Taster-Zuordnung</td>
+<td>Verdrahtung</td>
+<td>BTN 1 → PI-8 (Pin 1)</td>
+</tr>
+<tr>
+<td>First-Bit fehlt</td>
+<td>SPI-Timing</td>
+<td>First-Bit-Rescue in Firmware</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hc595-leds">74HC595 (LEDs)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keine LEDs</td>
+<td>OE nicht auf GND/PWM</td>
+<td>Pin 13 → D2 oder GND</td>
+</tr>
+<tr>
+<td>Alle LEDs an</td>
+<td>SRCLR auf LOW</td>
+<td>Pin 10 → VCC</td>
+</tr>
+<tr>
+<td>Falsche LED</td>
+<td>Kaskadierung</td>
+<td>QH’ → SER prüfen</td>
+</tr>
+</tbody>
+</table>
+<h3 id="esp32-s3-xiao">ESP32-S3 XIAO</h3>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 34%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keine Antwort</td>
+<td>USB-Port belegt</td>
+<td>Server stoppen:
+<code>sudo systemctl stop selection-panel</code></td>
+</tr>
+<tr>
+<td>Kein Upload</td>
+<td>Falscher Port</td>
+<td><code>ls /dev/serial/by-id/usb-Espressif*</code></td>
+</tr>
+<tr>
+<td>Reboot-Schleife</td>
+<td>Watchdog</td>
+<td>Firmware prüfen</td>
+</tr>
+<tr>
+<td>Fragmentierte Serial-Daten</td>
+<td>USB-CDC Timing</td>
+<td>Firmware v2.5.2 mit <code>Serial.flush()</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="serial-debugging">3 Serial-Debugging</h2>
+<h3 id="port-ermitteln-stabil">Port ermitteln (stabil)</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Stabilen by-id Pfad verwenden (empfohlen)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="va">SERIAL_PORT</span><span class="op">=</span><span class="va">$(</span><span class="fu">ls</span> /dev/serial/by-id/usb-Espressif<span class="pp">*</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">head</span> <span class="at">-1</span><span class="va">)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Port: </span><span class="va">$SERIAL_PORT</span><span class="st">&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Port konfigurieren</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">stty</span> <span class="at">-F</span> <span class="va">$SERIAL_PORT</span> 115200 raw <span class="at">-echo</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Daten empfangen (Ctrl+C zum Beenden)</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="va">$SERIAL_PORT</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Erwartete Ausgabe bei Tastendruck:</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># PRESS 001</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># RELEASE 001</span></span></code></pre></div>
+<h3 id="befehle-senden">Befehle senden</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;PING&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>      <span class="co"># → PONG</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;STATUS&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>    <span class="co"># → active=N leds=0xNN</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;VERSION&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>   <span class="co"># → FW SelectionPanel v2.5.2</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;LEDSET 001&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>  <span class="co"># LED 1 ein</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;LEDCLR&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span>    <span class="co"># Alle LEDs aus</span></span></code></pre></div>
+<h3 id="status-ausgabe-v2.5.2">STATUS-Ausgabe (v2.5.2)</h3>
+<pre><code>STATUS active=5 leds=0x10
+LEDS 0000100000      ← Bit-Vektor (MSB links)
+BTNS 1111111111      ← Active-Low: 1 = losgelassen</code></pre>
+<h3 id="häufige-serial-probleme">Häufige Serial-Probleme</h3>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 34%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>“Permission denied”</td>
+<td>Fehlende Rechte</td>
+<td><code>sudo usermod -aG dialout $USER</code> → Neu einloggen</td>
+</tr>
+<tr>
+<td>“Device busy”</td>
+<td>Port belegt</td>
+<td><code>sudo fuser /dev/ttyACM0</code> → Prozess beenden</td>
+</tr>
+<tr>
+<td>Fragmentierte Daten</td>
+<td>USB-CDC</td>
+<td>Firmware v2.5.2 verwenden</td>
+</tr>
+<tr>
+<td>Keine Daten</td>
+<td>Falscher Port</td>
+<td><code>ls /dev/serial/by-id/usb-Espressif*</code> prüfen</td>
+</tr>
+<tr>
+<td>Port ändert sich</td>
+<td>Instabiler Pfad</td>
+<td>by-id Pfad verwenden</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="browser-debugging">4 Browser-Debugging</h2>
+<h3 id="kein-ton">Kein Ton</h3>
+<ol type="1">
+<li>“Sound aktivieren”-Button klicken (Autoplay-Sperre)</li>
+<li>Warten: “Lade Medien… 5/10” → “Warte auf Tastendruck…”</li>
+<li>Audio-Status muss <strong>grün</strong> werden</li>
+<li>DevTools → Console auf Fehler prüfen</li>
+</ol>
+<blockquote>
+<p><strong>iOS/Safari:</strong> Falls Unlock fehlschlägt, Safari
+komplett schließen und neu öffnen. Dashboard v2.5.1 verwendet
+AudioContext API mit Preloading.</p>
+</blockquote>
+<h3 id="websocket-verbindung">WebSocket-Verbindung</h3>
+<p>DevTools → Network → WS → Messages</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Status-Punkt</th>
+<th>Grün</th>
+<th>Rot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WebSocket</td>
+<td>Verbunden</td>
+<td>Getrennt</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Entsperrt</td>
+<td>Gesperrt</td>
+</tr>
+</tbody>
+</table>
+<h3 id="debug-panel">Debug-Panel</h3>
+<p>Button unten rechts oder <code>Ctrl+D</code>:</p>
+<pre><code>Preloading 10 Medien...
+Preload abgeschlossen: 10/10 OK (1823ms)
+RX: {&quot;type&quot;: &quot;play&quot;, &quot;id&quot;: 5}
+Bild aus Cache: 005 (instant)
+Audio aus Cache gestartet: 005 (12ms)
+Audio beendet: 5
+TX: {&quot;type&quot;:&quot;ended&quot;,&quot;id&quot;:5}</code></pre>
+<h3 id="shortcuts">Shortcuts</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Taste</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Space</code></td>
+<td>Play/Pause</td>
+</tr>
+<tr>
+<td><code>Ctrl+D</code></td>
+<td>Debug-Panel</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="server-debugging">5 Server-Debugging</h2>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Logs live</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">journalctl</span> <span class="at">-u</span> selection-panel <span class="at">-f</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Letzte 10 Minuten</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">journalctl</span> <span class="at">-u</span> selection-panel <span class="at">--since</span> <span class="st">&quot;10 min ago&quot;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Service-Status</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl status selection-panel</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Server manuell starten (für Debugging)</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/selection-panel</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> venv/bin/activate</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> server.py</span></code></pre></div>
+<h3 id="häufige-server-probleme">Häufige Server-Probleme</h3>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 34%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>“Serial verbinde…” hängt</td>
+<td>Port belegt</td>
+<td><code>sudo fuser /dev/ttyACM0</code></td>
+</tr>
+<tr>
+<td>Taster nicht erkannt</td>
+<td>Serial-Fragment</td>
+<td>Parser prüfen, Firmware v2.5.2</td>
+</tr>
+<tr>
+<td>Medien fehlen</td>
+<td>Falscher Pfad</td>
+<td><code>ls media/</code> (001.jpg - 010.jpg)</td>
+</tr>
+<tr>
+<td>WebSocket-Fehler</td>
+<td>Client-Absturz</td>
+<td>Browser neu laden</td>
+</tr>
+<tr>
+<td>Health 503</td>
+<td>Serial getrennt</td>
+<td>ESP32 Verbindung prüfen</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="end-to-end-tests">6 End-to-End Tests</h2>
+<h3 id="latenz-test">Latenz-Test</h3>
+<ol type="1">
+<li>Button drücken</li>
+<li><strong>LED-Reaktion:</strong> &lt; 1ms (lokal auf ESP32)</li>
+<li><strong>Dashboard-Wiedergabe:</strong> &lt; 50ms (aus Cache)</li>
+<li><strong>Gesamt:</strong> &lt; 70ms</li>
+</ol>
+<h3 id="preempt-test">Preempt-Test</h3>
+<ol type="1">
+<li>Button 5 drücken → LED 5 an, Audio läuft</li>
+<li>Nach 1 s: Button 3 drücken</li>
+<li><strong>Erwartet:</strong> Audio 5 stoppt sofort, LED 3 an, Audio 3
+läuft</li>
+</ol>
+<h3 id="one-hot-test">One-hot Test</h3>
+<ol type="1">
+<li><code>curl http://rover:8080/test/play/5</code></li>
+<li><code>curl http://rover:8080/test/play/3</code></li>
+<li><strong>Erwartet:</strong> Nur LED 3 leuchtet</li>
+</ol>
+<h3 id="ende-test">Ende-Test</h3>
+<ol type="1">
+<li>Audio abspielen lassen</li>
+<li>Warten bis Ende</li>
+<li><strong>Erwartet:</strong> Alle LEDs aus</li>
+</ol>
+<h3 id="race-condition-test">Race-Condition Test</h3>
+<ol type="1">
+<li>Button 3 drücken, Audio läuft</li>
+<li>Kurz vor Ende: Button 5 drücken</li>
+<li>Audio 3 endet</li>
+<li><strong>Erwartet:</strong> LED 5 bleibt an (nicht aus!)</li>
+</ol>
+<h3 id="cache-test">Cache-Test</h3>
+<ol type="1">
+<li>Sound aktivieren → Preload abwarten</li>
+<li>Button drücken</li>
+<li><strong>Erwartet:</strong> Bild + Audio aus Cache (&lt; 50ms)</li>
+<li>Debug-Panel zeigt “aus Cache”</li>
+</ol>
+<h3 id="alle-taster-test-prototyp">Alle-Taster-Test (Prototyp)</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Jeden Taster einzeln drücken</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Erwartete Zuordnung (1-basiert):</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Taster 1 → Bild 001 + Ton 001</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Taster 2 → Bild 002 + Ton 002</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Taster 10 → Bild 010 + Ton 010</span></span></code></pre></div>
+<h3 id="stresstest">Stresstest</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="dt">{</span><span class="dv">1</span><span class="dt">..</span><span class="dv">200</span><span class="dt">}</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">curl</span> <span class="at">-s</span> <span class="st">&quot;http://rover:8080/test/play/</span><span class="va">$((RANDOM</span> <span class="op">%</span> <span class="dv">10</span> <span class="op">+</span> <span class="dv">1</span><span class="va">))</span><span class="st">&quot;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sleep</span> 0.2</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<hr />
+<h2 id="deployment-checkliste">7 Deployment-Checkliste</h2>
+<h3 id="hardware">Hardware</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />ESP32 mit Firmware v2.5.2
+geflasht</label></li>
+<li><label><input type="checkbox" />10 Taster verdrahtet und
+funktionsfähig</label></li>
+<li><label><input type="checkbox" />10 LEDs verdrahtet und
+funktionsfähig</label></li>
+<li><label><input type="checkbox" />USB-Kabel ESP32 ↔︎ Pi verbunden
+(Daten, nicht nur Laden!)</label></li>
+</ul>
+<h3 id="software">Software</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Repository auf Pi
+geklont</label></li>
+<li><label><input type="checkbox" />venv erstellt:
+<code>python3 -m venv venv</code></label></li>
+<li><label><input type="checkbox" />Pakete installiert:
+<code>pip install aiohttp</code></label></li>
+<li><label><input type="checkbox" />server.py vorhanden
+(v2.5.2)</label></li>
+</ul>
+<h3 id="medien">Medien</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />10 Bilder:
+<code>media/001.jpg</code> - <code>media/010.jpg</code></label></li>
+<li><label><input type="checkbox" />10 Audio: <code>media/001.mp3</code>
+- <code>media/010.mp3</code></label></li>
+</ul>
+<h3 id="tests">Tests</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Serial-Test:
+<code>cat /dev/serial/by-id/usb-Espressif*</code> zeigt
+PRESS/RELEASE</label></li>
+<li><label><input type="checkbox" />Server startet ohne
+Fehler</label></li>
+<li><label><input type="checkbox" />Dashboard öffnet sich</label></li>
+<li><label><input type="checkbox" />“Sound aktivieren”
+funktioniert</label></li>
+<li><label><input type="checkbox" />Preload abgeschlossen (“10/10
+OK”)</label></li>
+<li><label><input type="checkbox" />Alle 10 Taster erkannt</label></li>
+<li><label><input type="checkbox" />Zuordnung Taster → Medien
+korrekt</label></li>
+<li><label><input type="checkbox" />LED-Reaktion &lt; 1ms ✓</label></li>
+<li><label><input type="checkbox" />Dashboard-Latenz &lt; 50ms
+✓</label></li>
+<li><label><input type="checkbox" />Preempt-Test bestanden</label></li>
+</ul>
+<h3 id="autostart-optional">Autostart (optional)</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />systemd-Service kopiert</label></li>
+<li><label><input type="checkbox" />Service aktiviert:
+<code>sudo systemctl enable selection-panel</code></label></li>
+<li><label><input type="checkbox" />Reboot-Test bestanden</label></li>
+</ul>
+<hr />
+<h2 id="nützliche-einzeiler">8 Nützliche Einzeiler</h2>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Medien zählen</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> ~/selection-panel/media/<span class="pp">*</span>.jpg <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> ~/selection-panel/media/<span class="pp">*</span>.mp3 <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Service-Status</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> is-active selection-panel</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Health-Check</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> http://rover:8080/health <span class="kw">|</span> <span class="ex">jq</span> <span class="at">-r</span> <span class="st">&#39;.status&#39;</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Port-Nutzung prüfen</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> fuser /dev/ttyACM0</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co"># USB-Geräte</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="ex">lsusb</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-i</span> espressif</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Serial-Port finden (stabil)</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> /dev/serial/by-id/usb-Espressif<span class="pp">*</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Firewall öffnen (falls nötig)</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ufw allow 8080/tcp</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Server-Version</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-m1</span> <span class="st">&quot;VERSION&quot;</span> ~/selection-panel/server.py</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Firmware-Version (über Serial)</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="va">SERIAL_PORT</span><span class="op">=</span><span class="va">$(</span><span class="fu">ls</span> /dev/serial/by-id/usb-Espressif<span class="pp">*</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-1</span><span class="va">)</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;VERSION&quot;</span> <span class="op">&gt;</span> <span class="va">$SERIAL_PORT</span> <span class="kw">&amp;&amp;</span> <span class="fu">sleep</span> 0.5 <span class="kw">&amp;&amp;</span> <span class="fu">cat</span> <span class="va">$SERIAL_PORT</span></span></code></pre></div>
+<hr />
+<h2 id="bekannte-probleme-und-lösungen">9 Bekannte Probleme und
+Lösungen</h2>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 36%" />
+<col style="width: 32%" />
+<col style="width: 32%" />
+</colgroup>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Status</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>iOS Audio-Unlock fehlgeschlagen</td>
+<td>✅ Behoben</td>
+<td>Dashboard v2.5.1 mit AudioContext API</td>
+</tr>
+<tr>
+<td>ESP32-S3 USB-CDC fragmentiert</td>
+<td>✅ Behoben</td>
+<td>Firmware v2.5.2 mit <code>Serial.flush()</code></td>
+</tr>
+<tr>
+<td>pyserial funktioniert nicht</td>
+<td>✅ Behoben</td>
+<td>Server v2.5.2 mit <code>os.open</code></td>
+</tr>
+<tr>
+<td>CD4021B First-Bit-Problem</td>
+<td>✅ Behoben</td>
+<td>First-Bit-Rescue in Firmware</td>
+</tr>
+<tr>
+<td>CD4021B Timing</td>
+<td>✅ Behoben</td>
+<td>2µs Load-Pulse</td>
+</tr>
+<tr>
+<td>0-basiert vs 1-basiert</td>
+<td>✅ Behoben</td>
+<td>Durchgängig 1-basiert</td>
+</tr>
+<tr>
+<td>LED-Latenz durch Roundtrip</td>
+<td>✅ Behoben</td>
+<td>Firmware v2.5.2 (lokal &lt; 1ms)</td>
+</tr>
+<tr>
+<td>Dashboard-Latenz</td>
+<td>✅ Behoben</td>
+<td>Dashboard v2.5.1 (Preload &lt; 50ms)</td>
+</tr>
+<tr>
+<td>Serial-Pfad instabil</td>
+<td>✅ Behoben</td>
+<td>by-id Pfad verwenden</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

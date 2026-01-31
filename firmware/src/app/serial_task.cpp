@@ -1,4 +1,18 @@
-// src/app/serial_task.cpp
+/**
+ * @file serial_task.cpp
+ * @brief Serial Task Implementation (v2.5.1 - Robuste USB-CDC Kommunikation)
+ *
+ * Problem: USB-CDC kann Nachrichten fragmentieren (z.B. "PRE" + "SS 001\n")
+ * Loesung:
+ *   1. Komplette Zeile als ein write() senden (nicht printf)
+ *   2. Kurzer Delay nach flush() damit USB-Paket abgeschlossen wird
+ *   3. Server hat zusaetzlich Fragment-Timeout
+ */
+
+// =============================================================================
+// INCLUDES
+// =============================================================================
+
 #include "app/serial_task.h"
 
 #include "bitops.h"
@@ -11,54 +25,56 @@
 #include "freertos/task.h"
 
 // =============================================================================
-// Serial Task Implementation (v2.5.1 - Robuste USB-CDC Kommunikation)
-// =============================================================================
-//
-// Problem: USB-CDC kann Nachrichten fragmentieren (z.B. "PRE" + "SS 001\n")
-// Lösung:
-//   1. Komplette Zeile als ein write() senden (nicht printf)
-//   2. Kurzer Delay nach flush() damit USB-Paket abgeschlossen wird
-//   3. Server hat zusätzlich Fragment-Timeout
-//
+// MODUL-LOKALE VARIABLEN
 // =============================================================================
 
-static QueueHandle_t logQueue_ = nullptr;
-static LedControlCallback ledCallback_ = nullptr;
+static QueueHandle_t _log_queue = nullptr;
+static led_control_callback_t _led_callback = nullptr;
 
-// Letzter aktiver Button (für RELEASE-Erkennung)
-static uint8_t lastActiveId_ = 0;
+// Letzter aktiver Button (fuer RELEASE-Erkennung)
+static uint8_t _last_active_id = 0;
 
 // Serial-Eingabepuffer
-static char rxBuffer_[64];
-static size_t rxIndex_ = 0;
+static char _rx_buffer[64];
+static size_t _rx_index = 0;
 
-// TX-Puffer für atomische Sends
-static char txBuffer_[64];
+// TX-Puffer fuer atomische Sends
+static char _tx_buffer[64];
 
 // =============================================================================
-// Debug Helpers (nur wenn SERIAL_PROTOCOL_ONLY == false)
+// PRIVATE DEBUG HILFSFUNKTIONEN
 // =============================================================================
 
-static void printBinary(uint8_t value) {
+/**
+ * @brief Gibt Byte als Binaerzahl aus
+ */
+static void print_binary(uint8_t value) {
     for (int8_t bit = 7; bit >= 0; --bit) {
         Serial.print((value >> bit) & 1u);
     }
 }
 
-static void printByteArray(const char *label, const uint8_t *arr,
-                           size_t bytes) {
+/**
+ * @brief Gibt Byte-Array mit Label aus
+ */
+static void print_byte_array(const char *label, const uint8_t *arr,
+                             size_t bytes) {
     Serial.print(label);
     for (size_t i = 0; i < bytes; ++i) {
-        if (i)
+        if (i) {
             Serial.print(" | ");
+        }
         Serial.printf("IC%d: ", (int)i);
-        printBinary(arr[i]);
+        print_binary(arr[i]);
         Serial.printf(" (0x%02X)", arr[i]);
     }
     Serial.println();
 }
 
-static void printPressedList(const uint8_t *deb) {
+/**
+ * @brief Gibt Liste der gedrueckten Taster aus
+ */
+static void print_pressed_list(const uint8_t *deb) {
     Serial.print("Pressed: ");
     bool any = false;
     for (uint8_t id = 1; id <= BTN_COUNT; ++id) {
@@ -67,12 +83,16 @@ static void printPressedList(const uint8_t *deb) {
             any = true;
         }
     }
-    if (!any)
+    if (!any) {
         Serial.print('-');
+    }
     Serial.println();
 }
 
-static void printButtonsVerbose(const uint8_t *raw, const uint8_t *deb) {
+/**
+ * @brief Gibt detaillierte Taster-Info aus
+ */
+static void print_buttons_verbose(const uint8_t *raw, const uint8_t *deb) {
     Serial.println("Buttons per ID (RAW/DEB)  [pressed=1 | released=0]");
     for (uint8_t id = 1; id <= BTN_COUNT; ++id) {
         Serial.printf("  T%02u  IC%u b%u   RAW=%u  DEB=%u\n", id,
@@ -82,7 +102,10 @@ static void printButtonsVerbose(const uint8_t *raw, const uint8_t *deb) {
     }
 }
 
-static void printLEDsVerbose(const uint8_t *led) {
+/**
+ * @brief Gibt detaillierte LED-Info aus
+ */
+static void print_leds_verbose(const uint8_t *led) {
     Serial.println("LEDs per ID (STATE)  [on=1 | off=0]");
     for (uint8_t id = 1; id <= LED_COUNT; ++id) {
         Serial.printf("  LED%02u  IC%u b%u   STATE=%u\n", id,
@@ -92,65 +115,73 @@ static void printLEDsVerbose(const uint8_t *led) {
 }
 
 // =============================================================================
-// Robuste Serial-Ausgabe (atomisch, mit Delay)
+// PRIVATE SERIAL AUSGABE
 // =============================================================================
 
-// Sendet eine Zeile atomar über USB-CDC
-// Warum: USB-CDC hat 64-Byte Pakete, printf kann fragmentieren
-static void sendLine(const char *line) {
+/**
+ * @brief Sendet eine Zeile atomar ueber USB-CDC
+ * @note USB-CDC hat 64-Byte Pakete, printf kann fragmentieren
+ */
+static void send_line(const char *line) {
     Serial.print(line);
     Serial.print('\n');
     Serial.flush();
-    delayMicroseconds(2000); // 2ms statt 800µs USB-CDC Paket abschließen lassen
+    delayMicroseconds(2000); // 2ms USB-CDC Paket abschliessen lassen
 }
 
-// Formatiert und sendet eine Zeile atomar
-static void sendLinef(const char *fmt, ...) {
+/**
+ * @brief Formatiert und sendet eine Zeile atomar
+ */
+static void send_linef(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    vsnprintf(txBuffer_, sizeof(txBuffer_), fmt, args);
+    vsnprintf(_tx_buffer, sizeof(_tx_buffer), fmt, args);
     va_end(args);
-    sendLine(txBuffer_);
+    send_line(_tx_buffer);
 }
 
 // =============================================================================
-// Protokoll-Funktionen (ESP32 → Pi)
+// PRIVATE PROTOKOLL-FUNKTIONEN (ESP32 -> Pi)
 // =============================================================================
 
-static void sendPong() { sendLine("PONG"); }
+static void send_pong() { send_line("PONG"); }
 
-static void sendOk() { sendLine("OK"); }
+static void send_ok() { send_line("OK"); }
 
-static void sendError(const char *msg) { sendLinef("ERROR %s", msg); }
+static void send_error(const char *msg) { send_linef("ERROR %s", msg); }
 
-static void sendVersion() { sendLine("FW selection-panel v2.5.1"); }
+static void send_version() { send_line("FW selection-panel v2.5.1"); }
 
-static void sendHelp() {
-    sendLine("Commands: PING, STATUS, VERSION, HELP");
-    sendLine("          LEDSET n, LEDON n, LEDOFF n, LEDCLR, LEDALL");
+static void send_help() {
+    send_line("Commands: PING, STATUS, VERSION, HELP");
+    send_line("          LEDSET n, LEDON n, LEDOFF n, LEDCLR, LEDALL");
 }
 
-static void sendStatus() {
-    sendLinef("CURLED %u", lastActiveId_);
-    sendLinef("BTNS %u", BTN_COUNT);
-    sendLinef("LEDS %u", LED_COUNT);
-    sendLinef("HEAP %u", ESP.getFreeHeap());
-    sendLinef("MODE %s", BTN_COUNT <= 10 ? "PROTOTYPE" : "PRODUCTION");
-    sendOk();
+static void send_status() {
+    send_linef("CURLED %u", _last_active_id);
+    send_linef("BTNS %u", BTN_COUNT);
+    send_linef("LEDS %u", LED_COUNT);
+    send_linef("HEAP %u", ESP.getFreeHeap());
+    send_linef("MODE %s", BTN_COUNT <= 10 ? "PROTOTYPE" : "PRODUCTION");
+    send_ok();
 }
 
-static void sendPress(uint8_t id) { sendLinef("PRESS %03u", id); }
+static void send_press(uint8_t id) { send_linef("PRESS %03u", id); }
 
-static void sendRelease(uint8_t id) { sendLinef("RELEASE %03u", id); }
+static void send_release(uint8_t id) { send_linef("RELEASE %03u", id); }
 
 // =============================================================================
-// Befehlsverarbeitung (Pi → ESP32)
+// PRIVATE BEFEHLSVERARBEITUNG (Pi -> ESP32)
 // =============================================================================
 
-// Parst eine ID (001-100) aus einem String
-static int parseId(const char *str) {
-    while (*str == ' ')
-        str++; // Leerzeichen überspringen
+/**
+ * @brief Parst eine ID (001-100) aus einem String
+ * @return ID (1-LED_COUNT) oder -1 bei Fehler
+ */
+static int parse_id(const char *str) {
+    while (*str == ' ') {
+        str++; // Leerzeichen ueberspringen
+    }
     int id = atoi(str);
     if (id >= 1 && id <= LED_COUNT) {
         return id;
@@ -158,137 +189,145 @@ static int parseId(const char *str) {
     return -1;
 }
 
-static void processCommand(const char *cmd) {
-    if (cmd[0] == '\0')
+/**
+ * @brief Verarbeitet einen empfangenen Befehl
+ */
+static void process_command(const char *cmd) {
+    if (cmd[0] == '\0') {
         return; // Leerzeilen ignorieren
+    }
 
     // --- Einfache Befehle ---
     if (strcmp(cmd, "PING") == 0) {
-        sendPong();
+        send_pong();
         return;
     }
 
     if (strcmp(cmd, "VERSION") == 0) {
-        sendVersion();
+        send_version();
         return;
     }
 
     if (strcmp(cmd, "HELP") == 0) {
-        sendHelp();
+        send_help();
         return;
     }
 
     if (strcmp(cmd, "STATUS") == 0) {
-        sendStatus();
+        send_status();
         return;
     }
 
     // --- LED-Befehle ohne ID ---
     if (strcmp(cmd, "LEDCLR") == 0) {
-        if (ledCallback_) {
-            ledCallback_(LED_CMD_CLEAR, 0);
-            lastActiveId_ = 0;
+        if (_led_callback != nullptr) {
+            _led_callback(LED_CMD_CLEAR, 0);
+            _last_active_id = 0;
         }
-        sendOk();
+        send_ok();
         return;
     }
 
     if (strcmp(cmd, "LEDALL") == 0) {
-        if (ledCallback_) {
-            ledCallback_(LED_CMD_ALL, 0);
+        if (_led_callback != nullptr) {
+            _led_callback(LED_CMD_ALL, 0);
         }
-        sendOk();
+        send_ok();
         return;
     }
 
     // --- LED-Befehle mit ID ---
     if (strncmp(cmd, "LEDSET ", 7) == 0) {
-        int id = parseId(cmd + 7);
+        int id = parse_id(cmd + 7);
         if (id > 0) {
-            if (ledCallback_) {
-                ledCallback_(LED_CMD_SET, (uint8_t)id);
-                lastActiveId_ = (uint8_t)id;
+            if (_led_callback != nullptr) {
+                _led_callback(LED_CMD_SET, (uint8_t)id);
+                _last_active_id = (uint8_t)id;
             }
-            sendOk();
+            send_ok();
         } else {
-            sendError("INVALID_ID");
+            send_error("INVALID_ID");
         }
         return;
     }
 
     if (strncmp(cmd, "LEDON ", 6) == 0) {
-        int id = parseId(cmd + 6);
+        int id = parse_id(cmd + 6);
         if (id > 0) {
-            if (ledCallback_) {
-                ledCallback_(LED_CMD_ON, (uint8_t)id);
+            if (_led_callback != nullptr) {
+                _led_callback(LED_CMD_ON, (uint8_t)id);
             }
-            sendOk();
+            send_ok();
         } else {
-            sendError("INVALID_ID");
+            send_error("INVALID_ID");
         }
         return;
     }
 
     if (strncmp(cmd, "LEDOFF ", 7) == 0) {
-        int id = parseId(cmd + 7);
+        int id = parse_id(cmd + 7);
         if (id > 0) {
-            if (ledCallback_) {
-                ledCallback_(LED_CMD_OFF, (uint8_t)id);
+            if (_led_callback != nullptr) {
+                _led_callback(LED_CMD_OFF, (uint8_t)id);
             }
-            sendOk();
+            send_ok();
         } else {
-            sendError("INVALID_ID");
+            send_error("INVALID_ID");
         }
         return;
     }
 
     // Unbekannter Befehl
-    sendError("UNKNOWN_CMD");
+    send_error("UNKNOWN_CMD");
 }
 
-// =============================================================================
-// Serial-Eingabe lesen (non-blocking)
-// =============================================================================
-
-static void readSerialInput() {
+/**
+ * @brief Liest Serial-Eingabe (non-blocking)
+ */
+static void read_serial_input() {
     while (Serial.available()) {
         char c = Serial.read();
 
         // Zeilenende erkannt
         if (c == '\n' || c == '\r') {
-            if (rxIndex_ > 0) {
-                rxBuffer_[rxIndex_] = '\0';
-                processCommand(rxBuffer_);
-                rxIndex_ = 0;
+            if (_rx_index > 0) {
+                _rx_buffer[_rx_index] = '\0';
+                process_command(_rx_buffer);
+                _rx_index = 0;
             }
         }
-        // Zeichen zum Puffer hinzufügen
-        else if (rxIndex_ < sizeof(rxBuffer_) - 1) {
-            rxBuffer_[rxIndex_++] = c;
+        // Zeichen zum Puffer hinzufuegen
+        else if (_rx_index < sizeof(_rx_buffer) - 1) {
+            _rx_buffer[_rx_index++] = c;
         }
-        // Puffer voll → verwerfen und neu starten
+        // Puffer voll -> verwerfen und neu starten
         else {
-            rxIndex_ = 0;
+            _rx_index = 0;
         }
     }
 }
 
 // =============================================================================
-// Task-Funktion
+// TASK-FUNKTION
 // =============================================================================
 
-static void serialTaskFunction(void *) {
+/**
+ * @brief Hauptschleife des Serial-Tasks
+ */
+static void serial_task_function(void *) {
     Serial.begin(SERIAL_BAUD);
     delay(100); // USB-CDC stabilisieren
 
     if (SERIAL_PROTOCOL_ONLY) {
         // Protokoll-Modus: Nur READY und FW senden
-        if (SERIAL_SEND_READY)
-            sendLine("READY");
-        if (SERIAL_SEND_FW_LINE)
-            sendLine("FW selection-panel v2.5.1");
+        if (SERIAL_SEND_READY) {
+            send_line("READY");
+        }
+        if (SERIAL_SEND_FW_LINE) {
+            send_line("FW selection-panel v2.5.1");
+        }
     } else {
-        // Debug-Modus: Ausführlicher Header
+        // Debug-Modus: Ausfuehrlicher Header
         Serial.println();
         Serial.println("========================================");
         Serial.println("Selection Panel v2.5.1");
@@ -300,55 +339,55 @@ static void serialTaskFunction(void *) {
         Serial.printf("LATCH_SELECTION: %s\n",
                       LATCH_SELECTION ? "true" : "false");
         Serial.println("========================================");
-        sendLine("READY");
+        send_line("READY");
     }
 
-    LogEvent event = {};
+    log_event_t event = {};
 
     for (;;) {
-        // 1) Serial-Eingabe prüfen (Befehle vom Pi)
-        readSerialInput();
+        // 1) Serial-Eingabe pruefen (Befehle vom Pi)
+        read_serial_input();
 
         // 2) Queue mit Timeout lesen
-        if (xQueueReceive(logQueue_, &event, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (xQueueReceive(_log_queue, &event, pdMS_TO_TICKS(10)) == pdTRUE) {
 
             if (SERIAL_PROTOCOL_ONLY) {
                 // --- Protokoll-Modus: Nur PRESS/RELEASE senden ---
-                if (event.activeChanged) {
-                    if (event.activeId > 0 && event.activeId <= BTN_COUNT) {
-                        // Neuer Button aktiv → PRESS senden
-                        sendPress(event.activeId);
-                        lastActiveId_ = event.activeId;
-                    } else if (lastActiveId_ > 0) {
-                        // Kein Button mehr aktiv → RELEASE senden
-                        sendRelease(lastActiveId_);
-                        lastActiveId_ = 0;
+                if (event.active_changed) {
+                    if (event.active_id > 0 && event.active_id <= BTN_COUNT) {
+                        // Neuer Button aktiv -> PRESS senden
+                        send_press(event.active_id);
+                        _last_active_id = event.active_id;
+                    } else if (_last_active_id > 0) {
+                        // Kein Button mehr aktiv -> RELEASE senden
+                        send_release(_last_active_id);
+                        _last_active_id = 0;
                     }
                 }
                 continue;
             }
 
-            // --- Debug-Modus: Ausführliche Ausgabe ---
-            if (event.activeChanged) {
-                if (event.activeId > 0) {
-                    Serial.printf(">>> PRESS %03u\n", event.activeId);
-                    lastActiveId_ = event.activeId;
-                } else if (lastActiveId_ > 0) {
-                    Serial.printf(">>> RELEASE %03u\n", lastActiveId_);
-                    lastActiveId_ = 0;
+            // --- Debug-Modus: Ausfuehrliche Ausgabe ---
+            if (event.active_changed) {
+                if (event.active_id > 0) {
+                    Serial.printf(">>> PRESS %03u\n", event.active_id);
+                    _last_active_id = event.active_id;
+                } else if (_last_active_id > 0) {
+                    Serial.printf(">>> RELEASE %03u\n", _last_active_id);
+                    _last_active_id = 0;
                 }
             }
 
             Serial.println("---");
-            printByteArray("BTN RAW:    ", event.raw, BTN_BYTES);
-            printByteArray("BTN DEB:    ", event.deb, BTN_BYTES);
-            Serial.printf("Active LED (One-Hot): %u\n", event.activeId);
-            printByteArray("LED STATE:  ", event.led, LED_BYTES);
-            printPressedList(event.deb);
+            print_byte_array("BTN RAW:    ", event.raw, BTN_BYTES);
+            print_byte_array("BTN DEB:    ", event.deb, BTN_BYTES);
+            Serial.printf("Active LED (One-Hot): %u\n", event.active_id);
+            print_byte_array("LED STATE:  ", event.led, LED_BYTES);
+            print_pressed_list(event.deb);
 
             if (LOG_VERBOSE_PER_ID) {
-                printButtonsVerbose(event.raw, event.deb);
-                printLEDsVerbose(event.led);
+                print_buttons_verbose(event.raw, event.deb);
+                print_leds_verbose(event.led);
             }
 
             vTaskDelay(1);
@@ -357,13 +396,15 @@ static void serialTaskFunction(void *) {
 }
 
 // =============================================================================
-// Public API
+// OEFFENTLICHE FUNKTIONEN
 // =============================================================================
 
-void start_serial_task(QueueHandle_t logQueue) {
-    logQueue_ = logQueue;
-    xTaskCreatePinnedToCore(serialTaskFunction, "Serial", 8192, nullptr,
+void start_serial_task(QueueHandle_t log_queue) {
+    _log_queue = log_queue;
+    xTaskCreatePinnedToCore(serial_task_function, "Serial", 8192, nullptr,
                             PRIO_SERIAL, nullptr, CORE_APP);
 }
 
-void set_led_callback(LedControlCallback callback) { ledCallback_ = callback; }
+void set_led_callback(led_control_callback_t callback) {
+    _led_callback = callback;
+}

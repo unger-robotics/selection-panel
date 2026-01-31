@@ -1,50 +1,69 @@
+/**
+ * @file selection.cpp
+ * @brief Selection Implementation
+ */
+
+// =============================================================================
+// INCLUDES
+// =============================================================================
+
 #include "logic/selection.h"
 
 // =============================================================================
-// Selection Implementation
+// PRIVATE HILFSFUNKTIONEN
+// =============================================================================
+
+/**
+ * @brief Prueft ob irgendein Taster gedrueckt ist
+ * @param deb Entprellter Zustand
+ * @return true wenn mindestens ein Taster gedrueckt
+ */
+static bool any_pressed(const uint8_t *deb) {
+    for (size_t i = 0; i < BTN_BYTES; ++i) {
+        if (deb[i] != 0xFF) {
+            return true; // Active-Low: != 0xFF = gedrueckt
+        }
+    }
+    return false;
+}
+
+// =============================================================================
+// OEFFENTLICHE FUNKTIONEN
 // =============================================================================
 
 void Selection::init() {
     // Alle Taster als "losgelassen" initialisieren
     for (size_t i = 0; i < BTN_BYTES; ++i) {
-        debPrev_[i] = 0xFF;
+        _deb_prev[i] = 0xFF;
     }
 }
 
-// Hilfsfunktion: Ist irgendein Taster gedrückt?
-static bool anyPressed(const uint8_t* deb) {
-    for (size_t i = 0; i < BTN_BYTES; ++i) {
-        if (deb[i] != 0xFF) return true;  // Active-Low: != 0xFF = gedrückt
-    }
-    return false;
-}
+bool Selection::update(const uint8_t *deb_now, uint8_t &active_id) {
+    const uint8_t prev_active = active_id;
+    uint8_t new_active = active_id;
 
-bool Selection::update(const uint8_t* debNow, uint8_t& activeId) {
-    const uint8_t prevActive = activeId;
-    uint8_t newActive = activeId;
-
-    // Flanken-Erkennung: Wer wurde gerade gedrückt?
+    // Flanken-Erkennung: Wer wurde gerade gedrueckt?
     // Iteriert von ID 1 bis BTN_COUNT, "last press wins" bei mehreren Flanken
     for (uint8_t id = 1; id <= BTN_COUNT; ++id) {
-        const bool nowPressed = activeLow_pressed(debNow, id);
-        const bool prevPressed = activeLow_pressed(debPrev_, id);
+        const bool now_pressed = activeLow_pressed(deb_now, id);
+        const bool prev_pressed = activeLow_pressed(_deb_prev, id);
 
-        // Steigende Flanke = gerade gedrückt (war los, ist jetzt gedrückt)
-        if (nowPressed && !prevPressed) {
-            newActive = id;
+        // Steigende Flanke = gerade gedrueckt (war los, ist jetzt gedrueckt)
+        if (now_pressed && !prev_pressed) {
+            new_active = id;
         }
     }
 
-    // LATCH_SELECTION = false: Auswahl erlischt wenn nichts mehr gedrückt
-    if (!LATCH_SELECTION && !anyPressed(debNow)) {
-        newActive = 0;
+    // LATCH_SELECTION = false: Auswahl erlischt wenn nichts mehr gedrueckt
+    if (!LATCH_SELECTION && !any_pressed(deb_now)) {
+        new_active = 0;
     }
 
-    // Zustand für nächsten Zyklus merken
+    // Zustand fuer naechsten Zyklus merken
     for (size_t i = 0; i < BTN_BYTES; ++i) {
-        debPrev_[i] = debNow[i];
+        _deb_prev[i] = deb_now[i];
     }
 
-    activeId = newActive;
-    return (activeId != prevActive);
+    active_id = new_active;
+    return (active_id != prev_active);
 }

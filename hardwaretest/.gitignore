@@ -1,0 +1,31 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# VS Code
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch/
+.vscode/settings.json
+
+# Build-Artefakte
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+
+# macOS
+.DS_Store
+._*
+
+# Logs
+*.log
+
+# Temporäre Dateien
+*.tmp
+*.bak
+*~

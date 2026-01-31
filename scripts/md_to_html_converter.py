@@ -1,39 +1,41 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 r"""
 md_to_html_converter.py — Markdown → HTML mit Mermaid- & MathJax-Support
 
-Version: 2.2.3 | Stand: 2025-12-26
+Version: 2.2.4 | Stand: 2026-01-19
 Farbschema: Arduino Teal + Raspberry Pi Red (konsistent mit farbschema.tex)
 
 Zweck
 -----
 Konvertiert Markdown-Dateien (*.md) in eigenständige HTML-Seiten. Unterstützt
-Mermaid-Diagramme und TeX-Formeln via MathJax. Optional wird eine start.html
+Mermaid-Diagramme und TeX-Formeln via MathJax. Optional wird eine Startseite
 mit Link-Übersicht erzeugt.
 
-Verzeichnisstruktur
--------------------
+Verzeichnisstruktur (dein Projekt)
+----------------------------------
   projekt/
-  ├── docs/
-  │   ├── *.md              ← Quellen
-  │   └── _site/
-  │       ├── *.html        ← generiert
-  │       └── styles.css
+  ├── doc/
+  │   ├── md/                 ← Quellen (*.md)
+  │   └── html/
+  │       ├── styles.css       ← CSS-Quelle (SSOT, wird erweitert)
+  │       ├── start.html       ← Startseite (generiert)
+  │       └── _site/
+  │           ├── *.html       ← generiert
+  │           └── styles.css   ← Kopie aus doc/html/styles.css (für _site/*.html)
   ├── scripts/
-  │   └── md-to-html-converter.py
-  ├── styles.css       ← Quelle
-  └── start.html            ← generiert
+  │   └── md_to_html_converter.py
 
 Aufruf
 ------
   cd projekt
-  python3 scripts/md-to-html-converter.py
+  python3 scripts/md_to_html_converter.py
 
 CLI-Optionen
 ------------
 - files (positional): Liste von .md-Dateien (optional).
-- --dirs: Kommaseparierte Verzeichnisse (Standard: docs).
+- --dirs: Kommaseparierte Verzeichnisse (Standard: doc/md).
 - --recursive: rekursive Suche nach *.md.
 - --no-start-page: unterdrückt die Generierung von start.html.
 - -v / --verbose: ausführlichere Konsolenmeldungen.
@@ -45,11 +47,16 @@ Exit-Codes
 - 130 Abbruch durch SIGINT (Strg+C)
 """
 
-# === PFAD-KONFIGURATION ===
-SOURCE_DIR = "docs"                # Markdown-Quelle
-OUTPUT_DIR = "docs/_site"          # HTML-Zielverzeichnis
-START_PAGE = "start.html"          # Startseite im Projektroot
-CSS_FILE   = "styles.css"     # CSS im Projektroot
+# === PFAD-KONFIGURATION (Projektstruktur: doc/md -> doc/html/_site) ===
+SOURCE_DIR = "doc/md"               # Markdown-Quelle
+OUTPUT_DIR = "doc/html/_site"       # HTML-Zielverzeichnis
+START_PAGE = "doc/html/start.html"  # Startseite neben doc/html/styles.css
+
+# CSS:
+# - Quelle/SSOT liegt in doc/html/styles.css (wird dort erweitert)
+# - Kopie nach doc/html/_site/styles.css (damit _site/*.html es findet)
+CSS_SOURCE = "doc/html/styles.css"
+CSS_NAME = "styles.css"
 
 # Standardbibliothek
 import argparse
@@ -59,7 +66,6 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from shutil import which
 import html
@@ -69,9 +75,9 @@ import shutil
 def check_pandoc():
     """Prüft, ob Pandoc installiert ist."""
     try:
-        if not which('pandoc'):
+        if not which("pandoc"):
             return False
-        subprocess.run(['pandoc', '--version'],
+        subprocess.run(["pandoc", "--version"],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         return True
     except Exception:
@@ -184,21 +190,24 @@ return {
   Pandoc   = Pandoc
 }
 """
-    filter_path = target_dir / 'main_enhanced_filter.lua'
-    with open(filter_path, 'w', encoding='utf-8') as f:
+    filter_path = target_dir / "main_enhanced_filter.lua"
+    with open(filter_path, "w", encoding="utf-8") as f:
         f.write(lua_content)
     return filter_path
 
 
 def enhance_css_file():
-    """Erweitert/aktualisiert 'styles.css' idempotent um Regeln für Mermaid/Charts/Math."""
-    css_path = Path(CSS_FILE)
+    """
+    Erweitert/aktualisiert die CSS-Quelle (SSOT) idempotent um Regeln für Mermaid/Charts/Math.
+    Quelle: CSS_SOURCE (z.B. doc/html/styles.css)
+    """
+    css_path = Path(CSS_SOURCE)
     if not css_path.exists():
-        print(f"Warnung: CSS-Datei '{CSS_FILE}' nicht gefunden.")
+        print(f"Warnung: CSS-Datei '{CSS_SOURCE}' nicht gefunden.")
         return
 
     marker_begin = "/* === MD-TO-HTML-CONVERTER EXTENSIONS === */"
-    marker_end   = "/* === END MD-TO-HTML-CONVERTER EXTENSIONS === */"
+    marker_end = "/* === END MD-TO-HTML-CONVERTER EXTENSIONS === */"
 
     additional_css = f"""
 {marker_begin}
@@ -273,22 +282,25 @@ pre.mermaid {{
         )
         new_content, n = pattern.subn(additional_css.strip(), content, count=1)
         if n:
-            css_path.write_text(new_content + ("\n" if not new_content.endswith("\n") else ""), encoding="utf-8")
-            print(f"✓ CSS Extensions aktualisiert: {CSS_FILE}")
+            css_path.write_text(
+                new_content + ("\n" if not new_content.endswith("\n") else ""),
+                encoding="utf-8",
+            )
+            print(f"✓ CSS Extensions aktualisiert: {CSS_SOURCE}")
         return
 
     # Falls Marker kaputt/teilweise vorhanden: Block hinten neu anhängen
     if marker_begin in content and marker_end not in content:
-        print(f"Warnung: Marker-Bereich in '{CSS_FILE}' unvollständig. Hänge neuen Block an.")
+        print(f"Warnung: Marker-Bereich in '{CSS_SOURCE}' unvollständig. Hänge neuen Block an.")
         content = content.rstrip() + "\n\n" + additional_css
         css_path.write_text(content, encoding="utf-8")
-        print(f"✓ CSS erweitert: {CSS_FILE}")
+        print(f"✓ CSS erweitert: {CSS_SOURCE}")
         return
 
     # Normalfall: anhängen
     with open(css_path, "a", encoding="utf-8") as f:
         f.write("\n" + additional_css)
-    print(f"✓ CSS erweitert: {CSS_FILE}")
+    print(f"✓ CSS erweitert: {CSS_SOURCE}")
 
 
 def check_and_fix_content(markdown_files):
@@ -296,12 +308,12 @@ def check_and_fix_content(markdown_files):
     Scannt Markdown-Dateien auf Mermaid-/Math-Inhalte.
     Kapselt rohe Mermaid-Blöcke idempotent in ```mermaid ... ```.
     """
-    mermaid_re = re.compile(r'```\s*mermaid', re.IGNORECASE)
+    mermaid_re = re.compile(r"```\s*mermaid", re.IGNORECASE)
     raw_mermaid_re = re.compile(
-        r'^(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b',
+        r"^(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b",
         re.MULTILINE
     )
-    math_re = re.compile(r'\$[^$]+\$|\\\[|\\\(|\\begin\{')
+    math_re = re.compile(r"\$[^$]+\$|\\\[|\\\(|\\begin\{")
 
     files_with_mermaid = []
     files_with_math = []
@@ -309,7 +321,7 @@ def check_and_fix_content(markdown_files):
 
     for md_file in markdown_files:
         try:
-            with open(md_file, 'r', encoding='utf-8') as f:
+            with open(md_file, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             print(f"Warnung: Kann '{md_file}' nicht lesen: {e}")
@@ -324,7 +336,7 @@ def check_and_fix_content(markdown_files):
                 return f"```mermaid\n{m.group(0)}"
             new_content = raw_mermaid_re.sub(wrap_mermaid, content)
             if new_content != content:
-                with open(md_file, 'w', encoding='utf-8') as f:
+                with open(md_file, "w", encoding="utf-8") as f:
                     f.write(new_content)
                 files_updated.append(md_file)
                 has_mermaid = True
@@ -406,8 +418,8 @@ def create_mermaid_header(target_dir: Path) -> Path:
   });
 </script>
 """
-    path = target_dir / 'mermaid-header.html'
-    with open(path, 'w', encoding='utf-8') as f:
+    path = target_dir / "mermaid-header.html"
+    with open(path, "w", encoding="utf-8") as f:
         f.write(content)
     return path
 
@@ -441,8 +453,8 @@ window.MathJax = {
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
 """
-    path = target_dir / 'mathjax-header.html'
-    with open(path, 'w', encoding='utf-8') as f:
+    path = target_dir / "mathjax-header.html"
+    with open(path, "w", encoding="utf-8") as f:
         f.write(content)
     return path
 
@@ -461,15 +473,15 @@ def _normalize_dirs(dir_list):
     return out
 
 
-def ensure_css_in_dir(target_dir: Path, css_file: str):
-    """Kopiert CSS in target_dir, falls es dort fehlt oder älter ist."""
+def ensure_css_in_dir(target_dir: Path, css_source: str):
+    """Kopiert CSS-Quelle nach target_dir/styles.css, falls fehlt oder älter ist."""
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
-        src = Path(css_file)
+        src = Path(css_source)
         if not src.exists():
-            print(f"Warnung: CSS-Quelle '{css_file}' nicht gefunden.")
+            print(f"Warnung: CSS-Quelle '{css_source}' nicht gefunden.")
             return
-        dst = target_dir / src.name
+        dst = target_dir / CSS_NAME
         if (not dst.exists()) or (src.stat().st_mtime > dst.stat().st_mtime + 1e-6):
             shutil.copy2(src, dst)
     except Exception as e:
@@ -478,18 +490,25 @@ def ensure_css_in_dir(target_dir: Path, css_file: str):
 
 def _natkey(s: str):
     """Natürliche Sortierung: 'file2' < 'file10'."""
-    parts = re.findall(r'\d+|\D+', str(s))
+    parts = re.findall(r"\d+|\D+", str(s))
     return [int(t) if t.isdigit() else t.lower() for t in parts]
 
 
-def generate_start_page(html_files: list):
+def generate_start_page(html_files: list, start_page: str, css_source: str):
     """
-    Erstellt start.html im Projektroot mit Links zu allen HTMLs in docs/_site/.
+    Erstellt start.html (hier: doc/html/start.html) mit Links zu allen HTMLs im OUTPUT_DIR.
+    - Links sind relativ zur Startseite.
+    - CSS-Link zeigt auf die SSOT-CSS (doc/html/styles.css).
     """
     if not html_files:
         print("Keine HTML-Dateien für die Startseite gefunden.")
         return
 
+    start_path = Path(start_page)
+    start_dir = start_path.parent
+    start_dir.mkdir(parents=True, exist_ok=True)
+
+    css_href = os.path.relpath(css_source, start_dir).replace("\\", "/")
     current_time = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
 
     html_content = [
@@ -499,7 +518,7 @@ def generate_start_page(html_files: list):
         '  <meta charset="UTF-8">',
         '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
         "  <title>Dokumentation - Startseite</title>",
-        f'  <link rel="stylesheet" href="{OUTPUT_DIR}/{CSS_FILE}">',
+        f'  <link rel="stylesheet" href="{html.escape(css_href)}">',
         "</head>",
         "<body>",
         '  <div class="main-container">',
@@ -508,10 +527,10 @@ def generate_start_page(html_files: list):
     ]
 
     for file_path in sorted(html_files, key=_natkey):
-        path_norm = str(file_path).replace("\\", "/")
-        title = Path(path_norm).stem.replace('-', ' ').replace('_', ' ')
+        rel = os.path.relpath(str(file_path), start_dir).replace("\\", "/")
+        title = Path(rel).stem.replace("-", " ").replace("_", " ")
         html_content.append(
-            f'      <li><a href="{html.escape(path_norm)}">{html.escape(title)}</a></li>'
+            f'      <li><a href="{html.escape(rel)}">{html.escape(title)}</a></li>'
         )
 
     html_content += [
@@ -524,9 +543,10 @@ def generate_start_page(html_files: list):
         "</html>",
     ]
 
-    with open(START_PAGE, 'w', encoding='utf-8') as f:
+    with open(start_path, "w", encoding="utf-8") as f:
         f.write("\n".join(html_content))
-    print(f"✓ Startseite '{START_PAGE}' erfolgreich erstellt")
+
+    print(f"✓ Startseite '{start_page}' erfolgreich erstellt")
 
 
 def convert_all_markdown_files(args):
@@ -541,10 +561,12 @@ def convert_all_markdown_files(args):
 
     # Temporäre Dateien im Output-Verzeichnis erstellen
     lua_filter = create_main_enhanced_filter(output_path)
+
+    # CSS (SSOT) erweitern und nach _site kopieren
     enhance_css_file()
 
-    if not os.path.exists(CSS_FILE):
-        print(f"Warnung: CSS-Datei '{CSS_FILE}' nicht gefunden.")
+    if not os.path.exists(CSS_SOURCE):
+        print(f"Warnung: CSS-Datei '{CSS_SOURCE}' nicht gefunden.")
 
     # --- Verzeichnisse bestimmen ---
     md_dirs = [SOURCE_DIR]
@@ -561,7 +583,7 @@ def convert_all_markdown_files(args):
 
     # Sammle alle Markdown-Dateien (ohne _site/)
     if args.files:
-        markdown_files = [f for f in args.files if f.endswith('.md') and os.path.isfile(f)]
+        markdown_files = [f for f in args.files if f.endswith(".md") and os.path.isfile(f)]
     else:
         markdown_files = []
         pattern = "**/*.md" if args.recursive else "*.md"
@@ -569,7 +591,7 @@ def convert_all_markdown_files(args):
             if os.path.isdir(md_dir):
                 for f in glob.glob(os.path.join(md_dir, pattern), recursive=args.recursive):
                     # _site/ ausschließen
-                    if '_site' not in f:
+                    if "_site" not in f.replace("\\", "/"):
                         markdown_files.append(f)
 
     if not markdown_files:
@@ -586,8 +608,8 @@ def convert_all_markdown_files(args):
     if files_updated:
         print(f"Syntax in {len(files_updated)} Dateien korrigiert")
 
-    # CSS ins Zielverzeichnis kopieren
-    ensure_css_in_dir(output_path, CSS_FILE)
+    # CSS ins Zielverzeichnis kopieren (für _site/*.html)
+    ensure_css_in_dir(output_path, CSS_SOURCE)
 
     # Header-Dateien erstellen
     mermaid_header = create_mermaid_header(output_path)
@@ -603,31 +625,31 @@ def convert_all_markdown_files(args):
         # Optional: Eingabe sanitizen → temp-Datei
         tmp_input = md_file
         try:
-            with open(md_file, 'r', encoding='utf-8') as f:
+            with open(md_file, "r", encoding="utf-8") as f:
                 raw = f.read()
             sanitized = sanitize_math_for_mathjax(raw)
             if sanitized != raw:
-                tmp_input = str(Path(md_file).with_suffix('.mathjax_tmp.md'))
-                with open(tmp_input, 'w', encoding='utf-8') as f:
+                tmp_input = str(Path(md_file).with_suffix(".mathjax_tmp.md"))
+                with open(tmp_input, "w", encoding="utf-8") as f:
                     f.write(sanitized)
         except Exception:
             tmp_input = md_file
 
         cmd = [
-            'pandoc',
+            "pandoc",
             tmp_input,
-            '-o', str(html_file),
-            '--standalone',
-            '--to=html5',
-            '--from=markdown+tex_math_dollars+tex_math_single_backslash+raw_tex',
-            '--mathjax',
-            '--css', CSS_FILE,
-            f'--lua-filter={lua_filter}'
+            "-o", str(html_file),
+            "--standalone",
+            "--to=html5",
+            "--from=markdown+tex_math_dollars+tex_math_single_backslash+raw_tex",
+            "--mathjax",
+            "--css", CSS_NAME,               # _site/*.html erwartet styles.css im selben Ordner
+            f"--lua-filter={lua_filter}",
         ]
         if md_file in files_with_mermaid:
-            cmd.append(f'--include-in-header={mermaid_header}')
+            cmd.append(f"--include-in-header={mermaid_header}")
         if md_file in files_with_math:
-            cmd.append(f'--include-in-header={mathjax_header}')
+            cmd.append(f"--include-in-header={mathjax_header}")
 
         try:
             print(f"Konvertiere {md_file} → {html_file}...")
@@ -647,32 +669,32 @@ def convert_all_markdown_files(args):
             temp_file.unlink()
 
     if not args.no_start_page:
-        generate_start_page(html_files)
+        generate_start_page(html_files, start_page=START_PAGE, css_source=CSS_SOURCE)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description='Konvertiert Markdown-Dateien zu HTML (Mermaid + MathJax).'
+        description="Konvertiert Markdown-Dateien zu HTML (Mermaid + MathJax)."
     )
     parser.add_argument(
-        'files', nargs='*',
-        help='Spezifische Markdown-Dateien (optional).'
+        "files", nargs="*",
+        help="Spezifische Markdown-Dateien (optional)."
     )
     parser.add_argument(
-        '--no-start-page', action='store_true',
-        help='Keine Startseite generieren.'
+        "--no-start-page", action="store_true",
+        help="Keine Startseite generieren."
     )
     parser.add_argument(
-        '--verbose', '-v', action='store_true',
-        help='Ausführliche Ausgabe.'
+        "--verbose", "-v", action="store_true",
+        help="Ausführliche Ausgabe."
     )
     parser.add_argument(
-        '--dirs', action='append',
-        help=f'Komma-separierte Verzeichnisse (Standard: {SOURCE_DIR}).'
+        "--dirs", action="append",
+        help=f"Komma-separierte Verzeichnisse (Standard: {SOURCE_DIR})."
     )
     parser.add_argument(
-        '--recursive', action='store_true',
-        help='Rekursiv in Unterordnern nach *.md suchen.'
+        "--recursive", action="store_true",
+        help="Rekursiv in Unterordnern nach *.md suchen."
     )
 
     args = parser.parse_args()

@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>SPEC.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="spec-spezifikation-auswahlpanel">SPEC – Spezifikation
+Auswahlpanel</h1>
+<blockquote>
+<p><strong>Single Source of Truth</strong> für Protokolle, Pinbelegung
+und Policy.</p>
+</blockquote>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Metadaten</th>
+<th>Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Version</td>
+<td>2.5.2</td>
+</tr>
+<tr>
+<td>Datum</td>
+<td>2026-01-08</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>✅ Prototyp funktionsfähig (10×)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossar">1 Glossar</h2>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 45%" />
+<col style="width: 55%" />
+</colgroup>
+<thead>
+<tr>
+<th>Begriff</th>
+<th>Erklärung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>One-hot</strong></td>
+<td>Genau ein Bit ist aktiv, alle anderen sind aus</td>
+</tr>
+<tr>
+<td><strong>Preempt</strong></td>
+<td>Neue Aktion unterbricht sofort die laufende</td>
+</tr>
+<tr>
+<td><strong>Race-Condition</strong></td>
+<td>Timing-Problem, wenn zwei Ereignisse fast gleichzeitig
+auftreten</td>
+</tr>
+<tr>
+<td><strong>FreeRTOS</strong></td>
+<td>Echtzeit-Betriebssystem für Mikrocontroller</td>
+</tr>
+<tr>
+<td><strong>Mutex</strong></td>
+<td>Sperre, die gleichzeitigen Zugriff auf Ressourcen verhindert</td>
+</tr>
+<tr>
+<td><strong>CMOS</strong></td>
+<td>Chip-Technologie – Eingänge nie unbeschaltet lassen</td>
+</tr>
+<tr>
+<td><strong>Pull-Up</strong></td>
+<td>Widerstand zieht Signal auf HIGH, Taster zieht auf LOW</td>
+</tr>
+<tr>
+<td><strong>Kaskadierung</strong></td>
+<td>ICs in Reihe schalten, um mehr Ein-/Ausgänge zu erhalten</td>
+</tr>
+<tr>
+<td><strong>DIP-16</strong></td>
+<td>IC-Gehäuse mit 16 Pins in zwei Reihen</td>
+</tr>
+<tr>
+<td><strong>USB-CDC</strong></td>
+<td>USB Communications Device Class (virtueller COM-Port)</td>
+</tr>
+<tr>
+<td><strong>1-basiert</strong></td>
+<td>Nummerierung beginnt bei 1 (nicht 0)</td>
+</tr>
+<tr>
+<td><strong>Preloading</strong></td>
+<td>Medien vorladen bevor sie benötigt werden</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="policy">2 Policy</h2>
+<h3 id="one-hot-led">2.1 One-hot LED</h3>
+<p>Zu jedem Zeitpunkt leuchtet <strong>maximal eine LED</strong>.</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Befehl</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LEDSET n</code></td>
+<td>LED <em>n</em> an, alle anderen aus</td>
+</tr>
+<tr>
+<td><code>LEDCLR</code></td>
+<td>Alle LEDs aus</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vorteil:</strong> Maximalstrom = 1 × 20 mA statt 100 × 20
+mA.</p>
+<h3 id="preempt-umschalten-gewinnt">2.2 Preempt (“Umschalten
+gewinnt”)</h3>
+<p>Jeder neue Tastendruck unterbricht sofort die aktuelle
+Wiedergabe.</p>
+<p><strong>Mit ESP32 v2.5.2 (lokale LED-Steuerung):</strong></p>
+<ol type="1">
+<li>ESP32 setzt LED sofort (&lt; 1ms)</li>
+<li>ESP32 → Pi: <code>PRESS 005</code></li>
+<li>Pi → Browser: <code>{"type":"stop"}</code> +
+<code>{"type":"play","id":5}</code> (parallel)</li>
+<li>Browser spielt aus Cache (&lt; 50ms)</li>
+</ol>
+<p><strong>Race-Condition-Schutz:</strong> Nach Audio-Ende meldet der
+Browser <code>{"type":"ended","id":5}</code>. Pi sendet
+<code>LEDCLR</code> <strong>nur wenn</strong>
+<code>id == current_id</code>.</p>
+<hr />
+<h2 id="nummerierung-1-basiert">3 Nummerierung (1-basiert!)</h2>
+<p><strong>Alle IDs sind 1-basiert</strong> (001-100), nicht 0-basiert
+(000-099).</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Schicht</th>
+<th>Format</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Taster (physisch)</td>
+<td>1-100</td>
+<td>Taster 1, Taster 10</td>
+</tr>
+<tr>
+<td>Serial-Protokoll</td>
+<td>001-100</td>
+<td><code>PRESS 001</code>, <code>LEDSET 010</code></td>
+</tr>
+<tr>
+<td>WebSocket</td>
+<td>1-100</td>
+<td><code>{"type":"play","id":1}</code></td>
+</tr>
+<tr>
+<td>Medien-Dateien</td>
+<td>001-100</td>
+<td><code>001.jpg</code>, <code>010.mp3</code></td>
+</tr>
+<tr>
+<td>Dashboard-Anzeige</td>
+<td>001-100</td>
+<td>“001”, “010”</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Keine Konvertierung nötig</strong> – durchgängig 1-basiert in
+allen Schichten.</p>
+<hr />
+<h2 id="pinbelegung-esp32-s3-xiao">4 Pinbelegung ESP32-S3 XIAO</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Signal</th>
+<th>Pin</th>
+<th>Ziel-IC</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MOSI</td>
+<td>D10</td>
+<td>74HC595 Pin 14 (SER)</td>
+<td>Serielle Daten für LEDs</td>
+</tr>
+<tr>
+<td>SCK</td>
+<td>D8</td>
+<td>74HC595 Pin 11 + CD4021B Pin 10</td>
+<td>Gemeinsamer SPI-Takt</td>
+</tr>
+<tr>
+<td>RCK</td>
+<td>D0</td>
+<td>74HC595 Pin 12 (RCLK)</td>
+<td>LED-Latch (Ausgabe freigeben)</td>
+</tr>
+<tr>
+<td>OE</td>
+<td>D2</td>
+<td>74HC595 Pin 13 (OE)</td>
+<td>Output Enable (PWM für Helligkeit)</td>
+</tr>
+<tr>
+<td>MISO</td>
+<td>D9</td>
+<td>CD4021B Pin 3 (Q8)</td>
+<td>Serielle Daten von Tastern</td>
+</tr>
+<tr>
+<td>P/S</td>
+<td>D1</td>
+<td>CD4021B Pin 9 (P/S)</td>
+<td>Parallel Load (HIGH = Load)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SPI-Modi:</strong> - 74HC595: MODE0 (CPOL=0, CPHA=0) @ 1 MHz
+- CD4021B: MODE1 (CPOL=0, CPHA=1) @ 500 kHz</p>
+<hr />
+<h2 id="cd4021b-vs.-74hc165">5 CD4021B vs. 74HC165</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Aspekt</th>
+<th>74HC165</th>
+<th>CD4021B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load-Signal</td>
+<td>LOW</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>Shift-Signal</td>
+<td>HIGH</td>
+<td>LOW</td>
+</tr>
+<tr>
+<td>DIP-Verfügbarkeit</td>
+<td>Schwer</td>
+<td>Gut</td>
+</tr>
+<tr>
+<td>Load-Puls</td>
+<td>1 µs</td>
+<td><strong>2 µs</strong> (CMOS)</td>
+</tr>
+<tr>
+<td>Clock-Puls</td>
+<td>1 µs</td>
+<td><strong>1 µs</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Wichtig:</strong> Die invertierte Load-Logik und längere
+Pulse sind in der Firmware berücksichtigt.</p>
+</blockquote>
+<hr />
+<h2 id="verdrahtungsregeln">6 Verdrahtungsregeln</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>IC</th>
+<th>Pin</th>
+<th>Regel</th>
+<th>Grund</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CD4021B (letzter)</td>
+<td>Pin 11 (DS)</td>
+<td>→ VCC</td>
+<td>CMOS-Eingänge nie floaten</td>
+</tr>
+<tr>
+<td>74HC595 (letzter)</td>
+<td>Pin 9 (QH’)</td>
+<td>offen OK</td>
+<td>Ausgang treibt aktiv</td>
+</tr>
+<tr>
+<td>74HC595 (alle)</td>
+<td>Pin 10 (SRCLR)</td>
+<td>→ VCC</td>
+<td>Clear deaktiviert</td>
+</tr>
+<tr>
+<td>74HC595 (alle)</td>
+<td>Pin 13 (OE)</td>
+<td>→ D2 oder GND</td>
+<td>Outputs aktiviert/PWM</td>
+</tr>
+<tr>
+<td>Alle ICs</td>
+<td>VCC/VDD</td>
+<td>100 nF → GND</td>
+<td>Abblockkondensator</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bit-mapping-hardware-verdrahtung">Bit-Mapping
+(Hardware-Verdrahtung)</h3>
+<p><strong>CD4021B:</strong> BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1 (Pin
+7)</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Taster</th>
+<th>CD4021B PI</th>
+<th>Bit im Datenstrom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BTN 1</td>
+<td>PI-8 (Pin 1)</td>
+<td>Bit 0</td>
+</tr>
+<tr>
+<td>BTN 8</td>
+<td>PI-1 (Pin 7)</td>
+<td>Bit 7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formel:</strong> <code>btn_bit(id) = (id - 1) % 8</code></p>
+<p><strong>74HC595:</strong> LED 1 → QA, LED 8 → QH</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>LED</th>
+<th>74HC595 Q</th>
+<th>Bit im Datenstrom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LED 1</td>
+<td>QA (Pin 15)</td>
+<td>Bit 0</td>
+</tr>
+<tr>
+<td>LED 8</td>
+<td>QH (Pin 7)</td>
+<td>Bit 7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formel:</strong> <code>led_bit(id) = (id - 1) % 8</code></p>
+<hr />
+<h2 id="serial-protokoll-esp32-pi">7 Serial-Protokoll (ESP32 ↔︎ Pi)</h2>
+<p>115200 Baud, ASCII, Newline-terminiert (<code>\n</code>).</p>
+<p><strong>Stabiler Device-Pfad:</strong>
+<code>/dev/serial/by-id/usb-Espressif*</code> (nicht
+<code>/dev/ttyACM0</code>)</p>
+<h3 id="esp32-pi">7.1 ESP32 → Pi</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Nachricht</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>READY</code></td>
+<td>Controller bereit</td>
+</tr>
+<tr>
+<td><code>FW SelectionPanel v2.5.2</code></td>
+<td>Firmware-Version</td>
+</tr>
+<tr>
+<td><code>PRESS 001</code></td>
+<td>Taster 1 gedrückt (001-100)</td>
+</tr>
+<tr>
+<td><code>RELEASE 001</code></td>
+<td>Taster 1 losgelassen</td>
+</tr>
+<tr>
+<td><code>OK</code></td>
+<td>Befehl erfolgreich</td>
+</tr>
+<tr>
+<td><code>PONG</code></td>
+<td>Antwort auf PING</td>
+</tr>
+<tr>
+<td><code>ERROR msg</code></td>
+<td>Fehlermeldung</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pi-esp32">7.2 Pi → ESP32</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Befehl</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LEDSET 001</code></td>
+<td>LED 1 ein (one-hot)</td>
+</tr>
+<tr>
+<td><code>LEDON 001</code></td>
+<td>LED 1 ein (additiv)</td>
+</tr>
+<tr>
+<td><code>LEDOFF 001</code></td>
+<td>LED 1 aus</td>
+</tr>
+<tr>
+<td><code>LEDCLR</code></td>
+<td>Alle LEDs aus</td>
+</tr>
+<tr>
+<td><code>LEDALL</code></td>
+<td>Alle LEDs ein</td>
+</tr>
+<tr>
+<td><code>PING</code></td>
+<td>Verbindungstest → PONG</td>
+</tr>
+<tr>
+<td><code>STATUS</code></td>
+<td>Zustand abfragen</td>
+</tr>
+<tr>
+<td><code>VERSION</code></td>
+<td>Firmware-Version</td>
+</tr>
+<tr>
+<td><code>HELP</code></td>
+<td>Befehlsliste</td>
+</tr>
+</tbody>
+</table>
+<h3 id="status-ausgabe-v2.5.2">7.3 STATUS-Ausgabe (v2.5.2)</h3>
+<pre><code>STATUS active=5 leds=0x10
+LEDS 0000100000      # Bit-Vektor (MSB links)
+BTNS 1111111111      # Bit-Vektor (Active-Low: 1 = losgelassen)</code></pre>
+<h3 id="usb-cdc-besonderheit">7.4 USB-CDC Besonderheit</h3>
+<p>ESP32-S3 XIAO nutzt USB-CDC statt UART. <strong>Wichtig:</strong></p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Firmware muss Serial.flush() verwenden!</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>println<span class="op">(</span>buffer<span class="op">);</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>Serial<span class="op">.</span>flush<span class="op">();</span>  <span class="co">// Verhindert Fragmentierung</span></span></code></pre></div>
+<hr />
+<h2 id="websocket-protokoll-pi-browser">8 WebSocket-Protokoll (Pi ↔︎
+Browser)</h2>
+<p>Endpoint: <code>ws://rover:8080/ws</code></p>
+<h3 id="pi-browser">8.1 Pi → Browser</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Nachricht</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{"type":"stop"}</code></td>
+<td>Wiedergabe stoppen</td>
+</tr>
+<tr>
+<td><code>{"type":"play","id":5}</code></td>
+<td>Medien 5 abspielen</td>
+</tr>
+</tbody>
+</table>
+<h3 id="browser-pi">8.2 Browser → Pi</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Nachricht</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{"type":"ended","id":5}</code></td>
+<td>Audio 5 beendet</td>
+</tr>
+<tr>
+<td><code>{"type":"ping"}</code></td>
+<td>Heartbeat</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ID ist 1-basiert</strong> (1-100, nicht 0-99).</p>
+<hr />
+<h2 id="http-endpoints">9 HTTP-Endpoints</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pfad</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>Dashboard (index.html)</td>
+</tr>
+<tr>
+<td><code>/ws</code></td>
+<td>WebSocket-Verbindung</td>
+</tr>
+<tr>
+<td><code>/static/*</code></td>
+<td>CSS, JavaScript</td>
+</tr>
+<tr>
+<td><code>/media/*</code></td>
+<td>Bilder und Audio</td>
+</tr>
+<tr>
+<td><code>/test/play/{id}</code></td>
+<td>Wiedergabe simulieren (1-basiert)</td>
+</tr>
+<tr>
+<td><code>/test/stop</code></td>
+<td>Wiedergabe stoppen</td>
+</tr>
+<tr>
+<td><code>/status</code></td>
+<td>Server-Status (JSON)</td>
+</tr>
+<tr>
+<td><code>/health</code></td>
+<td>Health-Check (200/503)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="status-response-v2.5.2">9.1 Status-Response (v2.5.2)</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="st">&quot;2.5.2&quot;</span><span class="fu">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mode&quot;</span><span class="fu">:</span> <span class="st">&quot;prototype&quot;</span><span class="fu">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;num_media&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;current_button&quot;</span><span class="fu">:</span> <span class="dv">5</span><span class="fu">,</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ws_clients&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;serial_connected&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;serial_port&quot;</span><span class="fu">:</span> <span class="st">&quot;/dev/serial/by-id/usb-Espressif...&quot;</span><span class="fu">,</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;media_missing&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;esp32_local_led&quot;</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<hr />
+<h2 id="medien-konvention">10 Medien-Konvention</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>ID</th>
+<th>Bild</th>
+<th>Audio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>media/001.jpg</code></td>
+<td><code>media/001.mp3</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>media/005.jpg</code></td>
+<td><code>media/005.mp3</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>media/010.jpg</code></td>
+<td><code>media/010.mp3</code></td>
+</tr>
+<tr>
+<td>100</td>
+<td><code>media/100.jpg</code></td>
+<td><code>media/100.mp3</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>IDs: 1-100 (1-basiert), Dateien: 001-100 (zero-padded, 3
+Stellen).</strong></p>
+<hr />
+<h2 id="latenz-budget">11 Latenz-Budget</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Komponente</th>
+<th>Latenz</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32 LED</td>
+<td>&lt; 1ms</td>
+<td>Lokale Steuerung (v2.5.2)</td>
+</tr>
+<tr>
+<td>Serial</td>
+<td>~5ms</td>
+<td>USB-CDC Übertragung</td>
+</tr>
+<tr>
+<td>Server</td>
+<td>~1ms</td>
+<td>asyncio.gather</td>
+</tr>
+<tr>
+<td>WebSocket</td>
+<td>~5ms</td>
+<td>Netzwerk</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>&lt; 50ms</td>
+<td>Aus Cache (Preloading)</td>
+</tr>
+<tr>
+<td><strong>Gesamt</strong></td>
+<td><strong>&lt; 70ms</strong></td>
+<td>Tastendruck → Wiedergabe</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="akzeptanztests">12 Akzeptanztests</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Test</th>
+<th>Erwartung</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Preempt</td>
+<td>Neuer Taster unterbricht sofort</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>One-hot</td>
+<td>Nur eine LED leuchtet</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Ende</td>
+<td>Nach Audio: alle LEDs aus</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Race</td>
+<td>LED bleibt an wenn neue ID aktiv</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Debounce</td>
+<td>Nur ein Event pro Tastendruck</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Zuordnung</td>
+<td>Taster 1 → Medien 001</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Alle Taster</td>
+<td>10/10 erkannt (Prototyp)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>LED-Latenz</td>
+<td>&lt; 1ms</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Dashboard-Latenz</td>
+<td>&lt; 50ms</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="versionen">13 Versionen</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Komponente</th>
+<th>Version</th>
+<th>Änderung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firmware</td>
+<td>2.5.2</td>
+<td>FreeRTOS, Hardware-SPI, First-Bit-Rescue</td>
+</tr>
+<tr>
+<td>Server</td>
+<td>2.5.2</td>
+<td>by-id Pfad, asyncio, ESP32_SETS_LED_LOCALLY</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>2.5.1</td>
+<td>Preloading, Cache, Audio-Unlock</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="bekannte-einschränkungen">14 Bekannte Einschränkungen</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Problem</th>
+<th>Status</th>
+<th>Lösung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32-S3 USB-CDC fragmentiert</td>
+<td>✅ Behoben</td>
+<td><code>Serial.flush()</code></td>
+</tr>
+<tr>
+<td>pyserial funktioniert nicht</td>
+<td>✅ Behoben</td>
+<td><code>os.open</code> + <code>stty</code></td>
+</tr>
+<tr>
+<td>CD4021B braucht längere Pulse</td>
+<td>✅ Behoben</td>
+<td>2 µs Load, 1 µs Clock</td>
+</tr>
+<tr>
+<td>CD4021B First-Bit-Problem</td>
+<td>✅ Behoben</td>
+<td>digitalRead() vor SPI</td>
+</tr>
+<tr>
+<td>LED-Latenz durch Roundtrip</td>
+<td>✅ Behoben</td>
+<td>Lokale LED-Steuerung</td>
+</tr>
+<tr>
+<td>Dashboard-Latenz</td>
+<td>✅ Behoben</td>
+<td>Medien-Preloading</td>
+</tr>
+<tr>
+<td>Serial-Pfad instabil</td>
+<td>✅ Behoben</td>
+<td>by-id Pfad verwenden</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

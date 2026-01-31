@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>JAVASCRIPT-CODE-GUIDE.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1
+id="javascript-code-guide-dashboard-client-app.js-index.html">JavaScript-Code-Guide
+(Dashboard-Client <code>app.js</code> + <code>index.html</code>)</h1>
+<p>Version 2.5.2 | Dashboard v2.5.1 | Stand: 2026-01-08</p>
+<h2 id="architektur-datenfluss-in-4-schritten">1) Architektur:
+Datenfluss in 4 Schritten</h2>
+<p><strong>Regel:</strong> UI-Code wird wartbar, wenn der Datenfluss
+eindeutig ist: <strong>Input → Parse → State → Render</strong>.</p>
+<p><strong>Beispiel im Projekt:</strong></p>
+<ol type="1">
+<li><strong>Input:</strong> WebSocket empfängt
+<code>{"type":"stop"}</code> oder
+<code>{"type":"play","id":n}</code>.</li>
+<li><strong>Parse:</strong> <code>handleServerMessage()</code> macht
+<code>JSON.parse</code> + Switch auf <code>message.type</code>.</li>
+<li><strong>State:</strong> <code>state.currentId</code>,
+<code>state.isPlaying</code>, <code>state.audioUnlocked</code>,
+<code>state.preloaded</code>.</li>
+<li><strong>Render:</strong> <code>handleStop()</code> /
+<code>handlePlay(id)</code> aktualisieren DOM (<code>#current-id</code>,
+<code>#image-container</code>, Progressbar).</li>
+</ol>
+<p><strong>Anwendung (Leitplanke):</strong></p>
+<p>Jede neue Funktion (z. B. “pause”, “volume”, “shuffle”) sollte
+entweder <strong>State ändern</strong> oder <strong>rendern</strong> –
+nicht beides quer verteilt.</p>
+<h2 id="konfiguration-globaler-zustand">2) Konfiguration &amp; globaler
+Zustand</h2>
+<p><strong>Regel:</strong> Konstanten zentralisieren, Zustand minimal
+halten, Zustandsänderung an wenigen Stellen.</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li><code>CONFIG</code>: <code>reconnectInterval = 5000</code>,
+<code>numMedia = 10</code>, <code>preloadConcurrency = 3</code>, WS-URL
+automatisch <code>ws/wss</code>.</li>
+<li><code>state</code>: <code>ws</code>, <code>audioUnlocked</code>,
+<code>currentId</code>, <code>isPlaying</code>, <code>preloaded</code>,
+<code>preloadProgress</code>.</li>
+<li>Cache: <code>mediaCache.images[id] = HTMLImageElement</code>,
+<code>mediaCache.audio[id] = HTMLAudioElement</code>.</li>
+</ul>
+<p><strong>Anwendung:</strong></p>
+<p>Für “100 Medien”: nur <code>CONFIG.numMedia = 100</code> ändern (und
+ggf. <code>preloadConcurrency</code> an Netzwerk/Server anpassen).</p>
+<h2 id="websocket-robust-verbinden-sauber-senden">3) WebSocket: robust
+verbinden, sauber senden</h2>
+<p><strong>Regel:</strong> Reconnect ist Teil des Normalbetriebs. Fehler
+sollen sichtbar sein, aber nicht “crashen”.</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li><code>connectWebSocket()</code> setzt Handler für
+<code>onopen/onclose/onerror/onmessage</code>. Bei Close: Reconnect nach
+5000 ms.</li>
+<li><code>sendMessage()</code> sendet nur bei
+<code>readyState === OPEN</code>, sonst Warn-Log.</li>
+</ul>
+<p><strong>Anwendung:</strong></p>
+<p>Wenn du zusätzliche Message-Typen einführst, halte das Protokoll
+strikt (z. B. <code>type</code> Pflicht, Payload validieren), sonst
+werden UI-Bugs zu “Netzwerkproblemen”.</p>
+<h2 id="medien-preloading-schnelle-wiedergabe-ohne-ui-blocker">4)
+Medien-Preloading: schnelle Wiedergabe ohne UI-Blocker</h2>
+<p><strong>Regel:</strong> Preload parallel, aber begrenzt (sonst
+überlastest du Browser/Server).</p>
+<p><strong>Beispiel (induktiv):</strong></p>
+<ul>
+<li>Beobachtung: Viele gleichzeitige Requests können “stottern”.</li>
+<li>Daten: <code>preloadConcurrency = 3</code> + eigene
+<code>Semaphore</code>.</li>
+<li>Regel: <code>preloadAllMedia()</code> lädt IDs
+1…<code>numMedia</code> in Batches und aktualisiert Progress.</li>
+</ul>
+<p><strong>Detailpunkte, die gut gelöst sind:</strong></p>
+<ul>
+<li>Bilder: <code>new Image()</code> + <code>onload/onerror</code>,
+speichern in Cache.</li>
+<li>Audio: <code>new Audio()</code> + <code>oncanplaythrough</code>,
+Timeout-Fallback nach 5000 ms (speichert trotzdem ein
+Audio-Objekt).</li>
+</ul>
+<p><strong>Anwendung (Tuning):</strong></p>
+<ul>
+<li>LAN/RPi lokal: <code>preloadConcurrency</code> eher 4–8.</li>
+<li>WLAN/Handy: eher 2–4 (weniger Peaks).</li>
+</ul>
+<h2 id="playback-state-machine-preempt-race-fix">5)
+Playback-State-Machine: Preempt + Race-Fix</h2>
+<p><strong>Regel:</strong> Bei “schnellem Umschalten” brauchst du eine
+eindeutige Zuordnung von Events zur aktuellen ID.</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li>Preempt: <code>handlePlay(id)</code> stoppt vorheriges Audio, setzt
+<code>state.currentId = id</code>, startet neues.</li>
+<li>Race-Fix:
+<code>cachedAudio.onended = () =&gt; handleAudioEnded(id)</code> bindet
+<code>ended</code> an die ID; <code>handleAudioEnded(endedId)</code>
+ignoriert Events, wenn <code>endedId !== state.currentId</code>.</li>
+</ul>
+<p><strong>Anwendung (wenn du es noch härter machen
+willst):</strong></p>
+<p>Ergänze optional <code>seq</code> (laufende Nummer) in
+<code>play</code>/<code>ended</code>, dann ist auch Multi-Tab/Latency
+eindeutig (Server kann “alte ended” sicher ignorieren).</p>
+<h2 id="audio-unlock-iosautoplay-policies-korrekt-handhaben">6)
+Audio-Unlock: iOS/Autoplay-Policies korrekt handhaben</h2>
+<p><strong>Regel:</strong> Audio darf erst nach User-Geste zuverlässig
+starten (besonders iOS/Safari). Daher: Unlock-Button + “silent
+play”.</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li><code>unlockAudio()</code> versucht zuerst <code>AudioContext</code>
+(inkl. <code>resume()</code>), dann HTML <code>&lt;audio&gt;</code> mit
+kurzem Silent-WAV (Base64) via <code>play() → pause()</code>.</li>
+<li>Nach Erfolg: UI umschalten (<code>#unlock-btn</code> hidden,
+Status-Dot), dann <code>preloadAllMedia()</code>.</li>
+</ul>
+<p><strong>Anwendung:</strong></p>
+<p>Alle Audio-Starts müssen hinter
+<code>state.audioUnlocked === true</code> liegen (ist im
+<code>handlePlay</code> so geprüft).</p>
+<h2 id="dom-integration-ids-rendering-debug">7) DOM-Integration: IDs,
+Rendering, Debug</h2>
+<p><strong>Regel:</strong> DOM-Zugriffe einmal bündeln, Rendering über
+klar definierte UI-Aktionen.</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li><code>elements = { unlockBtn, waiting, mediaContainer, currentId, imageContainer, audio, ... }</code>
+via <code>getElementById</code>.</li>
+<li>Debug: <code>log()</code> schreibt in Konsole und in
+<code>#debug</code>, begrenzt auf 50 Zeilen.</li>
+</ul>
+<p><strong>Anwendung (Sicherheits/Robustheits-Note):</strong></p>
+<p><code>innerHTML</code> ist ok, solange du nur kontrollierte Inhalte
+einsetzt. Bei künftig “freiem Text” aus dem Server: auf
+<code>textContent</code> wechseln (XSS-Risiko vermeiden).</p>
+<h2 id="protokoll-übersicht-dashboard-server">8) Protokoll-Übersicht
+(Dashboard ↔︎ Server)</h2>
+<h3 id="server-dashboard-websocket">Server → Dashboard (WebSocket)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Message</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{"type":"play","id":n}</code></td>
+<td>Starte Wiedergabe für Taste n</td>
+</tr>
+<tr>
+<td><code>{"type":"stop"}</code></td>
+<td>Stoppe aktuelle Wiedergabe</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dashboard-server-websocket">Dashboard → Server (WebSocket)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Message</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{"type":"ended","id":n}</code></td>
+<td>Audio für Taste n beendet</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http-endpoints">HTTP-Endpoints</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /</code></td>
+<td>Dashboard HTML</td>
+</tr>
+<tr>
+<td><code>GET /media/{id}.jpg</code></td>
+<td>Bild für Taste id</td>
+</tr>
+<tr>
+<td><code>GET /media/{id}.mp3</code></td>
+<td>Audio für Taste id</td>
+</tr>
+<tr>
+<td><code>GET /status</code></td>
+<td>Server-Status (JSON)</td>
+</tr>
+<tr>
+<td><code>GET /health</code></td>
+<td>Health-Check (200/503)</td>
+</tr>
+<tr>
+<td><code>GET /test/play/{id}</code></td>
+<td>Tastendruck simulieren</td>
+</tr>
+</tbody>
+</table>
+<h2 id="kurz-checkliste-für-erweiterungen">Kurz-Checkliste für
+Erweiterungen</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />Neues Protokollfeld: in
+<code>handleServerMessage()</code> validieren (Typ/Range).</label></li>
+<li><label><input type="checkbox" />Neue UI-Anzeige: erst
+<code>elements</code> erweitern, dann eine dedizierte
+Render-Funktion.</label></li>
+<li><label><input type="checkbox" />Preload bei 100 Medien: Concurrency
+und Timeout realistisch wählen (z. B. 5000–15000 ms je nach
+Netz).</label></li>
+</ul>
+<h2 id="glossar-alphabetisch">Glossar (alphabetisch)</h2>
+<ul>
+<li><strong>AudioContext</strong> – WebAudio-API-Kontext; wird oft
+genutzt, um Audio auf iOS nach User-Geste “freizuschalten”.</li>
+<li><strong>Autoplay Policy</strong> – Browser-Regeln, die automatisches
+Abspielen ohne Nutzerinteraktion blockieren (v. a. Mobilgeräte).</li>
+<li><strong>Base64</strong> – Kodierung von Binärdaten als Text (hier:
+Silent-WAV als Data-URL).</li>
+<li><strong>Cache</strong> – Zwischenspeicher, um Ressourcen
+(Bild/Audio) erneut ohne Netz-Latenz zu verwenden.</li>
+<li><strong>CloneNode</strong> – DOM-Methode, um ein Element zu
+duplizieren (hier: Bild aus Cache als Clone einfügen).</li>
+<li><strong>Concurrency</strong> – Anzahl gleichzeitig laufender
+Operationen/Requests (hier: Preload parallel, aber begrenzt).</li>
+<li><strong>DOMContentLoaded</strong> – Event, wenn das HTML geparst ist
+und DOM-Elemente verfügbar sind.</li>
+<li><strong>Event Listener</strong> – Registrierte Callback-Funktion für
+Events (Click, Keydown, Audio-Events, WS-Events).</li>
+<li><strong>JSON</strong> – Textformat zur strukturierten
+Datenübertragung (Server↔︎Client Messages).</li>
+<li><strong>Preempt</strong> – “Neues Ereignis gewinnt”: laufende
+Wiedergabe wird sofort durch neue ID ersetzt.</li>
+<li><strong>Progress Bar</strong> – UI-Element, das den Fortschritt
+zeigt (hier: Audio <code>currentTime/duration</code>).</li>
+<li><strong>Race-Condition</strong> – Timing-Problem: ein “altes” Event
+(ended) trifft nach einem neuen Play ein; wird per ID-Check
+abgefangen.</li>
+<li><strong>Reconnect</strong> – Automatisches Wiederverbinden nach
+Verbindungsabbruch (hier: nach 5000 ms).</li>
+<li><strong>Semaphore</strong> – Synchronisationsmechanismus zur
+Begrenzung gleichzeitiger Tasks/Promises.</li>
+<li><strong>WebSocket (ws/wss)</strong> – Persistente bidirektionale
+Verbindung; <code>wss</code> ist TLS-verschlüsselt (HTTPS).</li>
+</ul>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

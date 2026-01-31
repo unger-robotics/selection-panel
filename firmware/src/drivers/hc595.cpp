@@ -1,17 +1,26 @@
+/**
+ * @file hc595.cpp
+ * @brief 74HC595 Implementation
+ */
+
+// =============================================================================
+// INCLUDES
+// =============================================================================
+
 #include "drivers/hc595.h"
 
 // =============================================================================
-// 74HC595 Implementation
+// OEFFENTLICHE FUNKTIONEN
 // =============================================================================
 
 void Hc595::init() {
-    // Latch-Pin (RCK/STCP): Steigende Flanke übernimmt Daten
+    // Latch-Pin (RCK/STCP): Steigende Flanke uebernimmt Daten
     pinMode(PIN_LED_RCK, OUTPUT);
     digitalWrite(PIN_LED_RCK, LOW);
 
     // Output Enable (OE): Active-Low
     if (USE_OE_PWM) {
-        // PWM für stufenlose Helligkeitsregelung
+        // PWM fuer stufenlose Helligkeitsregelung
         ledcSetup(LEDC_CHANNEL, PWM_FREQ_HZ, LEDC_RESOLUTION);
         ledcAttachPin(PIN_LED_OE, LEDC_CHANNEL);
         setBrightness(PWM_DUTY_PERCENT);
@@ -23,39 +32,23 @@ void Hc595::init() {
 }
 
 void Hc595::setBrightness(uint8_t percent) {
-    if (!USE_OE_PWM) return;
+    if (!USE_OE_PWM) {
+        return;
+    }
 
     // OE ist active-low: 100% Helligkeit = 0% PWM-Duty
-    // percent=100 → duty=0   → OE dauerhaft LOW → volle Helligkeit
-    // percent=0   → duty=255 → OE dauerhaft HIGH → aus
-    const uint32_t maxDuty = (1u << LEDC_RESOLUTION) - 1;
-    const uint32_t duty = maxDuty - (percent * maxDuty / 100);
+    // percent=100 -> duty=0   -> OE dauerhaft LOW -> volle Helligkeit
+    // percent=0   -> duty=255 -> OE dauerhaft HIGH -> aus
+    const uint32_t max_duty = (1u << LEDC_RESOLUTION) - 1;
+    const uint32_t duty = max_duty - (percent * max_duty / 100);
     ledcWrite(LEDC_CHANNEL, duty);
 }
 
-void Hc595::maskUnused(uint8_t* state) {
-    // Bei 10 LEDs: Byte 1 nutzt nur Bit 0-1 (LED 9-10)
-    // Bits 2-7 auf 0 setzen, sonst könnten "Ghost-LEDs" leuchten
-    if (LED_COUNT % 8 == 0) return;
-
-    const uint8_t usedBits = LED_COUNT % 8;
-    const uint8_t mask = static_cast<uint8_t>((1u << usedBits) - 1);
-    state[LED_BYTES - 1] &= mask;
-}
-
-void Hc595::latch() {
-    // Steigende Flanke an RCK übernimmt Schieberegister → Ausgänge
-    // Alle ICs in der Kette latchen synchron
-    digitalWrite(PIN_LED_RCK, HIGH);
-    delayMicroseconds(1);  // Setup-Zeit (Datenblatt: 20 ns)
-    digitalWrite(PIN_LED_RCK, LOW);
-}
-
-void Hc595::write(SpiBus& bus, uint8_t* state) {
+void Hc595::write(SpiBus &bus, uint8_t *state) {
     maskUnused(state);
 
     {
-        SpiGuard guard(bus, spi_);
+        SpiGuard guard(bus, _spi);
 
         // Daisy-Chain: Letztes Byte zuerst senden
         // Es "rutscht durch" alle ICs und landet im letzten (IC1 = LED 9-10)
@@ -66,4 +59,28 @@ void Hc595::write(SpiBus& bus, uint8_t* state) {
     }
 
     latch();
+}
+
+// =============================================================================
+// PRIVATE METHODEN
+// =============================================================================
+
+void Hc595::maskUnused(uint8_t *state) {
+    // Bei 10 LEDs: Byte 1 nutzt nur Bit 0-1 (LED 9-10)
+    // Bits 2-7 auf 0 setzen, sonst koennten "Ghost-LEDs" leuchten
+    if (LED_COUNT % 8 == 0) {
+        return;
+    }
+
+    const uint8_t used_bits = LED_COUNT % 8;
+    const uint8_t mask = static_cast<uint8_t>((1u << used_bits) - 1);
+    state[LED_BYTES - 1] &= mask;
+}
+
+void Hc595::latch() {
+    // Steigende Flanke an RCK uebernimmt Schieberegister -> Ausgaenge
+    // Alle ICs in der Kette latchen synchron
+    digitalWrite(PIN_LED_RCK, HIGH);
+    delayMicroseconds(1); // Setup-Zeit (Datenblatt: 20 ns)
+    digitalWrite(PIN_LED_RCK, LOW);
 }

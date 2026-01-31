@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>SELECTION-PANEL-ARCHITEKTUR.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="main-container">
+<h1 id="selection-panel-architektur-übersicht">Selection Panel:
+Architektur-Übersicht</h1>
+<p>Version 2.5.2 | Phase 7 (Raspberry Pi Integration) | Stand:
+2026-01-08</p>
+<h2 id="systemkontext">Systemkontext</h2>
+<p>Das Selection Panel verbindet 10 Taster und 10 LEDs über einen
+ESP32-S3 mit einem Raspberry Pi 5. Der Pi steuert Multimedia-Wiedergabe,
+der ESP32 übernimmt die Echtzeit-I/O.</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RASPBERRY PI 5                                 │
+│                    Python-Server + Web-Dashboard                            │
+│              (Serial: /dev/serial/by-id/usb-Espressif*)                     │
+└─────────────────────────────────┬───────────────────────────────────────────┘
+                                  │ USB-CDC @ 115200 Baud
+              ┌───────────────────┴───────────────────┐
+              │         SERIAL PROTOKOLL              │
+              │  ESP→Pi: READY, PRESS 001, RELEASE 001│
+              │  Pi→ESP: LEDSET 001, LEDON, LEDOFF... │
+              └───────────────────┬───────────────────┘
+                                  │
+┌─────────────────────────────────┴───────────────────────────────────────────┐
+│                           ESP32-S3 (XIAO)                                   │
+│                      FreeRTOS Dual-Core @ 240 MHz                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐                      ┌─────────────────┐               │
+│  │   io_task       │ ────LogEvent────▶    │  serial_task    │               │
+│  │   (Prio 5)      │      Queue           │   (Prio 2)      │               │
+│  │   5 ms Periode  │ ◀──LedCallback────── │                 │               │
+│  └────────┬────────┘                      └─────────────────┘               │
+│           │                                                                 │
+│  ┌────────┴────────────────────────────┐                                    │
+│  │           LOGIC LAYER               │                                    │
+│  │  ┌─────────────┐  ┌─────────────┐   │                                    │
+│  │  │  Debouncer  │  │  Selection  │   │                                    │
+│  │  │  30 ms/Btn  │─▶│ Last-Press  │   │                                    │
+│  │  │  Zeitbasiert│  │ Wins + Latch│   │                                    │
+│  │  └─────────────┘  └─────────────┘   │                                    │
+│  └────────┬────────────────────────────┘                                    │
+│           │                                                                 │
+│  ┌────────┴────────────────────────────┐                                    │
+│  │          DRIVER LAYER               │                                    │
+│  │  ┌─────────────┐  ┌─────────────┐   │                                    │
+│  │  │   Cd4021    │  │   Hc595     │   │                                    │
+│  │  │ Taster-In   │  │ LED-Out     │   │                                    │
+│  │  └──────┬──────┘  └──────┬──────┘   │                                    │
+│  └─────────┼────────────────┼──────────┘                                    │
+│            │                │                                               │
+│  ┌─────────┴────────────────┴──────────┐                                    │
+│  │        HAL: SpiBus + SpiGuard       │                                    │
+│  │         Mutex-geschützt             │                                    │
+│  └─────────────────┬───────────────────┘                                    │
+└────────────────────┼────────────────────────────────────────────────────────┘
+                     │ SPI-Bus (shared)
+┌────────────────────┴────────────────────────────────────────────────────────┐
+│                         HARDWARE                                            │
+│  ┌─────────────┐                           ┌─────────────┐                  │
+│  │  CD4021B    │  ←── 10× Taster           │  74HC595    │ ──→ 10× LEDs    │
+│  │  (PISO)     │      (Active-Low)         │  (SIPO)     │     (5 mm)      │
+│  └─────────────┘                           └─────────────┘                  │
+└─────────────────────────────────────────────────────────────────────────────┘</code></pre>
+<h2 id="schichtenmodell">Schichtenmodell</h2>
+<p>Die Firmware folgt einem strikten Schichtenmodell. Jede Schicht kennt
+nur die darunterliegende:</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Schicht</th>
+<th>Verzeichnis</th>
+<th>Verantwortung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entry</td>
+<td><code>main.cpp</code></td>
+<td>Queue erstellen, Tasks starten</td>
+</tr>
+<tr>
+<td>App</td>
+<td><code>src/app/</code></td>
+<td>FreeRTOS Tasks (io_task, serial_task)</td>
+</tr>
+<tr>
+<td>Logic</td>
+<td><code>src/logic/</code></td>
+<td>Debouncing, Selection-Logik</td>
+</tr>
+<tr>
+<td>Driver</td>
+<td><code>src/drivers/</code></td>
+<td>CD4021B, 74HC595 Ansteuerung</td>
+</tr>
+<tr>
+<td>HAL</td>
+<td><code>src/hal/</code></td>
+<td>SPI-Bus Abstraktion mit Mutex</td>
+</tr>
+</tbody>
+</table>
+<h2 id="datenfluss">Datenfluss</h2>
+<p>Ein Tastendruck durchläuft folgende Stationen:</p>
+<pre><code>  Hardware           Driver            Logic              App             Serial
+     │                  │                │                  │                │
+     │   Parallel Load  │                │                  │                │
+  CD4021B ──────────▶ readRaw() ──────▶ raw[2] ────────────┐                │
+     │                  │                │                  │                │
+     │                  │         Debouncer.update()       │                │
+     │                  │                │                  │                │
+     │                  │                ▼                  │                │
+     │                  │           deb[2] ────────────────┐                │
+     │                  │                │                  │                │
+     │                  │         Selection.update()       │                │
+     │                  │                │                  │                │
+     │                  │                ▼                  │                │
+     │                  │           activeId ──────────────┼───▶ LogEvent   │
+     │                  │                │                  │        │       │
+     │                  │                ▼                  │        │       │
+     │                  │           led[2] ────────────────┘        │       │
+     │                  │                │                          │       │
+     │   Latch Pulse    │                │                          ▼       │
+  74HC595 ◀──────────write() ◀───────────┘                     xQueueSend   │
+     │                  │                                          │       │
+     │                  │                                          ▼       │
+     │                  │                                    serial_task    │
+     │                  │                                          │       │
+     │                  │                                          ▼       │
+     │                  │                                   &quot;PRESS 001\n&quot; ──▶ Pi</code></pre>
+<h2 id="timing-diagramm">Timing-Diagramm</h2>
+<p>Die zeitlichen Zusammenhänge im System:</p>
+<pre><code>Zeit (ms)    0     5    10    15    20    25    30    35    40
+             │     │     │     │     │     │     │     │     │
+io_task      ├─R─W─┼─R─W─┼─R─W─┼─R─W─┼─R─W─┼─R─W─┼─R─W─┼─R─W─┤
+             │     │     │     │     │     │     │     │     │
+Taster       ════╗ │     │     │     │     │     │     │     │
+gedrückt         ║ │     │     │     │     │     │     │     │
+             ════╝ │     │     │     │     │     │     │     │
+                   │     │     │     │     │     │     │     │
+Debounce     ─────────────────────────────╗                   │
+(30 ms)                                   ║                   │
+             ─────────────────────────────╝                   │
+                                          │                   │
+LogEvent                                  ├──▶ Queue          │
+                                          │                   │
+PRESS 001                                 └──────────────────▶│ Serial
+
+R = CD4021B Read (500 kHz SPI, ~20 µs)
+W = 74HC595 Write (1 MHz SPI, ~16 µs)</code></pre>
+<h2 id="kernkonzepte">Kernkonzepte</h2>
+<h3 id="gemeinsamer-spi-bus">Gemeinsamer SPI-Bus</h3>
+<p>CD4021B und 74HC595 teilen sich einen SPI-Bus, verwenden aber
+unterschiedliche Modi:</p>
+<table class="table table-compact">
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 18%" />
+<col style="width: 20%" />
+<col style="width: 25%" />
+<col style="width: 24%" />
+</colgroup>
+<thead>
+<tr>
+<th>Chip</th>
+<th>Funktion</th>
+<th>SPI-Modus</th>
+<th>Taktfrequenz</th>
+<th>Bit-Ordnung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CD4021B</td>
+<td>Taster einlesen</td>
+<td>MODE1 (CPOL=0, CPHA=1)</td>
+<td>500 kHz</td>
+<td>MSB-first</td>
+</tr>
+<tr>
+<td>74HC595</td>
+<td>LEDs ansteuern</td>
+<td>MODE0 (CPOL=0, CPHA=0)</td>
+<td>1 MHz</td>
+<td>MSB-first</td>
+</tr>
+</tbody>
+</table>
+<p>Der <code>SpiGuard</code> (RAII-Pattern) stellt sicher, dass
+Transaktionen korrekt beendet werden:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    SpiGuard g<span class="op">(</span>bus<span class="op">,</span> settings<span class="op">);</span>  <span class="co">// lock() + beginTransaction()</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>data<span class="op">);</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>  <span class="co">// Automatisch: endTransaction() + unlock()</span></span></code></pre></div>
+<h3 id="bit-adressierung">Bit-Adressierung</h3>
+<p>Die Hardware-Verdrahtung bestimmt das Bit-Mapping:</p>
+<p><strong>CD4021B (Taster):</strong> BTN 1 → PI-8 (Pin 1), BTN 8 → PI-1
+(Pin 7)</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Taster-ID</th>
+<th>CD4021B PI</th>
+<th>Byte</th>
+<th>Bit</th>
+<th>Formel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>PI-8</td>
+<td>0</td>
+<td>0</td>
+<td><code>(id-1) % 8</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>PI-7</td>
+<td>0</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>PI-1</td>
+<td>0</td>
+<td>7</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>PI-8</td>
+<td>1</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>PI-7</td>
+<td>1</td>
+<td>1</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>74HC595 (LEDs):</strong> LED 1 → QA, LED 8 → QH</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>LED-ID</th>
+<th>74HC595 Q</th>
+<th>Byte</th>
+<th>Bit</th>
+<th>Formel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>QA</td>
+<td>0</td>
+<td>0</td>
+<td><code>(id-1) % 8</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>QB</td>
+<td>0</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>QH</td>
+<td>0</td>
+<td>7</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>QA</td>
+<td>1</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>QB</td>
+<td>1</td>
+<td>1</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Code in <code>bitops.h</code>:</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Identische Formel für beide Chips dank korrekter Verdrahtung</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> btn_byte<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> btn_bit<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span>  <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">%</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> led_byte<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span> <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">/</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="at">static</span> <span class="kw">inline</span> <span class="dt">uint8_t</span> led_bit<span class="op">(</span><span class="dt">uint8_t</span> id<span class="op">)</span>  <span class="op">{</span> <span class="cf">return</span> <span class="op">(</span>id <span class="op">-</span> <span class="dv">1</span><span class="op">)</span> <span class="op">%</span> <span class="dv">8</span><span class="op">;</span> <span class="op">}</span></span></code></pre></div>
+<h3 id="first-bit-problem-cd4021b">First-Bit-Problem (CD4021B)</h3>
+<p>Nach dem Parallel-Load liegt PI-1 (das MSB, also BTN 8) sofort am
+Q8-Ausgang, bevor der erste Clock kommt. SPI samplet aber erst nach der
+ersten Flanke. Die Lösung: Das erste Bit wird vor dem SPI-Transfer per
+<code>digitalRead()</code> gesichert:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> Cd4021<span class="op">::</span>readRaw<span class="op">(</span>SpiBus<span class="op">&amp;</span> bus<span class="op">,</span> <span class="dt">uint8_t</span><span class="op">*</span> out<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 1. Parallel Load</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    digitalWrite<span class="op">(</span>PIN_BTN_PS<span class="op">,</span> HIGH<span class="op">);</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    delayMicroseconds<span class="op">(</span><span class="dv">2</span><span class="op">);</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    digitalWrite<span class="op">(</span>PIN_BTN_PS<span class="op">,</span> LOW<span class="op">);</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    delayMicroseconds<span class="op">(</span><span class="dv">2</span><span class="op">);</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 2. First Bit Rescue: PI-1 liegt bereits an Q8!</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uint8_t</span> firstBit <span class="op">=</span> digitalRead<span class="op">(</span>PIN_BTN_MISO<span class="op">);</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 3. SPI Transfer (restliche Bits)</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    SpiGuard g<span class="op">(</span>bus<span class="op">,</span> <span class="va">spi_</span><span class="op">);</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>out<span class="op">,</span> BTN_BYTES<span class="op">);</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 4. First Bit einsetzen (MSB von Byte 0)</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    out<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">=</span> <span class="op">(</span>out<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">&gt;&gt;</span> <span class="dv">1</span><span class="op">)</span> <span class="op">|</span> <span class="op">(</span>firstBit <span class="op">&lt;&lt;</span> <span class="dv">7</span><span class="op">);</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="zeitbasiertes-debouncing">Zeitbasiertes Debouncing</h3>
+<p>Jeder Taster hat einen eigenen Timer. Bei Änderung des Rohwerts wird
+der Timer zurückgesetzt. Erst wenn der Timer 30 ms abgelaufen ist und
+der Rohwert stabil bleibt, wird der entprellte Zustand übernommen. Diese
+Methode ist unabhängig von der Abtastrate und erlaubt schnelle
+Tastenfolgen.</p>
+<h3 id="selection-logik">Selection-Logik</h3>
+<p>Die Selection-Logik folgt dem “Last Press Wins”-Prinzip: Wird ein
+neuer Taster gedrückt, überschreibt er die vorherige Auswahl. Mit
+<code>LATCH_SELECTION=true</code> bleibt die Auswahl nach Loslassen
+bestehen.</p>
+<h2 id="konfigurationsparameter">Konfigurationsparameter</h2>
+<p>Die wichtigsten Parameter in <code>config.h</code>:</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Wert</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IO_PERIOD_MS</code></td>
+<td>5</td>
+<td>Abtastrate des IO-Tasks (200 Hz)</td>
+</tr>
+<tr>
+<td><code>DEBOUNCE_MS</code></td>
+<td>30</td>
+<td>Entprellzeit pro Taster</td>
+</tr>
+<tr>
+<td><code>LATCH_SELECTION</code></td>
+<td>true</td>
+<td>Auswahl bleibt nach Loslassen</td>
+</tr>
+<tr>
+<td><code>PWM_DUTY_PERCENT</code></td>
+<td>50</td>
+<td>LED-Helligkeit (0-100%)</td>
+</tr>
+<tr>
+<td><code>LED_REFRESH_EVERY_CYCLE</code></td>
+<td>true</td>
+<td>Kompensiert SPI-Glitches</td>
+</tr>
+<tr>
+<td><code>SERIAL_PROTOCOL_ONLY</code></td>
+<td>true</td>
+<td>Nur Protokoll, keine Debug-Logs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pin-zuordnung-esp32-s3-xiao">Pin-Zuordnung (ESP32-S3 XIAO)</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Funktion</th>
+<th>Chip</th>
+<th>Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D10</td>
+<td>MOSI</td>
+<td>74HC595</td>
+<td>SER (Data In)</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>SCK</td>
+<td>Beide</td>
+<td>SRCLK / CLK (shared)</td>
+</tr>
+<tr>
+<td>D0</td>
+<td>RCK</td>
+<td>74HC595</td>
+<td>RCLK (Latch)</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>OE</td>
+<td>74HC595</td>
+<td>Output Enable (PWM)</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>MISO</td>
+<td>CD4021B</td>
+<td>Q8 (Data Out)</td>
+</tr>
+<tr>
+<td>D1</td>
+<td>P/S</td>
+<td>CD4021B</td>
+<td>Parallel/Serial Load</td>
+</tr>
+</tbody>
+</table>
+<h2 id="skalierung-auf-100-buttons">Skalierung auf 100 Buttons</h2>
+<p>Die Architektur ist für 100 Taster/LEDs vorbereitet:</p>
+<ol type="1">
+<li><code>BTN_COUNT</code> und <code>LED_COUNT</code> auf 100
+setzen</li>
+<li><code>BTN_BYTES</code> und <code>LED_BYTES</code> werden automatisch
+auf 13 berechnet</li>
+<li>Zusätzliche Schieberegister in Daisy-Chain verkabeln</li>
+<li>Die Logik-Schicht skaliert automatisch (Bit-Arrays)</li>
+</ol>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Konfiguration</th>
+<th>SPI-Transferzeit</th>
+<th>Budget (5 ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10 Buttons</td>
+<td>~40 µs</td>
+<td>0.8%</td>
+</tr>
+<tr>
+<td>100 Buttons</td>
+<td>~320 µs</td>
+<td>6.4%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>

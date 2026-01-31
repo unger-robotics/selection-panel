@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>GLOSSAR.mathjax_tmp</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+  
+  <script>
+  window.MathJax = {
+    loader: {
+      load: ['[tex]/ams']
+    },
+    tex: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true,
+      processEnvironments: true,
+      packages: {'[+]': ['ams']},
+      macros: {
+        dd: '{\\,\\mathrm{d}}',
+        degC: '{^{\\circ}\\!\\mathrm{C}}',
+        Ohm: '{\\,\\Omega}',
+        ohm: '{\\,\\Omega}',
+        degree: '{^{\\circ}}'
+      }
+    },
+    options: {
+      skipHtmlTags: ['script','noscript','style','textarea','pre','code','kbd','samp']
+    }
+  };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div class="main-container">
+<h1 id="glossar">Glossar</h1>
+<p>Version 2.5.2 | Stand: 2026-01-08</p>
+<ul>
+<li><strong>JSON</strong> = <em>Datenformat</em> (Text-Notation für
+Schlüssel/Wert und Listen)</li>
+<li><strong>WebSocket / UART / SPI</strong> = <em>Transportwege</em>
+(Kommunikationsprotokolle für Datenübertragung)</li>
+<li><strong>Server / Raspberry Pi / ESP32-S3</strong> =
+<em>Rollen/Computer</em> (wer koordiniert vs. wer I/O macht)</li>
+<li><strong>Schieberegister</strong> = <em>Hardware-Trick</em> (Serial ↔︎
+Parallel zur I/O-Erweiterung)</li>
+</ul>
+<hr />
+<h2 id="websocket">WebSocket</h2>
+<p><strong>Regel:</strong> WebSocket ist eine <strong>dauerhafte
+TCP-Verbindung</strong> zwischen Browser und Server. Der Server kann
+<strong>sofort pushen</strong>, ohne dass der Browser ständig “pollt”
+(<strong>polling</strong> = zyklisches Nachfragen per HTTP).</p>
+<p><strong>Beispiel:</strong> Browser verbindet sich auf
+<code>/ws</code>. Server sendet:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span><span class="st">&quot;play&quot;</span><span class="fu">,</span><span class="dt">&quot;id&quot;</span><span class="fu">:</span><span class="dv">42</span><span class="fu">}</span></span></code></pre></div>
+<p><strong>Anwendung:</strong> Der Pi-Server broadcastet
+(<strong>broadcast</strong> = an alle verbundenen Clients gleichzeitig
+senden) das Event an alle verbundenen Browser → Bild/Audio startet ohne
+neue HTTP-Anfrage pro Tastendruck.</p>
+<hr />
+<h2 id="json">JSON</h2>
+<p><strong>Regel:</strong> JSON ist <strong>Text</strong>, der Daten als
+Schlüssel/Wert-Paare und Listen darstellt. Leicht im Browser (JS) und in
+Python zu parsen (<strong>parsen</strong> = Text in eine Datenstruktur
+umwandeln).</p>
+<p><strong>Beispiel:</strong></p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span><span class="st">&quot;PRESS&quot;</span><span class="fu">,</span><span class="dt">&quot;id&quot;</span><span class="fu">:</span><span class="dv">42</span><span class="fu">,</span><span class="dt">&quot;t_ms&quot;</span><span class="fu">:</span><span class="dv">123456</span><span class="fu">}</span></span></code></pre></div>
+<p><strong>Anwendung:</strong> Einheitliches Format für Events
+(<strong>Event</strong> = Zustandsänderung wie “Taste
+gedrückt/losgelassen”) (<code>PRESS</code>, <code>RELEASE</code>,
+<code>play</code>, <code>stop</code>) zwischen Pi ↔︎ Browser (WebSocket)
+und ggf. Pi-intern.</p>
+<hr />
+<h2 id="server">Server</h2>
+<p><strong>Regel:</strong> Ein Server ist ein Programm, das
+<strong>Anfragen annimmt</strong> (HTTP/WebSocket) und
+<strong>Antworten/Ereignisse liefert</strong>.</p>
+<p><strong>Beispiel:</strong> <code>server.py</code> macht
+typischerweise:</p>
+<ul>
+<li><code>GET /</code> → liefert <code>index.html</code></li>
+<li><code>GET /media/...</code> → liefert Datei</li>
+<li><code>WS /ws</code> → hält Verbindung offen und sendet Events</li>
+</ul>
+<p><strong>Anwendung:</strong> Der Raspberry Pi ist der Koordinator:
+nimmt UART-Events vom ESP an, verwaltet Medien und verteilt “play/stop”
+an Browser.</p>
+<hr />
+<h2 id="uart-serial">UART (Serial)</h2>
+<p><strong>Regel:</strong> UART ist eine <strong>asynchrone
+serielle</strong> Punkt-zu-Punkt-Verbindung (TX/RX + GND). Üblich:
+<strong>115200 Baud</strong>, 8N1 (<strong>Baud</strong> = Symbole pro
+Sekunde, hier praktisch Bitrate; <strong>8N1</strong> = 8 Datenbits,
+kein Paritätsbit, 1 Stopbit).</p>
+<p><strong>Zahl:</strong> Bei 115200 Baud und 8N1 sind es grob:</p>
+<div class="math math-display">$$
+$\frac{115200\,\mathrm{bit/s}}{10\,\mathrm{bit/Byte}} \approx 11520\,\mathrm{Byte/s} \approx 11,5\,\mathrm{kB/s}$
+$$</div>
+<p><strong>Anwendung:</strong> ESP32-S3 → Pi sendet kurze Textzeilen wie
+<code>"PRESS 042\n"</code>. Das ist schnell genug, weil pro Event nur
+wenige Bytes übertragen werden.</p>
+<hr />
+<h2 id="spi-und-spi-ähnlich">SPI (und “SPI-ähnlich”)</h2>
+<p><strong>Regel:</strong> SPI ist eine <strong>synchrone</strong>
+serielle Verbindung: Master erzeugt <strong>Clock</strong>, Daten werden
+pro Takt geschoben (<strong>synchron</strong> = beide Seiten teilen sich
+den Takt).</p>
+<p><strong>Beispiel (klassisch):</strong></p>
+<ul>
+<li>SCLK (Clock)</li>
+<li>MOSI (Daten zum Slave)</li>
+<li>ggf. MISO (Daten zurück)</li>
+<li>CS/Latch (Rahmen/Übernahme)</li>
+</ul>
+<p><strong>Anwendung:</strong> Der ESP32 taktet Bits in/aus die
+Schieberegister:</p>
+<ul>
+<li><strong>74HC595</strong>: seriell rein → parallel raus (LEDs)</li>
+<li><strong>CD4021B</strong>: parallel rein → seriell raus (Taster)</li>
+</ul>
+<p>Das ist “SPI-ähnlich”, weil du Clock + Data nutzt, aber zusätzlich
+<strong>Latch/Load</strong>-Signale brauchst
+(<strong>Latch/Load</strong> = Signal zum “Übernehmen/Einlesen” eines
+kompletten Bitpakets).</p>
+<hr />
+<h2 id="schieberegister-74hc595-cd4021b">Schieberegister (74HC595 /
+CD4021B)</h2>
+<p><strong>Regel:</strong> Schieberegister wandeln <strong>Serial ↔︎
+Parallel</strong>. Mehrere lassen sich <strong>kaskadieren</strong> (QH’
+→ nächstes SER) (<strong>kaskadieren</strong> = hintereinanderschalten,
+sodass die Bitkette verlängert wird).</p>
+<p><strong>Beispiel:</strong></p>
+<ul>
+<li>13× 74HC595 → (13·8 = 104) LED-Ausgänge</li>
+<li>13× CD4021B → (13·8 = 104) Taster-Eingänge</li>
+</ul>
+<p><strong>Anwendung:</strong></p>
+<ul>
+<li><strong>74HC595 (Output):</strong> ESP schiebt 100 Bits → dann
+<strong>Latch</strong> (<strong>Latch</strong> = Speicher-Übernahme:
+Ausgänge wechseln gleichzeitig) → alle LEDs aktualisieren
+“gleichzeitig”.</li>
+<li><strong>CD4021B (Input):</strong> ESP löst
+<strong>Parallel-Load</strong> aus (<strong>Parallel-Load</strong> =
+momentanes Einfrieren der 8 Eingänge in interne Speicherbits) → dann
+schiebt er 100 Bits raus und liest sie ein.</li>
+</ul>
+<hr />
+<h2 id="raspberry-pi">Raspberry Pi</h2>
+<p><strong>Regel:</strong> Ein Raspberry Pi ist ein
+<strong>Linux-Single-Board-Computer</strong>: Dateisystem, Netzwerk,
+HDMI, Audio, Python-Server.</p>
+<p><strong>Anwendung:</strong></p>
+<ul>
+<li>hostet (<strong>hosten</strong> = Dateien/Services bereitstellen)
+Web-App (HTML/JS/CSS) + Medien-Dateien</li>
+<li>läuft <code>server.py</code> (aiohttp): WebSocket + Datei-Serving
+(<strong>Serving</strong> = Ausliefern von Dateien über HTTP)</li>
+<li>liest USB-Serial vom ESP32-S3</li>
+<li>verteilt Events an Browser und triggert Medienwiedergabe (im
+Browser)</li>
+</ul>
+<hr />
+<h2 id="esp32-s3-seeed-xiao">ESP32-S3 (Seeed XIAO)</h2>
+<p><strong>Regel:</strong> ESP32-S3 ist ein
+<strong>Mikrocontroller</strong>: sehr schnell für I/O, deterministisch
+(<strong>deterministisch</strong> = Timing ist bei gleicher Last gut
+reproduzierbar), echtzeit-nah. Das Seeed XIAO ist das Board-Layout mit
+USB, Pins, Regler usw.</p>
+<p><strong>Anwendung:</strong></p>
+<ul>
+<li>scannt Taster über CD4021B (schnell, periodisch)</li>
+<li>setzt LEDs über 74HC595 (schnell, latched)</li>
+<li>entprellt und erzeugt Events</li>
+<li>sendet Events über UART an den Pi</li>
+<li><strong>FreeRTOS Dual-Core:</strong> io_task auf Core 1, serial_task
+auf Core 1</li>
+</ul>
+<hr />
+<h2 id="hc595-dip-16-led-ausgabe">74HC595 (DIP-16) – LED-Ausgabe</h2>
+<pre><code>        ┌──────┐
+   QB ─┤1   16├─ VCC (+3,3V)
+   QC ─┤2   15├─ QA (Output 0)
+   QD ─┤3   14├─ SER (Data In)     ← D10 (MOSI)
+   QE ─┤4   13├─ OE (→ GND/PWM)    ← D2
+   QF ─┤5   12├─ RCLK (Latch)      ← D0
+   QG ─┤6   11├─ SRCLK (Clock)     ← D8 (SCK)
+   QH ─┤7   10├─ SRCLR (→ VCC)
+  GND ─┤8    9├─ QH&#39; (Serial Out)
+        └──────┘</code></pre>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Name</th>
+<th>Verbindung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>14</td>
+<td>SER</td>
+<td>← D10 (MOSI) oder vorheriger QH’</td>
+</tr>
+<tr>
+<td>11</td>
+<td>SRCLK</td>
+<td>← D8 (SCK, shared)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>RCLK</td>
+<td>← D0 (Latch)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>QH’</td>
+<td>→ nächster SER oder offen</td>
+</tr>
+<tr>
+<td>10</td>
+<td>SRCLR</td>
+<td>→ VCC (nicht löschen)</td>
+</tr>
+<tr>
+<td>13</td>
+<td>OE</td>
+<td>← D2 (PWM für Helligkeit) oder → GND</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SPI-Mode:</strong> MODE0 (CPOL=0, CPHA=0) @ 1 MHz</p>
+<hr />
+<h2 id="cd4021b-dip-16-taster-eingabe">CD4021B (DIP-16) –
+Taster-Eingabe</h2>
+<pre><code>         ┌──────┐
+   PI-8 ─┤1   16├─ VDD (+3,3V)
+   Q6   ─┤2   15├─ PI-7
+   Q8   ─┤3   14├─ PI-6            Q8 → D9 (MISO)
+   PI-4 ─┤4   13├─ PI-5
+   PI-3 ─┤5   12├─ Q7
+   PI-2 ─┤6   11├─ DS (Serial In)  ← VCC (letzter) oder vorheriger Q8
+   PI-1 ─┤7   10├─ CLK             ← D8 (SCK, shared)
+  VSS   ─┤8    9├─ P/S (Load)      ← D1
+         └──────┘</code></pre>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Pin</th>
+<th>Name</th>
+<th>Verbindung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>Q8</td>
+<td>→ D9 (MISO) oder nächster DS</td>
+</tr>
+<tr>
+<td>10</td>
+<td>CLK</td>
+<td>← D8 (SCK, shared)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>P/S</td>
+<td>← D1 (Load-Signal)</td>
+</tr>
+<tr>
+<td>11</td>
+<td>DS</td>
+<td>← <strong>VCC</strong> (letzter IC!) oder vorheriger Q8</td>
+</tr>
+</tbody>
+</table>
+<p><strong>P/S = HIGH für Load</strong> – invertiert zum 74HC165!</p>
+<p><strong>SPI-Mode:</strong> MODE1 (CPOL=0, CPHA=1) @ 500 kHz</p>
+<hr />
+<h2 id="hardware-verdrahtung-und-bit-mapping">Hardware-Verdrahtung und
+Bit-Mapping</h2>
+<h3 id="button-verdrahtung-cd4021b">Button-Verdrahtung (CD4021B)</h3>
+<p>Die Taster sind so verdrahtet, dass BTN 1 an PI-8 (Pin 1) liegt:</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Taster</th>
+<th>CD4021B Pin</th>
+<th>PI-Eingang</th>
+<th>Bit im Datenstrom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BTN 1</td>
+<td>Pin 1</td>
+<td>PI-8</td>
+<td>Bit 0</td>
+</tr>
+<tr>
+<td>BTN 2</td>
+<td>Pin 15</td>
+<td>PI-7</td>
+<td>Bit 1</td>
+</tr>
+<tr>
+<td>BTN 3</td>
+<td>Pin 14</td>
+<td>PI-6</td>
+<td>Bit 2</td>
+</tr>
+<tr>
+<td>BTN 4</td>
+<td>Pin 13</td>
+<td>PI-5</td>
+<td>Bit 3</td>
+</tr>
+<tr>
+<td>BTN 5</td>
+<td>Pin 4</td>
+<td>PI-4</td>
+<td>Bit 4</td>
+</tr>
+<tr>
+<td>BTN 6</td>
+<td>Pin 5</td>
+<td>PI-3</td>
+<td>Bit 5</td>
+</tr>
+<tr>
+<td>BTN 7</td>
+<td>Pin 6</td>
+<td>PI-2</td>
+<td>Bit 6</td>
+</tr>
+<tr>
+<td>BTN 8</td>
+<td>Pin 7</td>
+<td>PI-1</td>
+<td>Bit 7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formel:</strong> <code>btn_bit(id) = (id - 1) % 8</code></p>
+<h3 id="led-verdrahtung-74hc595">LED-Verdrahtung (74HC595)</h3>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>LED</th>
+<th>74HC595 Pin</th>
+<th>Ausgang</th>
+<th>Bit im Datenstrom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LED 1</td>
+<td>Pin 15</td>
+<td>QA</td>
+<td>Bit 0</td>
+</tr>
+<tr>
+<td>LED 2</td>
+<td>Pin 1</td>
+<td>QB</td>
+<td>Bit 1</td>
+</tr>
+<tr>
+<td>LED 3</td>
+<td>Pin 2</td>
+<td>QC</td>
+<td>Bit 2</td>
+</tr>
+<tr>
+<td>LED 4</td>
+<td>Pin 3</td>
+<td>QD</td>
+<td>Bit 3</td>
+</tr>
+<tr>
+<td>LED 5</td>
+<td>Pin 4</td>
+<td>QE</td>
+<td>Bit 4</td>
+</tr>
+<tr>
+<td>LED 6</td>
+<td>Pin 5</td>
+<td>QF</td>
+<td>Bit 5</td>
+</tr>
+<tr>
+<td>LED 7</td>
+<td>Pin 6</td>
+<td>QG</td>
+<td>Bit 6</td>
+</tr>
+<tr>
+<td>LED 8</td>
+<td>Pin 7</td>
+<td>QH</td>
+<td>Bit 7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formel:</strong> <code>led_bit(id) = (id - 1) % 8</code></p>
+<hr />
+<h2 id="taster-input-decoder-cd4021b-active-low">Taster-Input Decoder
+(CD4021B, Active-Low)</h2>
+<p><strong>Active-Low:</strong> gedrückt ⇒ Bit = <code>0</code> (Pull-up
+Widerstand 10kΩ)</p>
+<p><strong>Beispiel: BTN 5 gedrückt</strong></p>
+<pre class="text"><code>Bit:    7    6    5    4    3    2    1    0
+BTN:    8    7    6    5    4    3    2    1
+Wert:   1    1    1    0    1    1    1    1
+                     ↑
+               BTN 5 gedrückt (Bit 4 = 0)</code></pre>
+<p><strong>Hex:</strong> <code>0xEF</code> (1110 1111)</p>
+<p><strong>Code:</strong></p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">bool</span> isPressed <span class="op">=</span> <span class="op">!((</span>stream <span class="op">&gt;&gt;</span> btn_bit<span class="op">(</span><span class="dv">5</span><span class="op">))</span> <span class="op">&amp;</span> <span class="dv">1</span><span class="op">);</span>  <span class="co">// btn_bit(5) = 4</span></span></code></pre></div>
+<hr />
+<h2 id="led-output-decoder-74hc595-active-high">LED-Output Decoder
+(74HC595, Active-High)</h2>
+<p><strong>Active-High:</strong> an ⇒ Bit = <code>1</code></p>
+<p><strong>Beispiel: LED 5 an</strong></p>
+<pre class="text"><code>Bit:    7    6    5    4    3    2    1    0
+LED:    8    7    6    5    4    3    2    1
+Wert:   0    0    0    1    0    0    0    0
+                     ↑
+                LED 5 an (Bit 4 = 1)</code></pre>
+<p><strong>Hex:</strong> <code>0x10</code> (0001 0000)</p>
+<p><strong>Code:</strong></p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>led_set<span class="op">(</span>ledBytes<span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="kw">true</span><span class="op">);</span>  <span class="co">// setzt Bit 4</span></span></code></pre></div>
+<hr />
+<h2 id="led100-beispiel-skalierung">LED100-Beispiel (Skalierung)</h2>
+<p>100-LED-Config: <code>NUM_LEDS = 100</code> →
+<code>NUM_BYTES = 13</code></p>
+<p><strong>Ziel:</strong> <em>nur LED100 an</em></p>
+<h3 id="berechnung">Berechnung</h3>
+<ul>
+<li><code>idx0 = 100 - 1 = 99</code></li>
+<li><code>ic = 99 / 8 = 12</code> → <strong>IC #12</strong> (letzter in
+der Kette)</li>
+<li><code>bit = 99 % 8 = 3</code> → <strong>Bit 3</strong></li>
+<li><code>mask = 1 &lt;&lt; 3 = 0x08</code></li>
+</ul>
+<h3 id="array-zustand">Array-Zustand</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ledBytes<span class="op">[</span><span class="dv">12</span><span class="op">]</span> <span class="op">=</span> <span class="bn">0x08</span><span class="op">;</span>  <span class="co">// LED100 an</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ledBytes<span class="op">[</span><span class="fl">0.</span><span class="er">.11</span><span class="op">]</span> <span class="op">=</span> <span class="bn">0x00</span><span class="op">;</span></span></code></pre></div>
+<h3 id="spi-transfer-reihenfolge">SPI-Transfer (Reihenfolge!)</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Hinten zuerst, vorne zuletzt</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> NUM_BYTES <span class="op">-</span> <span class="dv">1</span><span class="op">;</span> i <span class="op">&gt;=</span> <span class="dv">0</span><span class="op">;</span> i<span class="op">--)</span> <span class="op">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    SPI<span class="op">.</span>transfer<span class="op">(</span>ledBytes<span class="op">[</span>i<span class="op">]);</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>digitalWrite<span class="op">(</span>PIN_LED_RCK<span class="op">,</span> HIGH<span class="op">);</span>  <span class="co">// Latch</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>digitalWrite<span class="op">(</span>PIN_LED_RCK<span class="op">,</span> LOW<span class="op">);</span></span></code></pre></div>
+<hr />
+<h2 id="binär-hex-tabelle">Binär-Hex-Tabelle</h2>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Binär</th>
+<th>Hex</th>
+<th>Dezimal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0000</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>0001</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>0010</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>0011</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>0100</td>
+<td>4</td>
+<td>4</td>
+</tr>
+<tr>
+<td>0101</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr>
+<td>0110</td>
+<td>6</td>
+<td>6</td>
+</tr>
+<tr>
+<td>0111</td>
+<td>7</td>
+<td>7</td>
+</tr>
+<tr>
+<td>1000</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>1001</td>
+<td>9</td>
+<td>9</td>
+</tr>
+<tr>
+<td>1010</td>
+<td>A</td>
+<td>10</td>
+</tr>
+<tr>
+<td>1011</td>
+<td>B</td>
+<td>11</td>
+</tr>
+<tr>
+<td>1100</td>
+<td>C</td>
+<td>12</td>
+</tr>
+<tr>
+<td>1101</td>
+<td>D</td>
+<td>13</td>
+</tr>
+<tr>
+<td>1110</td>
+<td>E</td>
+<td>14</td>
+</tr>
+<tr>
+<td>1111</td>
+<td>F</td>
+<td>15</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="firmware-architektur-freertos">Firmware-Architektur
+(FreeRTOS)</h2>
+<p>Die Firmware verwendet <strong>FreeRTOS Dual-Core</strong> auf dem
+ESP32-S3:</p>
+<table class="table table-compact">
+<thead>
+<tr>
+<th>Task</th>
+<th>Core</th>
+<th>Priorität</th>
+<th>Periode</th>
+<th>Funktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>io_task</td>
+<td>1</td>
+<td>5</td>
+<td>5 ms</td>
+<td>Hardware-I/O (Taster, LEDs)</td>
+</tr>
+<tr>
+<td>serial_task</td>
+<td>1</td>
+<td>2</td>
+<td>Event-driven</td>
+<td>Protokoll-Handler</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Design-Prinzipien:</strong></p>
+<ul>
+<li><strong>Queue-basiert:</strong> io_task sendet LogEvents über
+FreeRTOS-Queue an serial_task</li>
+<li><strong>Mutex-geschützt:</strong> SPI-Bus wird durch Mutex vor
+gleichzeitigem Zugriff geschützt</li>
+<li><strong>RAII:</strong> SpiGuard für automatisches Cleanup</li>
+<li><strong>Zeitbasiertes Debouncing:</strong> Jeder Taster hat eigenen
+Timer (30 ms)</li>
+<li><strong>Bitfeld-basiert:</strong> LEDs/Taster als Byte-Arrays mit
+Maskenoperationen</li>
+</ul>
+<p>Core 0 bleibt für WiFi/BLE reserviert (falls später benötigt).</p>
+<hr />
+<p><em>Stand: 2026-01-08 | Version 2.5.2</em></p>
+</div>
+</body>
+</html>
