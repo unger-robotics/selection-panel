@@ -61,7 +61,7 @@ NUM_MEDIA = 10 if PROTOTYPE_MODE else 100
 
 # Serial-Port zum ESP32
 # Port wechselt zwischen ttyACM0 und ttyACM1
-SERIAL_PORT = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_98:3D:AE:EA:08:1C-if00"
+SERIAL_PORT = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_E8:06:90:A0:E5:14-if00"
 SERIAL_BAUD = 115200
 
 # HTTP-Server
